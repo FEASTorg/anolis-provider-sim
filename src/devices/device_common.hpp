@@ -1,5 +1,15 @@
 #pragma once
 
+// Prevent Windows macros from polluting our namespace
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#endif
+
 #include <algorithm>
 #include <map>
 #include <string>
@@ -21,12 +31,14 @@ namespace sim_devices
 
     static inline google::protobuf::Timestamp now_ts()
     {
-        return google::protobuf::util::TimeUtil::GetCurrentTime();
+        // Use parentheses to prevent Windows macro expansion of GetCurrentTime
+        return (google::protobuf::util::TimeUtil::GetCurrentTime)();
     }
 
     static inline double clamp(double v, double lo, double hi)
     {
-        return std::max(lo, std::min(hi, v));
+        // Use parentheses to prevent Windows macro expansion of min/max
+        return (std::max)(lo, (std::min)(hi, v));
     }
 
     static inline bool value_is_type(const Value &v, ValueType t)
