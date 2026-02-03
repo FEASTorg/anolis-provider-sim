@@ -263,8 +263,48 @@ python scripts\test_phase2.py --test relay_control
 python scripts\test_phase2.py --test precondition_check
 ```
 
+---
+
+## Common Issues
+
+### Windows Macro Conflicts
+
+If you see errors like:
+
+```
+error C2039: 'GetTickCount': is not a member of 'google::protobuf::util::TimeUtil'
+error C2589: '(': illegal token on right side of '::'
+```
+
+Windows headers define macros (`min`, `max`, `GetTickCount`, etc.) that conflict with C++ code. Solution:
+
+1. Add these defines **before** any Windows headers:
+
+   ```cpp
+   #ifdef _WIN32
+   #define NOMINMAX
+   #define WIN32_LEAN_AND_MEAN
+   #endif
+   ```
+
+2. Use parentheses to prevent macro expansion:
+   ```cpp
+   (std::max)(a, b);  // Not std::max(a, b)
+   (TimeUtil::GetCurrentTime)();  // Not GetCurrentTime()
+   ```
+
+### vcpkg Not Finding Packages
+
+Ensure `VCPKG_ROOT` is set and you're using the toolchain file:
+
+```powershell
+echo $env:VCPKG_ROOT  # Should show path
+cmake .. -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+```
+
 ### Resources
 
 - **Architecture**: `working/planning.md` - Design principles and roadmap
 - **Protocol spec**: `external/anolis/spec/device-provider/` - ADPP reference
 - **Development notes**: `working/` - Phase completions and validation guides
+- **Contributing**: See `external/anolis/docs/CONTRIBUTING.md` for CI/build pitfalls
