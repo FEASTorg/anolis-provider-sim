@@ -1,4 +1,3 @@
-// src/transport/framed_stdio.hpp
 #pragma once
 
 #include <cstdint>

@@ -1,4 +1,3 @@
-// src/transport/framed_stdio.cpp
 #include "framed_stdio.hpp"
 
 #include <array>
