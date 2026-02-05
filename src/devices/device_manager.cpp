@@ -45,11 +45,23 @@ namespace sim_devices
     std::vector<Device> list_devices(bool include_health)
     {
         std::vector<Device> out;
-        out.push_back(tempctl::get_device_info(include_health));
-        out.push_back(motorctl::get_device_info(include_health));
-        out.push_back(relayio::get_device_info(include_health));
-        out.push_back(analogsensor::get_device_info(include_health));
+
+        if (!fault_injection::is_device_unavailable(tempctl::kDeviceId))
+            out.push_back(tempctl::get_device_info(include_health));
+        
+        if (!fault_injection::is_device_unavailable(motorctl::kDeviceId))
+            out.push_back(motorctl::get_device_info(include_health));
+
+        if (!fault_injection::is_device_unavailable(relayio::kDeviceId))
+            out.push_back(relayio::get_device_info(include_health));
+
+        if (!fault_injection::is_device_unavailable(analogsensor::kDeviceId))
+            out.push_back(analogsensor::get_device_info(include_health));
+
+        // Control device is always available (unless we want to simulate total provider failure)
+        // But the test injects faults per device.
         out.push_back(sim_control::get_device_info(include_health));
+        
         return out;
     }
 
@@ -99,6 +111,7 @@ namespace sim_devices
         // Check if device is unavailable due to fault injection
         if (fault_injection::is_device_unavailable(device_id))
         {
+            // std::cerr << "[Sim] Device " << device_id << " is UNAVAILABLE\n";
             return {}; // Return empty to simulate unavailable
         }
 
