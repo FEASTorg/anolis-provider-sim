@@ -20,6 +20,7 @@ namespace sim_devices
             std::map<std::string, std::vector<CallFailureFault>> call_failure_faults; // device_id -> function faults
 
             std::mt19937 rng{std::random_device{}()};
+            std::mutex mutex;
         };
 
         static State &state()
@@ -44,6 +45,7 @@ namespace sim_devices
         void clear_all_faults()
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             s.device_unavailable_faults.clear();
             s.signal_faults.clear();
             s.call_latency_faults.clear();
@@ -57,6 +59,7 @@ namespace sim_devices
         void inject_device_unavailable(const std::string &device_id, int64_t duration_ms)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             DeviceUnavailableFault fault;
             fault.expires_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(duration_ms);
             s.device_unavailable_faults[device_id] = fault;
@@ -65,6 +68,7 @@ namespace sim_devices
         bool is_device_unavailable(const std::string &device_id)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             auto it = s.device_unavailable_faults.find(device_id);
             if (it == s.device_unavailable_faults.end())
             {
@@ -88,6 +92,7 @@ namespace sim_devices
         void inject_signal_fault(const std::string &device_id, const std::string &signal_id, int64_t duration_ms)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             SignalFault fault;
             fault.signal_id = signal_id;
             fault.expires_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(duration_ms);
@@ -97,6 +102,7 @@ namespace sim_devices
         bool is_signal_faulted(const std::string &device_id, const std::string &signal_id)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             auto it = s.signal_faults.find(device_id);
             if (it == s.signal_faults.end())
             {
@@ -133,6 +139,7 @@ namespace sim_devices
         void inject_call_latency(const std::string &device_id, int64_t latency_ms)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             CallLatencyFault fault;
             fault.latency_ms = latency_ms;
             s.call_latency_faults[device_id] = fault;
@@ -141,6 +148,7 @@ namespace sim_devices
         int64_t get_call_latency(const std::string &device_id)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             auto it = s.call_latency_faults.find(device_id);
             if (it == s.call_latency_faults.end())
             {
@@ -156,6 +164,7 @@ namespace sim_devices
         void inject_call_failure(const std::string &device_id, const std::string &function_id, double failure_rate)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             CallFailureFault fault;
             fault.function_id = function_id;
             fault.failure_rate = std::clamp(failure_rate, 0.0, 1.0);
@@ -179,6 +188,7 @@ namespace sim_devices
         bool should_call_fail(const std::string &device_id, const std::string &function_id)
         {
             State &s = state();
+            std::lock_guard<std::mutex> lock(s.mutex);
             auto it = s.call_failure_faults.find(device_id);
             if (it == s.call_failure_faults.end())
             {
