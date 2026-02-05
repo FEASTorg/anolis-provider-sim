@@ -1,9 +1,14 @@
 #include "device_manager.hpp"
 
 #include <chrono>
+#include <thread>
 
 #include "tempctl_device.hpp"
 #include "motorctl_device.hpp"
+#include "relayio_device.hpp"
+#include "analogsensor_device.hpp"
+#include "sim_control_device.hpp"
+#include "../fault_injection.hpp"
 
 namespace sim_devices
 {
@@ -29,6 +34,8 @@ namespace sim_devices
         // Update all device physics
         tempctl::update_physics(seconds);
         motorctl::update_physics(seconds);
+        relayio::update_physics(seconds);
+        analogsensor::update_physics(seconds);
     }
 
     // -----------------------------
@@ -40,11 +47,20 @@ namespace sim_devices
         std::vector<Device> out;
         out.push_back(tempctl::get_device_info(include_health));
         out.push_back(motorctl::get_device_info(include_health));
+        out.push_back(relayio::get_device_info(include_health));
+        out.push_back(analogsensor::get_device_info(include_health));
+        out.push_back(sim_control::get_device_info(include_health));
         return out;
     }
 
     CapabilitySet describe_device(const std::string &device_id)
     {
+        // Check if device is unavailable due to fault injection
+        if (fault_injection::is_device_unavailable(device_id))
+        {
+            return CapabilitySet(); // Return empty to simulate unavailable
+        }
+
         if (device_id == tempctl::kDeviceId)
         {
             return tempctl::get_capabilities();
@@ -53,6 +69,21 @@ namespace sim_devices
         if (device_id == motorctl::kDeviceId)
         {
             return motorctl::get_capabilities();
+        }
+
+        if (device_id == relayio::kDeviceId)
+        {
+            return relayio::get_capabilities();
+        }
+
+        if (device_id == analogsensor::kDeviceId)
+        {
+            return analogsensor::get_capabilities();
+        }
+
+        if (device_id == sim_control::kDeviceId)
+        {
+            return sim_control::get_capabilities();
         }
 
         // Unknown device: return empty caps
@@ -65,18 +96,53 @@ namespace sim_devices
     {
         step_world();
 
+        // Check if device is unavailable due to fault injection
+        if (fault_injection::is_device_unavailable(device_id))
+        {
+            return {}; // Return empty to simulate unavailable
+        }
+
+        // Read signals from device
+        std::vector<SignalValue> signals;
+        
         if (device_id == tempctl::kDeviceId)
         {
-            return tempctl::read_signals(signal_ids);
+            signals = tempctl::read_signals(signal_ids);
         }
-
-        if (device_id == motorctl::kDeviceId)
+        else if (device_id == motorctl::kDeviceId)
         {
-            return motorctl::read_signals(signal_ids);
+            signals = motorctl::read_signals(signal_ids);
+        }
+        else if (device_id == relayio::kDeviceId)
+        {
+            signals = relayio::read_signals(signal_ids);
+        }
+        else if (device_id == analogsensor::kDeviceId)
+        {
+            signals = analogsensor::read_signals(signal_ids);
+        }
+        else if (device_id == sim_control::kDeviceId)
+        {
+            signals = sim_control::read_signals(signal_ids);
+        }
+        else
+        {
+            // Unknown device
+            return {};
         }
 
-        // Unknown device
-        return {};
+        // Apply signal fault injection if any faults are active
+        for (auto &signal : signals)
+        {
+            if (fault_injection::is_signal_faulted(device_id, signal.signal_id()))
+            {
+                // Override quality to FAULT
+                signal.set_quality(SignalValue::QUALITY_FAULT);
+                // Value remains frozen (no update to value field)
+            }
+        }
+
+        return signals;
     }
 
     CallResult call_function(
@@ -86,6 +152,28 @@ namespace sim_devices
     {
         step_world();
 
+        // Check if device is unavailable due to fault injection
+        if (fault_injection::is_device_unavailable(device_id))
+        {
+            return bad("device unavailable (injected fault)");
+        }
+
+        // Check for injected call latency
+        int64_t latency_ms = fault_injection::get_call_latency(device_id);
+        if (latency_ms > 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(latency_ms));
+        }
+
+        // Check for injected call failure (need function name - convert function_id to name)
+        // For simplicity, we'll check using string representation of function_id
+        std::string function_id_str = std::to_string(function_id);
+        if (fault_injection::should_call_fail(device_id, function_id_str))
+        {
+            return bad("function call failed (injected fault)");
+        }
+
+        // Route to device implementations
         if (device_id == tempctl::kDeviceId)
         {
             return tempctl::call_function(function_id, args);
@@ -94,6 +182,21 @@ namespace sim_devices
         if (device_id == motorctl::kDeviceId)
         {
             return motorctl::call_function(function_id, args);
+        }
+
+        if (device_id == relayio::kDeviceId)
+        {
+            return relayio::call_function(function_id, args);
+        }
+
+        if (device_id == analogsensor::kDeviceId)
+        {
+            return analogsensor::call_function(function_id, args);
+        }
+
+        if (device_id == sim_control::kDeviceId)
+        {
+            return sim_control::call_function(function_id, args);
         }
 
         return nf("unknown device_id");

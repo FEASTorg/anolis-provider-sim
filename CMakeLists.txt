@@ -21,9 +21,13 @@ protobuf_generate_cpp(
 add_executable(anolis-provider-sim
     src/main.cpp
     src/handlers.cpp
+    src/fault_injection.cpp
     src/devices/device_manager.cpp
     src/devices/tempctl_device.cpp
     src/devices/motorctl_device.cpp
+    src/devices/relayio_device.cpp
+    src/devices/analogsensor_device.cpp
+    src/devices/sim_control_device.cpp
     src/transport/framed_stdio.cpp
     ${ADPP_PROTO_SRCS}
 )
