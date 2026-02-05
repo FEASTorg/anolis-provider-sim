@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <random>
+#include <mutex>
 
 namespace sim_devices
 {
