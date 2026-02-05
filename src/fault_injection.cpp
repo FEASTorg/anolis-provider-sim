@@ -77,7 +77,8 @@ namespace sim_devices
             }
 
             // Check expiration
-            if (std::chrono::steady_clock::now() >= it->second.expires_at)
+            auto now = std::chrono::steady_clock::now();
+            if (now >= it->second.expires_at)
             {
                 s.device_unavailable_faults.erase(it);
                 return false;
