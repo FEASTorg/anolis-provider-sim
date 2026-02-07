@@ -100,7 +100,7 @@ def main():
         resp.hello.provider_name == "anolis-provider-sim"
     ), f"provider name mismatch: {resp.hello.provider_name}"
 
-    print("\n✓ Hello handshake successful", file=sys.stderr)
+    print("\nOK: Hello handshake successful", file=sys.stderr)
 
     # Clean shutdown
     proc.stdin.close()

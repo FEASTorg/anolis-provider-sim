@@ -157,7 +157,7 @@ def test_list_devices(client):
     assert "tempctl0" in device_ids, "Missing tempctl0"
     assert "motorctl0" in device_ids, "Missing motorctl0"
 
-    print(f"✓ Found {len(resp.list_devices.devices)} devices: {device_ids}")
+    print(f"OK: Found {len(resp.list_devices.devices)} devices: {device_ids}")
     return True
 
 
@@ -188,7 +188,7 @@ def test_describe_tempctl(client):
     assert 2 in function_ids  # set_setpoint
     assert 3 in function_ids  # set_relay
 
-    print("✓ All expected signals and functions present")
+    print("OK: All expected signals and functions present")
     return True
 
 
@@ -204,7 +204,7 @@ def test_temp_convergence(client):
     # Set setpoint to 80C
     resp = client.call_function("tempctl0", 2, {"value": make_double_value(80.0)})
     assert resp.status.code == 1, "Failed to set setpoint"
-    print("  Setpoint set to 80°C")
+    print("  Setpoint set to 80degC")
 
     # Read temperatures over time
     print("  Reading temperatures...")
@@ -231,14 +231,14 @@ def test_temp_convergence(client):
         )
 
         temps.append((tc1, tc2))
-        print(f"    Read {i+1}: TC1={tc1:.1f}°C, TC2={tc2:.1f}°C")
+        print(f"    Read {i+1}: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC")
         time.sleep(1.5)
 
     # Verify convergence: last temp should be higher than first
     assert temps[-1][0] > temps[0][0], "TC1 temperature did not increase"
     assert temps[-1][1] > temps[0][1], "TC2 temperature did not increase"
 
-    print(f"✓ Temperatures converging: {temps[0][0]:.1f} → {temps[-1][0]:.1f}°C")
+    print(f"OK: Temperatures converging: {temps[0][0]:.1f} -> {temps[-1][0]:.1f}degC")
     return True
 
 
@@ -280,7 +280,7 @@ def test_motor_control(client):
         speeds[-1] > 1000
     ), f"Motor speed too low: {speeds[-1]:.0f} RPM (expected ~1600 RPM)"
 
-    print(f"✓ Motor speed ramping up: {speeds[0]:.0f} → {speeds[-1]:.0f} RPM")
+    print(f"OK: Motor speed ramping up: {speeds[0]:.0f} -> {speeds[-1]:.0f} RPM")
     return True
 
 
@@ -334,7 +334,7 @@ def test_relay_control(client):
     assert relay1 == True, "Relay 1 state mismatch"
     assert relay2 == False, "Relay 2 state mismatch"
 
-    print(f"✓ Relay states correct: R1={relay1}, R2={relay2}")
+    print(f"OK: Relay states correct: R1={relay1}, R2={relay2}")
     return True
 
 
@@ -358,7 +358,7 @@ def test_precondition_check(client):
     assert (
         resp.status.code == 12
     ), f"Expected CODE_FAILED_PRECONDITION (12), got {resp.status.code}"
-    print(f"  ✓ set_relay blocked: {resp.status.message}")
+    print(f"  OK: set_relay blocked: {resp.status.message}")
 
     return True
 
@@ -404,25 +404,25 @@ def main():
                     test_func(client)
                     results.append((name, True))
                 except Exception as e:
-                    print(f"✗ {name} FAILED: {e}", file=sys.stderr)
+                    print(f"FAIL: {name} FAILED: {e}", file=sys.stderr)
                     results.append((name, False))
 
             print("\n" + "=" * 50)
             print("Test Summary:")
             for name, passed in results:
-                status = "✓ PASS" if passed else "✗ FAIL"
+                status = "PASS" if passed else "FAIL"
                 print(f"  {status}: {name}")
 
             all_passed = all(r[1] for r in results)
             if all_passed:
-                print("\n🎉 All Phase 2 tests passed!")
+                print("\nHooray! All Phase 2 tests passed!")
                 return 0
             else:
-                print("\n❌ Some tests failed")
+                print("\nSome tests failed")
                 return 1
         else:
             tests[args.test](client)
-            print(f"\n✓ Test '{args.test}' passed!")
+            print(f"\nOK: Test '{args.test}' passed!")
             return 0
 
     finally:
