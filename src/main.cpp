@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -26,11 +29,40 @@ static void log_err(const std::string &msg)
 
 int main(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
+    // Parse --crash-after argument for chaos testing
+    double crash_after_sec = -1.0;
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string arg = argv[i];
+        if (arg == "--crash-after" && i + 1 < argc)
+        {
+            try
+            {
+                crash_after_sec = std::stod(argv[++i]);
+            }
+            catch (...)
+            {
+                log_err("invalid --crash-after value");
+                return 1;
+            }
+        }
+    }
 
     set_binary_mode_stdio();
     log_err("starting (transport=stdio+uint32_le)");
+
+    // Start crash timer if requested (for supervision testing)
+    if (crash_after_sec > 0.0)
+    {
+        log_err("CHAOS MODE: will crash after " + std::to_string(crash_after_sec) + " seconds");
+        std::thread([crash_after_sec]()
+                    {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(static_cast<long long>(crash_after_sec * 1000)));
+            std::cerr << "anolis-provider-sim: CRASHING NOW (exit 42)\n" << std::flush;
+            std::exit(42); })
+            .detach();
+    }
 
     std::vector<uint8_t> frame;
     std::string io_err;
