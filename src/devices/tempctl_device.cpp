@@ -271,8 +271,16 @@ namespace sim_devices
         // Signal Reading
         // -----------------------------
 
-        static const std::set<std::string> kKnownSignals = {
-            kSigTc1Temp, kSigTc2Temp, kSigRelay1State, kSigRelay2State, kSigControlMode, kSigSetpoint};
+        // Use intentional leak pattern for process-lifetime constant.
+        // This avoids static destruction order issues when std::exit() is called
+        // by background threads (e.g., crash timer in chaos testing mode).
+        // The set is never destroyed, which is safe for process-lifetime constants.
+        static const std::set<std::string>& get_known_signals()
+        {
+            static std::set<std::string>* kKnownSignals = new std::set<std::string>{
+                kSigTc1Temp, kSigTc2Temp, kSigRelay1State, kSigRelay2State, kSigControlMode, kSigSetpoint};
+            return *kKnownSignals;
+        }
 
         static std::vector<std::string> default_signals()
         {
@@ -293,7 +301,7 @@ namespace sim_devices
 
             for (const auto &id : ids)
             {
-                if (kKnownSignals.count(id) == 0)
+                if (get_known_signals().count(id) == 0)
                 {
                     // Omit unknown signals
                     continue;
