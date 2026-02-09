@@ -8,15 +8,58 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 ### Device Roster
 
-| Device ID        | Type                 | Signals                                                                     | Functions                                   |
-| ---------------- | -------------------- | --------------------------------------------------------------------------- | ------------------------------------------- |
-| `tempctl0`       | Temperature Control  | `mode`, `setpoint`, `temp_pv`, `heater_state`                              | `set_mode`, `set_setpoint`, `set_relay`     |
-| `motorctl0`      | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_current`, `motor2_current`         | `set_motor1_speed`, `set_motor2_speed`      |
-| `relayio0`       | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2`      | `set_relay_ch1`, `set_relay_ch2`            |
-| `analogsensor0`  | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                             | `calibrate_channel`, `inject_noise`         |
-| `sim_control`    | Fault Injection      | _(none)_                                                                   | See [Fault Injection API](#fault-injection) |
+| Device ID       | Type                 | Signals                                                              | Functions                                   |
+| --------------- | -------------------- | -------------------------------------------------------------------- | ------------------------------------------- |
+| `tempctl0`      | Temperature Control  | `mode`, `setpoint`, `temp_pv`, `heater_state`                        | `set_mode`, `set_setpoint`, `set_relay`     |
+| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_current`, `motor2_current`   | `set_motor1_speed`, `set_motor2_speed`      |
+| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`            |
+| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                       | `calibrate_channel`, `inject_noise`         |
+| `sim_control`   | Fault Injection      | _(none)_                                                             | See [Fault Injection API](#fault-injection) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
+
+## Configuration
+
+Provider-sim supports device configuration via YAML files. This allows operators to customize device topology without code changes.
+
+### Basic Usage
+
+```bash
+# Run with configuration file
+./anolis-provider-sim --config config/provider-sim.yaml
+
+# Run without configuration (uses hardcoded defaults)
+./anolis-provider-sim
+```
+
+### Configuration Files
+
+Provider-sim includes several example configurations:
+
+- **`config/provider-sim.yaml`** - Default configuration matching hardcoded devices
+- **`config/multi-tempctl.yaml`** - Multiple temperature controllers (demonstrates same-type devices)
+- **`config/minimal.yaml`** - Single device for lightweight testing
+
+### Configuration Schema
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for complete schema documentation and hardware provider guidance.
+
+### Quick Example
+
+```yaml
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 25.0
+
+  - id: tempctl1
+    type: tempctl
+    initial_temp: 30.0
+
+simulation:
+  noise_enabled: true
+  update_rate_hz: 10
+```
 
 ## Fault Injection API
 
@@ -29,10 +72,12 @@ Provider-sim includes a special control device (`sim_control`) with functions fo
 Makes a device appear unavailable for a specified duration.
 
 **Parameters:**
+
 - `device_id` (string): Target device ID
 - `duration_ms` (int64): Unavailability duration in milliseconds
 
 **Behavior:**
+
 - DescribeDevice returns empty capabilities
 - ReadSignals returns empty signal list
 - CallFunction returns `INTERNAL` error
@@ -43,11 +88,13 @@ Makes a device appear unavailable for a specified duration.
 Forces a signal to report `FAULT` quality for a specified duration.
 
 **Parameters:**
+
 - `device_id` (string): Target device ID
 - `signal_id` (string): Target signal ID
 - `duration_ms` (int64): Fault duration in milliseconds
 
 **Behavior:**
+
 - Signal quality becomes `FAULT`
 - Signal value freezes at current value
 - Automatically clears after duration expires
@@ -57,10 +104,12 @@ Forces a signal to report `FAULT` quality for a specified duration.
 Adds artificial latency to all function calls on a device.
 
 **Parameters:**
+
 - `device_id` (string): Target device ID
 - `latency_ms` (int64): Added latency in milliseconds
 
 **Behavior:**
+
 - All CallFunction requests delayed by specified amount
 - Useful for testing timeout handling and responsiveness under load
 
@@ -69,11 +118,13 @@ Adds artificial latency to all function calls on a device.
 Causes a specific function to fail probabilistically.
 
 **Parameters:**
+
 - `device_id` (string): Target device ID
 - `function_id` (string): Target function ID
 - `failure_rate` (double): Failure probability (0.0 = never fail, 1.0 = always fail)
 
 **Behavior:**
+
 - Function returns `INTERNAL` error at specified rate
 - Uses uniform random distribution for probabilistic failures
 
@@ -84,6 +135,7 @@ Clears all active fault injections.
 **Parameters:** _(none)_
 
 **Behavior:**
+
 - Removes all device unavailability faults
 - Removes all signal faults
 - Removes all latency injections

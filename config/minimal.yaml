@@ -1,0 +1,11 @@
+# Minimal Configuration
+# Only essential devices for lightweight testing
+
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 20.0
+
+simulation:
+  noise_enabled: false
+  update_rate_hz: 5

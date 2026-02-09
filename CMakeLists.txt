@@ -31,6 +31,7 @@ elseif(DEFINED VCPKG_TARGET_TRIPLET AND VCPKG_TARGET_TRIPLET MATCHES "tsan")
 endif()
 
 find_package(Protobuf REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 set(ADPP_PROTO
     ${CMAKE_CURRENT_SOURCE_DIR}/external/anolis/spec/device-provider/protocol.proto
@@ -46,7 +47,9 @@ add_executable(anolis-provider-sim
     src/main.cpp
     src/handlers.cpp
     src/fault_injection.cpp
+    src/config.cpp
     src/devices/device_manager.cpp
+    src/devices/device_factory.cpp
     src/devices/tempctl_device.cpp
     src/devices/motorctl_device.cpp
     src/devices/relayio_device.cpp
@@ -63,6 +66,7 @@ target_include_directories(anolis-provider-sim PRIVATE
 
 target_link_libraries(anolis-provider-sim PRIVATE
     protobuf::libprotobuf
+    yaml-cpp::yaml-cpp
 )
 
 if (WIN32)

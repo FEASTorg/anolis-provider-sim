@@ -3,6 +3,7 @@
 Phase 2 validation tests for anolis-provider-sim.
 Tests ListDevices, DescribeDevice, ReadSignals, Call handlers with simulated devices.
 """
+
 import argparse
 import struct
 import subprocess
@@ -149,9 +150,9 @@ def test_list_devices(client):
     resp = client.list_devices()
 
     assert resp.status.code == 1, f"Expected CODE_OK, got {resp.status.code}"
-    assert (
-        len(resp.list_devices.devices) == 2
-    ), f"Expected 2 devices, got {len(resp.list_devices.devices)}"
+    assert len(resp.list_devices.devices) == 2, (
+        f"Expected 2 devices, got {len(resp.list_devices.devices)}"
+    )
 
     device_ids = [d.device_id for d in resp.list_devices.devices]
     assert "tempctl0" in device_ids, "Missing tempctl0"
@@ -231,7 +232,7 @@ def test_temp_convergence(client):
         )
 
         temps.append((tc1, tc2))
-        print(f"    Read {i+1}: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC")
+        print(f"    Read {i + 1}: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC")
         time.sleep(1.5)
 
     # Verify convergence: last temp should be higher than first
@@ -271,14 +272,14 @@ def test_motor_control(client):
             0.0,
         )
         speeds.append(speed)
-        print(f"    Read {i+1}: Motor1={speed:.0f} RPM")
+        print(f"    Read {i + 1}: Motor1={speed:.0f} RPM")
         time.sleep(1.0)
 
     # Verify speed increases
     assert speeds[-1] > speeds[0], "Motor speed did not increase"
-    assert (
-        speeds[-1] > 1000
-    ), f"Motor speed too low: {speeds[-1]:.0f} RPM (expected ~1600 RPM)"
+    assert speeds[-1] > 1000, (
+        f"Motor speed too low: {speeds[-1]:.0f} RPM (expected ~1600 RPM)"
+    )
 
     print(f"OK: Motor speed ramping up: {speeds[0]:.0f} -> {speeds[-1]:.0f} RPM")
     return True
@@ -331,8 +332,8 @@ def test_relay_control(client):
         None,
     )
 
-    assert relay1 == True, "Relay 1 state mismatch"
-    assert relay2 == False, "Relay 2 state mismatch"
+    assert relay1, "Relay 1 state mismatch"
+    assert not relay2, "Relay 2 state mismatch"
 
     print(f"OK: Relay states correct: R1={relay1}, R2={relay2}")
     return True
@@ -355,9 +356,9 @@ def test_precondition_check(client):
     )
 
     # Expect FAILED_PRECONDITION (code = 12)
-    assert (
-        resp.status.code == 12
-    ), f"Expected CODE_FAILED_PRECONDITION (12), got {resp.status.code}"
+    assert resp.status.code == 12, (
+        f"Expected CODE_FAILED_PRECONDITION (12), got {resp.status.code}"
+    )
     print(f"  OK: set_relay blocked: {resp.status.message}")
 
     return True

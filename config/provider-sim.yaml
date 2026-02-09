@@ -1,0 +1,21 @@
+# Provider-Sim Configuration (Default)
+# Matches hardcoded devices for backward compatibility testing
+
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 25.0
+
+  - id: motorctl0
+    type: motorctl
+    max_speed: 100.0
+
+  - id: relayio0
+    type: relayio
+
+  - id: analogsensor0
+    type: analogsensor
+
+simulation:
+  noise_enabled: true
+  update_rate_hz: 10

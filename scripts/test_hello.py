@@ -3,10 +3,10 @@
 Smoke test for anolis-provider-sim Phase 1.
 Validates Hello handshake over stdio+uint32_le framing.
 """
+
 import struct
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 # Add build directory to path for protocol_pb2 import
@@ -93,12 +93,12 @@ def main():
 
     assert resp.request_id == 1, f"request_id mismatch: {resp.request_id}"
     assert resp.status.code == 1, f"status code not OK: {resp.status.code}"
-    assert (
-        resp.hello.protocol_version == "v0"
-    ), f"protocol version mismatch: {resp.hello.protocol_version}"
-    assert (
-        resp.hello.provider_name == "anolis-provider-sim"
-    ), f"provider name mismatch: {resp.hello.provider_name}"
+    assert resp.hello.protocol_version == "v0", (
+        f"protocol version mismatch: {resp.hello.protocol_version}"
+    )
+    assert resp.hello.provider_name == "anolis-provider-sim", (
+        f"provider name mismatch: {resp.hello.provider_name}"
+    )
 
     print("\nOK: Hello handshake successful", file=sys.stderr)
 

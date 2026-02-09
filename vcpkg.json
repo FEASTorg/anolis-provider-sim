@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Simulated device provider for Anolis runtime testing",
   "dependencies": [
-    "protobuf"
+    "protobuf",
+    "yaml-cpp"
   ]
 }
