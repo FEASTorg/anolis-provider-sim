@@ -205,8 +205,6 @@ Run the validation scenario suite:
 python scripts/run_scenarios.py
 ```
 
-See [../anolis/scenarios/](../anolis/scenarios/) for scenario implementations.
-
 ## Architecture
 
 Provider-sim implements ADPP v0 using gRPC. Key components:
