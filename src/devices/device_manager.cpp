@@ -31,11 +31,28 @@ static void step_world() {
   seconds = clamp(seconds, 0.0, 0.25); // max 250ms per step
   last_update = now;
 
-  // Update all device physics
-  tempctl::update_physics(seconds);
-  motorctl::update_physics(seconds);
-  relayio::update_physics(seconds);
-  analogsensor::update_physics(seconds);
+  // Update all device physics for each registered device instance
+  if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
+    auto registered =
+        anolis_provider_sim::DeviceFactory::get_registered_devices();
+    for (const auto &entry : registered) {
+      if (entry.type == "tempctl") {
+        tempctl::update_physics(entry.id, seconds);
+      } else if (entry.type == "motorctl") {
+        motorctl::update_physics(entry.id, seconds);
+      } else if (entry.type == "relayio") {
+        relayio::update_physics(entry.id, seconds);
+      } else if (entry.type == "analogsensor") {
+        analogsensor::update_physics(entry.id, seconds);
+      }
+    }
+  } else {
+    // Fallback: update singleton instances (legacy behavior)
+    tempctl::update_physics(tempctl::kDeviceId, seconds);
+    motorctl::update_physics(motorctl::kDeviceId, seconds);
+    relayio::update_physics(relayio::kDeviceId, seconds);
+    analogsensor::update_physics(analogsensor::kDeviceId, seconds);
+  }
 }
 
 // -----------------------------
@@ -55,22 +72,20 @@ std::vector<Device> list_devices(bool include_health) {
         continue; // Skip unavailable devices
       }
 
-      // Get device info based on type
+      // Get device info based on type, passing the configured device_id
       Device device_info;
       if (entry.type == "tempctl") {
-        device_info = tempctl::get_device_info(include_health);
+        device_info = tempctl::get_device_info(entry.id, include_health);
       } else if (entry.type == "motorctl") {
-        device_info = motorctl::get_device_info(include_health);
+        device_info = motorctl::get_device_info(entry.id, include_health);
       } else if (entry.type == "relayio") {
-        device_info = relayio::get_device_info(include_health);
+        device_info = relayio::get_device_info(entry.id, include_health);
       } else if (entry.type == "analogsensor") {
-        device_info = analogsensor::get_device_info(include_health);
+        device_info = analogsensor::get_device_info(entry.id, include_health);
       } else {
         continue; // Unknown type
       }
 
-      // Override device_id with configured ID
-      device_info.set_device_id(entry.id);
       out.push_back(device_info);
     }
 
@@ -143,13 +158,13 @@ read_signals(const std::string &device_id,
   std::vector<SignalValue> signals;
 
   if (device_type == "tempctl") {
-    signals = tempctl::read_signals(signal_ids);
+    signals = tempctl::read_signals(device_id, signal_ids);
   } else if (device_type == "motorctl") {
-    signals = motorctl::read_signals(signal_ids);
+    signals = motorctl::read_signals(device_id, signal_ids);
   } else if (device_type == "relayio") {
-    signals = relayio::read_signals(signal_ids);
+    signals = relayio::read_signals(device_id, signal_ids);
   } else if (device_type == "analogsensor") {
-    signals = analogsensor::read_signals(signal_ids);
+    signals = analogsensor::read_signals(device_id, signal_ids);
   } else if (device_id == sim_control::kDeviceId) {
     signals = sim_control::read_signals(signal_ids);
   } else {
@@ -202,19 +217,19 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
 
   // Route to device implementations based on type
   if (device_type == "tempctl") {
-    return tempctl::call_function(function_id, args);
+    return tempctl::call_function(device_id, function_id, args);
   }
 
   if (device_type == "motorctl") {
-    return motorctl::call_function(function_id, args);
+    return motorctl::call_function(device_id, function_id, args);
   }
 
   if (device_type == "relayio") {
-    return relayio::call_function(function_id, args);
+    return relayio::call_function(device_id, function_id, args);
   }
 
   if (device_type == "analogsensor") {
-    return analogsensor::call_function(function_id, args);
+    return analogsensor::call_function(device_id, function_id, args);
   }
 
   if (device_id == sim_control::kDeviceId) {

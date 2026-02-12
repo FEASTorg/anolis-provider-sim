@@ -51,25 +51,28 @@ struct State {
   double setpoint_c = 60.0;
 };
 
-static State &state() {
-  static State s;
-  return s;
+// Per-device instance state storage
+static std::map<std::string, State> g_device_states;
+
+static State &get_state(const std::string &device_id) {
+  return g_device_states[device_id];
 }
 
 // -----------------------------
 // Initialization
 // -----------------------------
 
-void init() {
-  // Already initialized via static
+void init(const std::string &device_id) {
+  // Initialize state for this device instance
+  g_device_states[device_id] = State();
 }
 
 // -----------------------------
 // Physics
 // -----------------------------
 
-void update_physics(double dt) {
-  State &s = state();
+void update_physics(const std::string &device_id, double dt) {
+  State &s = get_state(device_id);
 
   // Ambient temperature
   const double ambient = 23.0;
@@ -106,14 +109,14 @@ void update_physics(double dt) {
 // Device Info
 // -----------------------------
 
-Device get_device_info(bool /*include_health*/) {
+Device get_device_info(const std::string &device_id, bool /*include_health*/) {
   Device d;
-  d.set_device_id(kDeviceId);
+  d.set_device_id(device_id);
   d.set_provider_name(kProviderName);
   d.set_type_id("sim.temp_control_card");
   d.set_type_version("1.0");
   d.set_label("Sim Temp Control Card (2TC + 2Relay)");
-  d.set_address("sim://tempctl0");
+  d.set_address("sim://" + device_id);
   (*d.mutable_tags())["family"] = "sim";
   (*d.mutable_tags())["kind"] = "temp_control";
   return d;
@@ -280,8 +283,8 @@ static std::vector<std::string> default_signals() {
 }
 
 std::vector<SignalValue>
-read_signals(const std::vector<std::string> &signal_ids) {
-  State &s = state();
+read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+  State &s = get_state(device_id);
 
   std::vector<std::string> ids = signal_ids;
   if (ids.empty()) {
@@ -317,9 +320,9 @@ read_signals(const std::vector<std::string> &signal_ids) {
 // Function Calls
 // -----------------------------
 
-CallResult call_function(uint32_t function_id,
+CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = state();
+  State &s = get_state(device_id);
 
   if (function_id == kFnSetMode) {
     std::string mode;
@@ -371,7 +374,7 @@ CallResult call_function(uint32_t function_id,
     return ok();
   }
 
-  return nf("unknown function_id for tempctl0");
+  return nf("unknown function_id for " + device_id);
 }
 
 } // namespace tempctl

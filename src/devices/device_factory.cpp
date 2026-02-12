@@ -15,11 +15,11 @@ static bool g_config_loaded = false;
 bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
   try {
     if (spec.type == "tempctl") {
-      // Initialize tempctl with custom parameters
-      sim_devices::tempctl::init(); // Use existing init
+      // Initialize tempctl with device-specific ID
+      sim_devices::tempctl::init(spec.id);
 
-      // TODO: In future, add init_with_params(id, initial_temp) to device
-      // modules For now, we accept the default initialization
+      // TODO: In future, apply device-specific config parameters
+      // For now, we use default initialization
 
       DeviceRegistryEntry entry;
       entry.id = spec.id;
@@ -31,7 +31,7 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
                 << "' (type: tempctl)" << std::endl;
       return true;
     } else if (spec.type == "motorctl") {
-      sim_devices::motorctl::init();
+      sim_devices::motorctl::init(spec.id);
 
       DeviceRegistryEntry entry;
       entry.id = spec.id;
@@ -43,7 +43,7 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
                 << "' (type: motorctl)" << std::endl;
       return true;
     } else if (spec.type == "relayio") {
-      sim_devices::relayio::init();
+      sim_devices::relayio::init(spec.id);
 
       DeviceRegistryEntry entry;
       entry.id = spec.id;
@@ -55,7 +55,7 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
                 << "' (type: relayio)" << std::endl;
       return true;
     } else if (spec.type == "analogsensor") {
-      sim_devices::analogsensor::init();
+      sim_devices::analogsensor::init(spec.id);
 
       DeviceRegistryEntry entry;
       entry.id = spec.id;

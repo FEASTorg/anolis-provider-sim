@@ -18,24 +18,24 @@ using anolis::deviceprovider::v1::Value;
 // Device ID
 constexpr const char *kDeviceId = "motorctl0";
 
-// Initialize device state
-void init();
+// Initialize device state for a specific instance
+void init(const std::string &device_id);
 
-// Update physics (called by device_manager)
-void update_physics(double dt);
+// Update physics for a specific instance (called by device_manager)
+void update_physics(const std::string &device_id, double dt);
 
-// Get device info
-Device get_device_info(bool include_health = false);
+// Get device info for a specific instance
+Device get_device_info(const std::string &device_id, bool include_health = false);
 
-// Get capabilities
+// Get capabilities (type-level, not instance-specific)
 CapabilitySet get_capabilities();
 
-// Read signals
+// Read signals from a specific instance
 std::vector<SignalValue>
-read_signals(const std::vector<std::string> &signal_ids);
+read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids);
 
-// Call function
-CallResult call_function(uint32_t function_id,
+// Call function on a specific instance
+CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args);
 
 } // namespace motorctl

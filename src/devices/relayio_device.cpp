@@ -39,26 +39,29 @@ struct State {
   bool gpio_input_2 = false;
 };
 
-static State &state() {
-  static State s;
-  return s;
+// Per-device instance state storage
+static std::map<std::string, State> g_device_states;
+
+static State &get_state(const std::string &device_id) {
+  return g_device_states[device_id];
 }
 
 // -----------------------------
 // Initialization
 // -----------------------------
 
-void init() {
-  // Already initialized via static
+void init(const std::string &device_id) {
+  // Initialize state for this device instance
+  g_device_states[device_id] = State();
 }
 
 // -----------------------------
 // Physics (simple simulation)
 // -----------------------------
 
-void update_physics(double dt) {
+void update_physics(const std::string &device_id, double dt) {
   (void)dt;
-  State &s = state();
+  State &s = get_state(device_id);
 
   // Simulate GPIO inputs mirroring relay states (simple demo behavior)
   // In a real system, these would be independent
@@ -70,14 +73,14 @@ void update_physics(double dt) {
 // Device info
 // -----------------------------
 
-Device get_device_info(bool /*include_health*/) {
+Device get_device_info(const std::string &device_id, bool /*include_health*/) {
   Device d;
-  d.set_device_id(kDeviceId);
+  d.set_device_id(device_id);
   d.set_provider_name(kProviderName);
   d.set_type_id("sim.relay_io_module");
   d.set_type_version("1.0");
   d.set_label("Sim Relay/IO Module (2 Relay + 2 GPIO)");
-  d.set_address("sim://relayio0");
+  d.set_address("sim://" + device_id);
   (*d.mutable_tags())["family"] = "sim";
   (*d.mutable_tags())["kind"] = "relay_io";
   return d;
@@ -191,8 +194,8 @@ CapabilitySet get_capabilities() {
 // -----------------------------
 
 std::vector<SignalValue>
-read_signals(const std::vector<std::string> &signal_ids) {
-  State &s = state();
+read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+  State &s = get_state(device_id);
   std::vector<SignalValue> out;
 
   // If signal_ids empty, return all signals
@@ -220,9 +223,9 @@ read_signals(const std::vector<std::string> &signal_ids) {
 // Call function
 // -----------------------------
 
-CallResult call_function(uint32_t function_id,
+CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = state();
+  State &s = get_state(device_id);
 
   switch (function_id) {
   case kFnSetRelayCh1: {
