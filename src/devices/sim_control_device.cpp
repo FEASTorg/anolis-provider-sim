@@ -6,11 +6,11 @@
 namespace sim_devices {
 namespace sim_control {
 
-using anolis::deviceprovider::v0::ArgSpec;
-using anolis::deviceprovider::v0::FunctionPolicy;
-using anolis::deviceprovider::v0::FunctionSpec;
-using anolis::deviceprovider::v0::SignalSpec;
-using anolis::deviceprovider::v0::ValueType;
+using anolis::deviceprovider::v1::ArgSpec;
+using anolis::deviceprovider::v1::FunctionPolicy;
+using anolis::deviceprovider::v1::FunctionSpec;
+using anolis::deviceprovider::v1::SignalSpec;
+using anolis::deviceprovider::v1::ValueType;
 
 // -----------------------------
 // Constants

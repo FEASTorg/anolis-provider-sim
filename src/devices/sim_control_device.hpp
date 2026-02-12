@@ -10,10 +10,10 @@
 namespace sim_devices {
 namespace sim_control {
 
-using anolis::deviceprovider::v0::CapabilitySet;
-using anolis::deviceprovider::v0::Device;
-using anolis::deviceprovider::v0::SignalValue;
-using anolis::deviceprovider::v0::Value;
+using anolis::deviceprovider::v1::CapabilitySet;
+using anolis::deviceprovider::v1::Device;
+using anolis::deviceprovider::v1::SignalValue;
+using anolis::deviceprovider::v1::Value;
 
 // Device ID
 constexpr const char *kDeviceId = "sim_control";

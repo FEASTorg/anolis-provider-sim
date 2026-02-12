@@ -5,8 +5,8 @@
 namespace sim_devices {
 namespace analogsensor {
 
-using anolis::deviceprovider::v0::CapabilitySet;
-using anolis::deviceprovider::v0::Device;
+using anolis::deviceprovider::v1::CapabilitySet;
+using anolis::deviceprovider::v1::Device;
 
 static constexpr const char *kDeviceId = "analogsensor0";
 
