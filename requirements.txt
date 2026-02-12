@@ -1,0 +1,7 @@
+# Convenience deps for running Python test scripts locally/CI.
+# Keep protobuf in the same major line as generated code (currently 5.29.5).
+# To update lock file:
+# - activate clean venv
+# - run `pip install -r requirements.txt`
+# - then `pip freeze > requirements-lock.txt`
+protobuf>=5.29.5,<6.0.0

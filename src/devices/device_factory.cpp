@@ -54,10 +54,9 @@ parse_range(const std::map<std::string, YAML::Node> &config,
     }
 
     return std::make_pair(min_val, max_val);
-  } catch (...) {
-    std::cerr << "[DeviceFactory] Warning: Failed to parse range values for '"
-              << key << "'" << std::endl;
-    return std::nullopt;
+  } catch (const std::exception &e) {
+    // Re-throw to fail-fast on invalid config
+    throw;
   }
 }
 

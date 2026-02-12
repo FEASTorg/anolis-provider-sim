@@ -159,7 +159,7 @@ python3 -m pip install --user protobuf
 ### 8. Run Smoke Test
 
 ```bash
-python3 scripts/test_hello.py
+python3 tests/test_hello.py
 ```
 
 **Expected output**:
@@ -244,7 +244,7 @@ export PATH="$VCPKG_ROOT/installed/x64-linux/tools/protobuf:$PATH"
 
 **Fix**:
 
-1. Verify `protocol_pb2.py` exists in project root: `ls protocol_pb2.py`
+1. Verify `protocol_pb2.py` exists in build directory: `ls build/protocol_pb2.py`
 2. Run the smoke test from the project root, not from subdirectories
 
 ### Python can't import google.protobuf
@@ -276,17 +276,23 @@ export PATH="$VCPKG_ROOT/installed/x64-linux/tools/protobuf:$PATH"
 
 ### Additional Testing
 
-For comprehensive device testing, see test scripts in `scripts/`:
+For comprehensive device testing, see test scripts in `tests/`:
 
-- `test_hello.py` - Protocol handshake validation
-- `test_adpp_integration.py` - Full ADPP protocol compliance
-- `test_multi_instance.py` - Multiple provider instances
-- `test_fault_injection.py` - Fault injection test suite
+- `tests/test_hello.py` - Protocol handshake validation
+- `tests/test_adpp_integration.py` - Full ADPP protocol compliance
+- `tests/test_multi_instance.py` - Multiple provider instances
+- `tests/test_fault_injection.py` - Fault injection test suite
+
+Or use the wrapper script:
+
+```bash
+./scripts/test.sh --suite all
+```
 
 **Run ADPP integration tests** (6 tests):
 
 ```bash
-python3 scripts/test_adpp_integration.py --test all
+python3 tests/test_adpp_integration.py --test all
 ```
 
 **Expected**: All tests pass with `All ADPP integration tests passed!`
@@ -294,12 +300,12 @@ python3 scripts/test_adpp_integration.py --test all
 Individual tests can be run separately:
 
 ```bash
-python3 scripts/test_adpp_integration.py --test list_devices
-python3 scripts/test_adpp_integration.py --test describe_tempctl
-python3 scripts/test_adpp_integration.py --test temp_convergence
-python3 scripts/test_adpp_integration.py --test motor_control
-python3 scripts/test_adpp_integration.py --test relay_control
-python3 scripts/test_adpp_integration.py --test precondition_check
+python3 tests/test_adpp_integration.py --test list_devices
+python3 tests/test_adpp_integration.py --test describe_tempctl
+python3 tests/test_adpp_integration.py --test temp_convergence
+python3 tests/test_adpp_integration.py --test motor_control
+python3 tests/test_adpp_integration.py --test relay_control
+python3 tests/test_adpp_integration.py --test precondition_check
 ```
 
 ### Resources

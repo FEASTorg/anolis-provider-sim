@@ -14,20 +14,24 @@ import struct
 import subprocess
 import sys
 import time
+import os
 from pathlib import Path
 
 # Add build directory to path for protocol_pb2 import
 script_dir = Path(__file__).parent
 repo_root = script_dir.parent
-build_dir = repo_root / "build"
+build_dir_env = os.environ.get("ANOLIS_PROVIDER_SIM_BUILD_DIR")
+build_dir = Path(build_dir_env) if build_dir_env else (repo_root / "build")
+if not build_dir.is_absolute():
+    build_dir = repo_root / build_dir
 sys.path.insert(0, str(build_dir))
 
 try:
     from protocol_pb2 import Request, Response, Value, ValueType
 except ImportError:
-    print("ERROR: protocol_pb2 module not found in build/", file=sys.stderr)
+    print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
     print(
-        "Run: protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto",
+        "Run: ./scripts/generate_python_proto.sh (Linux/macOS) or pwsh ./scripts/generate_python_proto.ps1 (Windows)",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -107,9 +111,20 @@ class ProviderClient:
 
 def find_executable():
     """Find the provider executable."""
+    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists():
+            return candidate
+        raise FileNotFoundError(
+            f"ANOLIS_PROVIDER_SIM_EXE points to missing file: {candidate}"
+        )
+
     candidates = [
         Path("build/Release/anolis-provider-sim.exe"),  # Windows
         Path("build/anolis-provider-sim"),  # Linux
+        Path("build/Debug/anolis-provider-sim.exe"),  # Windows Debug
+        Path("build-tsan/anolis-provider-sim"),  # Linux TSAN
     ]
     for path in candidates:
         if path.exists():

@@ -7,22 +7,30 @@ Validates Hello handshake over stdio+uint32_le framing.
 import struct
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 # Add build directory to path for protocol_pb2 import
 script_dir = Path(__file__).parent
 repo_root = script_dir.parent
-build_dir = repo_root / "build"
+build_dir_env = os.environ.get("ANOLIS_PROVIDER_SIM_BUILD_DIR")
+build_dir = Path(build_dir_env) if build_dir_env else (repo_root / "build")
+if not build_dir.is_absolute():
+    build_dir = repo_root / build_dir
 sys.path.insert(0, str(build_dir))
 
 # Try to import protobuf generated code
 try:
     from protocol_pb2 import Request, Response
 except ImportError:
-    print("ERROR: protocol_pb2 module not found.", file=sys.stderr)
-    print("Run this first from repo root:", file=sys.stderr)
+    print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
+    print("Run one of these from repo root:", file=sys.stderr)
     print(
-        "  protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto",
+        "  ./scripts/generate_python_proto.sh  (Linux/macOS)",
+        file=sys.stderr,
+    )
+    print(
+        "  pwsh ./scripts/generate_python_proto.ps1  (Windows)",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -30,10 +38,22 @@ except ImportError:
 
 def find_executable():
     """Find the provider executable in common build locations."""
+    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
+    if env_path:
+        env_candidate = Path(env_path)
+        if env_candidate.exists():
+            return str(env_candidate)
+        print(
+            f"ERROR: ANOLIS_PROVIDER_SIM_EXE points to missing file: {env_candidate}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     candidates = [
         Path("build/Release/anolis-provider-sim.exe"),  # Windows MSVC
         Path("build/anolis-provider-sim"),  # Linux/macOS
         Path("build/Debug/anolis-provider-sim.exe"),  # Windows Debug
+        Path("build-tsan/anolis-provider-sim"),  # Linux TSAN
     ]
 
     for path in candidates:

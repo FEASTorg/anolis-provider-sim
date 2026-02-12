@@ -8,13 +8,13 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 ### Device Roster
 
-| Device ID       | Type                 | Signals                                                              | Functions                                       |
-| --------------- | -------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
-| `tempctl0`      | Temperature Control  | `mode`, `setpoint`, `temp_pv`, `heater_state`                        | `set_mode`, `set_setpoint`, `set_relay`         |
-| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_current`, `motor2_current`   | `set_motor1_speed`, `set_motor2_speed`          |
-| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`                |
-| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                       | `calibrate_channel`, `inject_noise`             |
-| `sim_control`   | Fault Injection      | _(none)_                                                             | See [Fault Injection API](#fault-injection-api) |
+| Device ID       | Type                 | Signals                                                                | Functions                               |
+| --------------- | -------------------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| `tempctl0`      | Temperature Control  | `tc1_temp`, `tc2_temp`, `relay1_state`, `relay2_state`, `control_mode`, `setpoint` | `set_mode`, `set_setpoint`, `set_relay` |
+| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_duty`, `motor2_duty`           | `set_motor_duty`                         |
+| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`        |
+| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                         | `calibrate_channel`, `inject_noise`      |
+| `sim_control`   | Fault Injection      | _(none)_                                                               | See [Fault Injection API](#fault-injection-api) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
@@ -75,9 +75,10 @@ Makes a device appear unavailable for a specified duration.
 
 **Behavior:**
 
-- DescribeDevice returns empty capabilities
-- ReadSignals returns empty signal list
-- CallFunction returns `INTERNAL` error
+- `ListDevices` omits the unavailable device while fault is active
+- `DescribeDevice` returns `NOT_FOUND` (unknown/unavailable target)
+- `ReadSignals` for explicit signal requests returns `NOT_FOUND`
+- `CallFunction` returns `INVALID_ARGUMENT` with injected fault message
 - Automatically clears after duration expires
 
 #### `inject_signal_fault`
@@ -122,7 +123,7 @@ Causes a specific function to fail probabilistically.
 
 **Behavior:**
 
-- Function returns `INTERNAL` error at specified rate
+- Function returns `INVALID_ARGUMENT` at specified rate
 - Uses uniform random distribution for probabilistic failures
 
 #### `clear_faults`
@@ -168,6 +169,12 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args":
 
 ## Building
 
+```bash
+# Recommended wrappers
+./scripts/build.sh
+# PowerShell: .\scripts\build.ps1
+```
+
 ### Windows (MSVC + vcpkg)
 
 ```powershell
@@ -200,27 +207,33 @@ Provider uses stdio+uint32_le transport for ADPP v1 communication with anolis-ru
 
 Provider-sim includes comprehensive test coverage:
 
+```bash
+# Recommended wrappers
+./scripts/test.sh --suite all
+# PowerShell: .\scripts\test.ps1 -Suite all
+```
+
 **Basic Protocol Tests:**
 
 ```bash
-python scripts/test_hello.py              # ADPP Hello handshake validation
-python scripts/test_adpp_integration.py   # Full ADPP protocol compliance
-python scripts/test_multi_instance.py     # Multiple provider instances
+python tests/test_hello.py              # ADPP Hello handshake validation
+python tests/test_adpp_integration.py   # Full ADPP protocol compliance
+python tests/test_multi_instance.py     # Multiple provider instances
 ```
 
 **Fault Injection Tests:**
 
 ```bash
 # Run all fault injection tests
-python scripts/test_fault_injection.py --test all
+python tests/test_fault_injection.py --test all
 
 # Run individual fault injection tests
-python scripts/test_fault_injection.py --test device_unavailable
-python scripts/test_fault_injection.py --test signal_fault
-python scripts/test_fault_injection.py --test call_latency
-python scripts/test_fault_injection.py --test call_failure
-python scripts/test_fault_injection.py --test clear_faults
-python scripts/test_fault_injection.py --test multiple_devices
+python tests/test_fault_injection.py --test device_unavailable
+python tests/test_fault_injection.py --test signal_fault
+python tests/test_fault_injection.py --test call_latency
+python tests/test_fault_injection.py --test call_failure
+python tests/test_fault_injection.py --test clear_faults
+python tests/test_fault_injection.py --test multiple_devices
 ```
 
 **Integration Tests:**

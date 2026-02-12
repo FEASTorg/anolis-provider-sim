@@ -17,20 +17,24 @@ import struct
 import subprocess
 import sys
 import time
+import os
 from pathlib import Path
 
 # Add build directory to path for protocol_pb2 import
 script_dir = Path(__file__).parent
 repo_root = script_dir.parent
-build_dir = repo_root / "build"
+build_dir_env = os.environ.get("ANOLIS_PROVIDER_SIM_BUILD_DIR")
+build_dir = Path(build_dir_env) if build_dir_env else (repo_root / "build")
+if not build_dir.is_absolute():
+    build_dir = repo_root / build_dir
 sys.path.insert(0, str(build_dir))
 
 try:
     from protocol_pb2 import Request, Response, Value, ValueType, SignalValue
 except ImportError:
-    print("ERROR: protocol_pb2 module not found in build/", file=sys.stderr)
+    print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
     print(
-        "Run: python scripts/generate_python_proto.ps1  (Windows) or ./scripts/generate_python_proto.sh  (Linux)",
+        "Run: ./scripts/generate_python_proto.sh (Linux/macOS) or pwsh ./scripts/generate_python_proto.ps1 (Windows)",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -141,10 +145,22 @@ def make_double_value(d):
 
 def find_executable():
     """Find the provider executable in common build locations."""
+    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
+    if env_path:
+        env_candidate = Path(env_path)
+        if env_candidate.exists():
+            return env_candidate
+        print(
+            f"ERROR: ANOLIS_PROVIDER_SIM_EXE points to missing file: {env_candidate}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     candidates = [
         Path("build/Release/anolis-provider-sim.exe"),
         Path("build/anolis-provider-sim"),
         Path("build/Debug/anolis-provider-sim.exe"),
+        Path("build-tsan/anolis-provider-sim"),
     ]
 
     for path in candidates:

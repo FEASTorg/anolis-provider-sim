@@ -272,9 +272,12 @@ If a device fails to initialize:
 
 If configuration contains errors:
 
-- Unknown device types are logged and skipped
-- Missing required fields (id, type) cause device to be skipped
-- Invalid YAML syntax causes configuration load failure
+- **Unknown device types** cause immediate startup failure with error message
+- **Missing required fields** (id, type) cause immediate startup failure
+- **Invalid parameter values** (e.g., negative temperatures, invalid ranges) cause immediate startup failure
+- **Invalid YAML syntax** causes configuration load failure
+
+The provider follows a **fail-fast** approach: any configuration error prevents startup to ensure correctness.
 
 ## Configuration Requirement
 

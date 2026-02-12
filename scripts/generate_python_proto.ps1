@@ -6,19 +6,36 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $protoFile = Join-Path $repoRoot "external\anolis\spec\device-provider\protocol.proto"
 $protoPath = Join-Path $repoRoot "external\anolis\spec\device-provider"
-$outputDir = Join-Path $repoRoot "build"
+$outputDir = if ($env:ANOLIS_PROVIDER_SIM_BUILD_DIR) {
+    if ([System.IO.Path]::IsPathRooted($env:ANOLIS_PROVIDER_SIM_BUILD_DIR)) {
+        $env:ANOLIS_PROVIDER_SIM_BUILD_DIR
+    } else {
+        Join-Path $repoRoot $env:ANOLIS_PROVIDER_SIM_BUILD_DIR
+    }
+} else {
+    Join-Path $repoRoot "build"
+}
+$outputDir = [System.IO.Path]::GetFullPath($outputDir)
 
 Write-Host "Generating Python protobuf bindings..." -ForegroundColor Cyan
 
 # Find protoc - check PATH first, then vcpkg installation
 $protoc = Get-Command protoc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 if (-not $protoc) {
-    # Check vcpkg installed location
-    $vcpkgProtoc = Join-Path $outputDir "vcpkg_installed\x64-windows\tools\protobuf\protoc.exe"
-    if (Test-Path $vcpkgProtoc) {
-        $protoc = $vcpkgProtoc
-        Write-Host "  Using vcpkg protoc: $protoc" -ForegroundColor Gray
-    } else {
+    # Check vcpkg installed location under selected output dir, then default build dir.
+    $vcpkgCandidates = @(
+        (Join-Path $outputDir "vcpkg_installed\x64-windows\tools\protobuf\protoc.exe"),
+        (Join-Path $repoRoot "build\vcpkg_installed\x64-windows\tools\protobuf\protoc.exe")
+    )
+    foreach ($candidate in $vcpkgCandidates) {
+        if (Test-Path $candidate) {
+            $protoc = $candidate
+            Write-Host "  Using vcpkg protoc: $protoc" -ForegroundColor Gray
+            break
+        }
+    }
+
+    if (-not $protoc) {
         Write-Host "ERROR: protoc not found in PATH or vcpkg installation" -ForegroundColor Red
         Write-Host "Install Protocol Buffers compiler from: https://github.com/protocolbuffers/protobuf/releases" -ForegroundColor Yellow
         exit 1

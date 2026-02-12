@@ -108,9 +108,11 @@ void handle_read_signals(const ReadSignalsRequest &req,
     ids.push_back(s);
 
   // Check if device exists before attempting to read signals
-  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-      !anolis_provider_sim::DeviceFactory::is_device_registered(
-          req.device_id())) {
+  //Special-case sim_control (has no signals but is always available)
+  if (req.device_id() != "sim_control" &&
+      (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+       !anolis_provider_sim::DeviceFactory::is_device_registered(
+           req.device_id()))) {
     set_status(resp, Status::CODE_NOT_FOUND,
                "unknown device_id: " + req.device_id());
     return;

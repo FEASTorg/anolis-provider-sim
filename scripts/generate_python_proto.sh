@@ -6,19 +6,29 @@ set -e
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 proto_file="$repo_root/external/anolis/spec/device-provider/protocol.proto"
 proto_path="$repo_root/external/anolis/spec/device-provider"
-output_dir="$repo_root/build"
+output_dir="${ANOLIS_PROVIDER_SIM_BUILD_DIR:-$repo_root/build}"
+if [[ "$output_dir" != /* ]]; then
+    output_dir="$repo_root/$output_dir"
+fi
 
 echo "Generating Python protobuf bindings..."
 
 # Find protoc - check PATH first, then vcpkg installation
 protoc_cmd="protoc"
 if ! command -v protoc &> /dev/null; then
-    # Check vcpkg installed location
-    vcpkg_protoc="$output_dir/vcpkg_installed/x64-linux/tools/protobuf/protoc"
-    if [ -f "$vcpkg_protoc" ]; then
-        protoc_cmd="$vcpkg_protoc"
-        echo "  Using vcpkg protoc: $protoc_cmd"
-    else
+    # Check vcpkg installed location under selected output dir, then default build dir.
+    vcpkg_candidates=(
+        "$output_dir/vcpkg_installed/x64-linux/tools/protobuf/protoc"
+        "$repo_root/build/vcpkg_installed/x64-linux/tools/protobuf/protoc"
+    )
+    for candidate in "${vcpkg_candidates[@]}"; do
+        if [ -f "$candidate" ]; then
+            protoc_cmd="$candidate"
+            echo "  Using vcpkg protoc: $protoc_cmd"
+            break
+        fi
+    done
+    if [[ "$protoc_cmd" == "protoc" ]]; then
         echo "ERROR: protoc not found in PATH or vcpkg installation"
         echo "Install Protocol Buffers compiler from: https://github.com/protocolbuffers/protobuf/releases"
         exit 1

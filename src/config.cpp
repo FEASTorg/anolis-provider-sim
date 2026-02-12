@@ -22,29 +22,35 @@ ProviderConfig load_config(const std::string &path) {
       throw std::runtime_error("'devices' must be a sequence");
     }
 
-    for (const auto &device_node : yaml["devices"]) {
+    for (std::size_t i = 0; i < yaml["devices"].size(); ++i) {
+      const auto &device_node = yaml["devices"][i];
       if (!device_node.IsMap()) {
-        std::cerr << "[CONFIG] Warning: skipping non-map device entry"
-                  << std::endl;
-        continue;
+        throw std::runtime_error("[CONFIG] Invalid devices[" +
+                                 std::to_string(i) +
+                                 "]: entry must be a map");
       }
 
       DeviceSpec spec;
 
       // Extract required fields: id and type
       if (!device_node["id"]) {
-        std::cerr << "[CONFIG] Warning: skipping device without 'id' field"
-                  << std::endl;
-        continue;
+        throw std::runtime_error("[CONFIG] Invalid devices[" +
+                                 std::to_string(i) +
+                                 "]: missing required field 'id'");
       }
       if (!device_node["type"]) {
-        std::cerr << "[CONFIG] Warning: skipping device without 'type' field"
-                  << std::endl;
-        continue;
+        throw std::runtime_error("[CONFIG] Invalid devices[" +
+                                 std::to_string(i) +
+                                 "]: missing required field 'type'");
       }
 
-      spec.id = device_node["id"].as<std::string>();
-      spec.type = device_node["type"].as<std::string>();
+      try {
+        spec.id = device_node["id"].as<std::string>();
+        spec.type = device_node["type"].as<std::string>();
+      } catch (const YAML::Exception &e) {
+        throw std::runtime_error("[CONFIG] Invalid devices[" +
+                                 std::to_string(i) + "]: " + e.what());
+      }
 
       // Store all other fields as configuration parameters
       for (const auto &kv : device_node) {

@@ -138,7 +138,7 @@ python -m pip install protobuf
 ### 7. Run Smoke Test
 
 ```powershell
-python scripts\test_hello.py
+python tests\test_hello.py
 ```
 
 **Expected output**:
@@ -213,7 +213,7 @@ $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\tools\protobuf;$env:PATH"
 
 **Fix**:
 
-1. Verify `protocol_pb2.py` exists in project root: `Test-Path protocol_pb2.py`
+1. Verify `protocol_pb2.py` exists in build directory: `Test-Path build\protocol_pb2.py`
 2. Run the smoke test from the project root, not from subdirectories
 
 ### Python can't import google.protobuf
@@ -239,17 +239,23 @@ $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\tools\protobuf;$env:PATH"
 
 ### Additional Testing
 
-For comprehensive device testing, see test scripts in `scripts/`:
+For comprehensive device testing, see test scripts in `tests\`:
 
-- `test_hello.py` - Protocol handshake validation
-- `test_adpp_integration.py` - Full ADPP protocol compliance
-- `test_multi_instance.py` - Multiple provider instances
-- `test_fault_injection.py` - Fault injection test suite
+- `tests\test_hello.py` - Protocol handshake validation
+- `tests\test_adpp_integration.py` - Full ADPP protocol compliance
+- `tests\test_multi_instance.py` - Multiple provider instances
+- `tests\test_fault_injection.py` - Fault injection test suite
+
+Or use the wrapper script:
+
+```powershell
+.\scripts\test.ps1 -Suite all
+```
 
 **Run ADPP integration tests** (6 tests):
 
 ```powershell
-python scripts\test_adpp_integration.py --test all
+python tests\test_adpp_integration.py --test all
 ```
 
 **Expected**: All tests pass with `All ADPP integration tests passed!`
@@ -257,12 +263,12 @@ python scripts\test_adpp_integration.py --test all
 Individual tests can be run separately:
 
 ```powershell
-python scripts\test_adpp_integration.py --test list_devices
-python scripts\test_adpp_integration.py --test describe_tempctl
-python scripts\test_adpp_integration.py --test temp_convergence
-python scripts\test_adpp_integration.py --test motor_control
-python scripts\test_adpp_integration.py --test relay_control
-python scripts\test_adpp_integration.py --test precondition_check
+python tests\test_adpp_integration.py --test list_devices
+python tests\test_adpp_integration.py --test describe_tempctl
+python tests\test_adpp_integration.py --test temp_convergence
+python tests\test_adpp_integration.py --test motor_control
+python tests\test_adpp_integration.py --test relay_control
+python tests\test_adpp_integration.py --test precondition_check
 ```
 
 ---
