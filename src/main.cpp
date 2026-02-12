@@ -100,21 +100,23 @@ int main(int argc, char **argv) {
       return 2;
     }
 
-    anolis::deviceprovider::v0::Request req;
+    anolis::deviceprovider::v1::Request req;
     if (!req.ParseFromArray(frame.data(), static_cast<int>(frame.size()))) {
       log_err("failed to parse Request protobuf");
       return 3;
     }
 
-    anolis::deviceprovider::v0::Response resp;
+    anolis::deviceprovider::v1::Response resp;
     resp.set_request_id(req.request_id());
     resp.mutable_status()->set_code(
-        anolis::deviceprovider::v0::Status::CODE_INTERNAL);
+        anolis::deviceprovider::v1::Status::CODE_INTERNAL);
     resp.mutable_status()->set_message("uninitialized");
 
     // Dispatch
     if (req.has_hello()) {
       handlers::handle_hello(req.hello(), resp);
+    } else if (req.has_wait_ready()) {
+      handlers::handle_wait_ready(req.wait_ready(), resp);
     } else if (req.has_list_devices()) {
       handlers::handle_list_devices(req.list_devices(), resp);
     } else if (req.has_describe_device()) {

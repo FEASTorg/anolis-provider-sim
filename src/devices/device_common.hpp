@@ -19,10 +19,10 @@
 
 namespace sim_devices {
 
-using anolis::deviceprovider::v0::SignalValue;
-using anolis::deviceprovider::v0::Status;
-using anolis::deviceprovider::v0::Value;
-using anolis::deviceprovider::v0::ValueType;
+using anolis::deviceprovider::v1::SignalValue;
+using anolis::deviceprovider::v1::Status;
+using anolis::deviceprovider::v1::Value;
+using anolis::deviceprovider::v1::ValueType;
 
 // -----------------------------
 // Common helpers
