@@ -102,13 +102,20 @@ CapabilitySet describe_device(const std::string &device_id) {
     return CapabilitySet(); // Return empty to simulate unavailable
   }
 
-  // Map configured device ID to type if using registry
-  std::string device_type = device_id;
-  if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
-      anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    device_type =
-        anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+  // Check for special sim_control device
+  if (device_id == sim_control::kDeviceId) {
+    return sim_control::get_capabilities();
   }
+
+  // Reject unknown device_id - require config registration
+  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+    return CapabilitySet(); // Return empty for unknown devices
+  }
+
+  // Get device type from registry
+  std::string device_type =
+      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
 
   // Route to device capabilities based on type
   if (device_type == "tempctl") {
@@ -146,13 +153,20 @@ read_signals(const std::string &device_id,
     return {}; // Return empty to simulate unavailable
   }
 
-  // Map configured device ID to type if using registry
-  std::string device_type = device_id;
-  if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
-      anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    device_type =
-        anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+  // Check for special sim_control device
+  if (device_id == sim_control::kDeviceId) {
+    return sim_control::read_signals(signal_ids);
   }
+
+  // Reject unknown device_id - require config registration
+  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+    return {}; // Return empty for unknown devices
+  }
+
+  // Get device type from registry
+  std::string device_type =
+      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
 
   // Read signals from device based on type
   std::vector<SignalValue> signals;
@@ -165,10 +179,8 @@ read_signals(const std::string &device_id,
     signals = relayio::read_signals(device_id, signal_ids);
   } else if (device_type == "analogsensor") {
     signals = analogsensor::read_signals(device_id, signal_ids);
-  } else if (device_id == sim_control::kDeviceId) {
-    signals = sim_control::read_signals(signal_ids);
   } else {
-    // Unknown device
+    // Unknown device type
     return {};
   }
 
@@ -207,13 +219,20 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
     return bad("function call failed (injected fault)");
   }
 
-  // Map configured device ID to type if using registry
-  std::string device_type = device_id;
-  if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
-      anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    device_type =
-        anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+  // Check for special sim_control device
+  if (device_id == sim_control::kDeviceId) {
+    return sim_control::call_function(function_id, args);
   }
+
+  // Reject unknown device_id - require config registration
+  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+    return nf("unknown device_id: " + device_id);
+  }
+
+  // Get device type from registry
+  std::string device_type =
+      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
 
   // Route to device implementations based on type
   if (device_type == "tempctl") {
@@ -232,11 +251,7 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
     return analogsensor::call_function(device_id, function_id, args);
   }
 
-  if (device_id == sim_control::kDeviceId) {
-    return sim_control::call_function(function_id, args);
-  }
-
-  return nf("unknown device_id");
+  return nf("unknown device type: " + device_type);
 }
 
 } // namespace sim_devices

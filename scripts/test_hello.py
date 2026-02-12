@@ -51,8 +51,14 @@ def main():
     exe_path = find_executable()
     print(f"Testing: {exe_path}", file=sys.stderr)
 
+    # Use provider-sim.yaml config
+    config_path = repo_root / "config" / "provider-sim.yaml"
+    if not config_path.exists():
+        print(f"ERROR: Config file not found: {config_path}", file=sys.stderr)
+        sys.exit(1)
+
     proc = subprocess.Popen(
-        [exe_path],
+        [exe_path, "--config", str(config_path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
@@ -60,7 +66,7 @@ def main():
 
     # Build Hello request
     req = Request(request_id=1)
-    req.hello.protocol_version = "v0"
+    req.hello.protocol_version = "v1"
     req.hello.client_name = "smoke-test"
     req.hello.client_version = "0.0.1"
 
@@ -93,7 +99,7 @@ def main():
 
     assert resp.request_id == 1, f"request_id mismatch: {resp.request_id}"
     assert resp.status.code == 1, f"status code not OK: {resp.status.code}"
-    assert resp.hello.protocol_version == "v0", (
+    assert resp.hello.protocol_version == "v1", (
         f"protocol version mismatch: {resp.hello.protocol_version}"
     )
     assert resp.hello.provider_name == "anolis-provider-sim", (

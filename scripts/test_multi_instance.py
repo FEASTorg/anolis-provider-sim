@@ -16,21 +16,26 @@ build_dir = repo_root / "build"
 sys.path.insert(0, str(build_dir))
 
 try:
-    from protocol_pb2 import Request, Response, Value
+    from protocol_pb2 import Request, Response, Value, ValueType
 except ImportError:
     print("ERROR: protocol_pb2 module not found in build/", file=sys.stderr)
-    print("Run: protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto", file=sys.stderr)
+    print(
+        "Run: protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
 def make_string_value(s):
     v = Value()
+    v.type = ValueType.VALUE_TYPE_STRING
     v.string_value = s
     return v
 
 
 def make_bool_value(b):
     v = Value()
+    v.type = ValueType.VALUE_TYPE_BOOL
     v.bool_value = b
     return v
 
@@ -42,12 +47,12 @@ class ProviderClient:
         cmd = [str(exe_path)]
         if config_path:
             cmd.extend(["--config", str(config_path)])
-        
+
         self.proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=sys.stderr,  # Pass through to see debug output
         )
         self.request_id = 0
 
@@ -106,110 +111,147 @@ class ProviderClient:
 
 def test_multi_instance_independence(exe_path, config_path):
     """Test that tempctl0 and tempctl1 have independent state."""
-    
+
     print("=== Test: Multi-Instance Device Independence ===")
     print(f"Provider: {exe_path}")
     print(f"Config: {config_path}\n")
-    
+
     client = ProviderClient(exe_path, config_path)
-    
+
     try:
         # Test 1: Verify both devices are listed
         print("Test 1: List devices...")
         resp = client.list_devices()
-        
+
         # Check if response is successful - use 'list_devices' or 'list_devices_result'
         devices_list = None
-        if hasattr(resp, 'list_devices_result'):
+        if hasattr(resp, "list_devices_result"):
             devices_list = resp.list_devices_result.devices
-        elif hasattr(resp, 'list_devices'):
+        elif hasattr(resp, "list_devices"):
             devices_list = resp.list_devices.devices
-        
+
         if not devices_list:
             print(f"  Response: {resp}")
             raise AssertionError("ListDevices returned no devices")
-        
+
         device_ids = [d.device_id for d in devices_list]
         print(f"  Found devices: {device_ids}")
-        
+
         assert "tempctl0" in device_ids, "Missing tempctl0"
         assert "tempctl1" in device_ids, "Missing tempctl1"
         print("  ✓ Both tempctl0 and tempctl1 found\n")
-        
-        # Test 2: Set different relay states on each device
-        print("Test 2: Set relay state independently...")
-        
-        # Set tempctl0 relay1 = ON
-        print("  Setting tempctl0 relay1 = ON")
-        resp = client.call_function(
-            "tempctl0", 
-            3,  # set_relay function_id
-            {
-                "relay_index": make_string_value("1"),  # Will be parsed as int
-                "state": make_bool_value(True),
-            }
+
+        # Test 2: Read initial state
+        print("Test 2: Read initial state...")
+        resp0_init = client.read_signals("tempctl0", ["control_mode"])
+        values0_init = None
+        if hasattr(resp0_init, "read_signals_result"):
+            values0_init = resp0_init.read_signals_result.values
+        elif hasattr(resp0_init, "read_signals"):
+            values0_init = resp0_init.read_signals.values
+
+        resp1_init = client.read_signals("tempctl1", ["control_mode"])
+        values1_init = None
+        if hasattr(resp1_init, "read_signals_result"):
+            values1_init = resp1_init.read_signals_result.values
+        elif hasattr(resp1_init, "read_signals"):
+            values1_init = resp1_init.read_signals.values
+
+        print(
+            f"  tempctl0 initial mode: {values0_init[0].value.string_value if values0_init else 'N/A'}"
         )
-        # Note: The actual implementation expects int64, but let's see if this works
-        # If not, we'll need to create make_int64_value
-        
-        # Actually, let me just use mode change which is simpler
+        print(
+            f"  tempctl1 initial mode: {values1_init[0].value.string_value if values1_init else 'N/A'}"
+        )
+        print()
+
+        # Test 2.5: Read initial temperatures (verify config application)
+        print("Test 2.5: Read initial temperatures (from config)...")
+        resp0_temp = client.read_signals("tempctl0", ["tc1_temp"])
+        values0_temp = None
+        if hasattr(resp0_temp, "read_signals_result"):
+            values0_temp = resp0_temp.read_signals_result.values
+        elif hasattr(resp0_temp, "read_signals"):
+            values0_temp = resp0_temp.read_signals.values
+
+        resp1_temp = client.read_signals("tempctl1", ["tc1_temp"])
+        values1_temp = None
+        if hasattr(resp1_temp, "read_signals_result"):
+            values1_temp = resp1_temp.read_signals_result.values
+        elif hasattr(resp1_temp, "read_signals"):
+            values1_temp = resp1_temp.read_signals.values
+
+        temp0 = float(values0_temp[0].value.double_value) if values0_temp else 0.0
+        temp1 = float(values1_temp[0].value.double_value) if values1_temp else 0.0
+        print(f"  tempctl0 tc1: {temp0}°C (config: 25.0°C)")
+        print(f"  tempctl1 tc1: {temp1}°C (config: 30.0°C)")
+
+        # Verify temperatures match config (allow small tolerance)
+        assert abs(temp0 - 25.0) < 0.1, f"tempctl0 temperature {temp0} != 25.0"
+        assert abs(temp1 - 30.0) < 0.1, f"tempctl1 temperature {temp1} != 30.0"
+        print("  ✓ Initial temperatures match config!")
+        print()
+
+        # Test 3: Set different modes on each device
+        print("Test 3: Set modes independently...")
+
         print("  Setting tempctl0 mode = closed")
         resp = client.call_function(
             "tempctl0",
             1,  # set_mode function_id
-            {"mode": make_string_value("closed")}
+            {"mode": make_string_value("closed")},
         )
         # Check for either 'call_result' or 'call' field
-        if not (hasattr(resp, 'call_result') or hasattr(resp, 'call')):
+        if not (hasattr(resp, "call_result") or hasattr(resp, "call")):
             raise AssertionError(f"Call failed: {resp}")
-        
+
         print("  Setting tempctl1 mode = open")
         resp = client.call_function(
             "tempctl1",
             1,  # set_mode function_id
-            {"mode": make_string_value("open")}
+            {"mode": make_string_value("open")},
         )
-        if not (hasattr(resp, 'call_result') or hasattr(resp, 'call')):
+        if not (hasattr(resp, "call_result") or hasattr(resp, "call")):
             raise AssertionError(f"Call failed: {resp}")
         print("  ✓ Functions called successfully\n")
-        
-        # Test 3: Verify states are independent
-        print("Test 3: Verify independent state...")
-        
+
+        # Test 4: Verify states are independent
+        print("Test 4: Verify independent state...")
+
         resp0 = client.read_signals("tempctl0", ["control_mode"])
         # Check for either field name variant
         values0 = None
-        if hasattr(resp0, 'read_signals_result'):
+        if hasattr(resp0, "read_signals_result"):
             values0 = resp0.read_signals_result.values
-        elif hasattr(resp0, 'read_signals'):
+        elif hasattr(resp0, "read_signals"):
             values0 = resp0.read_signals.values
-        
+
         if not values0:
             raise AssertionError(f"ReadSignals failed: {resp0}")
         mode0 = values0[0].value.string_value
-        
+
         resp1 = client.read_signals("tempctl1", ["control_mode"])
         values1 = None
-        if hasattr(resp1, 'read_signals_result'):
+        if hasattr(resp1, "read_signals_result"):
             values1 = resp1.read_signals_result.values
-        elif hasattr(resp1, 'read_signals'):
+        elif hasattr(resp1, "read_signals"):
             values1 = resp1.read_signals.values
-        
+
         if not values1:
             raise AssertionError(f"ReadSignals failed: {resp1}")
         mode1 = values1[0].value.string_value
-        
+
         print(f"  tempctl0 mode: {mode0}")
         print(f"  tempctl1 mode: {mode1}")
-        
+
         assert mode0 == "closed", f"Expected tempctl0 mode='closed', got '{mode0}'"
         assert mode1 == "open", f"Expected tempctl1 mode='open', got '{mode1}'"
-        
+
         print("  ✓ States are independent!\n")
-        
+
         print("=== All tests PASSED ===")
         return True
-        
+
     except Exception as e:
         print(f"\n✗ Test FAILED: {e}")
         return False
@@ -221,14 +263,14 @@ if __name__ == "__main__":
     repo_root = Path(__file__).parent.parent
     exe_path = repo_root / "build" / "Debug" / "anolis-provider-sim.exe"
     config_path = repo_root / "config" / "multi-tempctl.yaml"
-    
+
     if not exe_path.exists():
         print(f"ERROR: Provider executable not found: {exe_path}")
         sys.exit(1)
-    
+
     if not config_path.exists():
         print(f"ERROR: Config file not found: {config_path}")
         sys.exit(1)
-    
+
     success = test_multi_instance_independence(exe_path, config_path)
     sys.exit(0 if success else 1)

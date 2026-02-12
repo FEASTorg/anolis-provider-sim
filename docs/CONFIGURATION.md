@@ -9,11 +9,8 @@ Provider-sim uses YAML configuration files to define which devices to instantiat
 ## Command-Line Usage
 
 ```bash
-# With configuration file
+# With configuration file (required)
 ./anolis-provider-sim --config /path/to/config.yaml
-
-# Without configuration (backward compatible)
-./anolis-provider-sim
 ```
 
 ## Configuration Schema
@@ -279,14 +276,14 @@ If configuration contains errors:
 - Missing required fields (id, type) cause device to be skipped
 - Invalid YAML syntax causes configuration load failure
 
-## Backward Compatibility
+## Configuration Requirement
 
-Provider-sim maintains backward compatibility:
+Provider-sim requires a configuration file:
 
-- **No `--config` argument**: Uses hardcoded device list (tempctl0, motorctl0, relayio0, analogsensor0)
-- **With `--config`**: Uses configured devices exclusively
+- **`--config` argument is required**: Must specify device configuration
+- **No default/hardcoded device list**: All devices must be explicitly configured
 
-This ensures existing tests and deployments continue working without modification.
+This ensures explicit, verifiable device configuration for all deployments.
 
 ## Testing
 

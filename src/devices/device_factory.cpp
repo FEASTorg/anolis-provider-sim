@@ -4,7 +4,9 @@
 #include "relayio_device.hpp"
 #include "tempctl_device.hpp"
 
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 
 namespace anolis_provider_sim {
 
@@ -12,69 +14,124 @@ namespace anolis_provider_sim {
 static std::map<std::string, DeviceRegistryEntry> g_device_registry;
 static bool g_config_loaded = false;
 
-bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
+// Helper: Parse double from config map
+static std::optional<double>
+parse_double(const std::map<std::string, YAML::Node> &config,
+             const std::string &key) {
+  auto it = config.find(key);
+  if (it == config.end())
+    return std::nullopt;
+
   try {
-    if (spec.type == "tempctl") {
-      // Initialize tempctl with device-specific ID
-      sim_devices::tempctl::init(spec.id);
+    return it->second.as<double>();
+  } catch (...) {
+    throw std::runtime_error("[DeviceFactory] Failed to parse '" + key +
+                             "' as double");
+  }
+}
 
-      // TODO: In future, apply device-specific config parameters
-      // For now, we use default initialization
+// Helper: Parse [min, max] range from config map
+static std::optional<std::pair<double, double>>
+parse_range(const std::map<std::string, YAML::Node> &config,
+            const std::string &key) {
+  auto it = config.find(key);
+  if (it == config.end())
+    return std::nullopt;
 
-      DeviceRegistryEntry entry;
-      entry.id = spec.id;
-      entry.type = spec.type;
-      entry.config = spec.config;
-      g_device_registry[spec.id] = entry;
-
-      std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-                << "' (type: tempctl)" << std::endl;
-      return true;
-    } else if (spec.type == "motorctl") {
-      sim_devices::motorctl::init(spec.id);
-
-      DeviceRegistryEntry entry;
-      entry.id = spec.id;
-      entry.type = spec.type;
-      entry.config = spec.config;
-      g_device_registry[spec.id] = entry;
-
-      std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-                << "' (type: motorctl)" << std::endl;
-      return true;
-    } else if (spec.type == "relayio") {
-      sim_devices::relayio::init(spec.id);
-
-      DeviceRegistryEntry entry;
-      entry.id = spec.id;
-      entry.type = spec.type;
-      entry.config = spec.config;
-      g_device_registry[spec.id] = entry;
-
-      std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-                << "' (type: relayio)" << std::endl;
-      return true;
-    } else if (spec.type == "analogsensor") {
-      sim_devices::analogsensor::init(spec.id);
-
-      DeviceRegistryEntry entry;
-      entry.id = spec.id;
-      entry.type = spec.type;
-      entry.config = spec.config;
-      g_device_registry[spec.id] = entry;
-
-      std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-                << "' (type: analogsensor)" << std::endl;
-      return true;
-    } else {
-      std::cerr << "[DeviceFactory] Unknown device type: " << spec.type
-                << std::endl;
-      return false;
+  try {
+    // Expected format: sequence with 2 elements
+    if (!it->second.IsSequence() || it->second.size() != 2) {
+      throw std::runtime_error("[DeviceFactory] Invalid range format for '" +
+                               key + "' (expected 2-element sequence)");
     }
-  } catch (const std::exception &e) {
-    std::cerr << "[DeviceFactory] Failed to initialize device '" << spec.id
-              << "': " << e.what() << std::endl;
-    return false;
+
+    double min_val = it->second[0].as<double>();
+    double max_val = it->second[1].as<double>();
+
+    if (min_val >= max_val) {
+      throw std::runtime_error(
+          "[DeviceFactory] Invalid range (min >= max) for '" + key + "'");
+    }
+
+    return std::make_pair(min_val, max_val);
+  } catch (...) {
+    std::cerr << "[DeviceFactory] Warning: Failed to parse range values for '"
+              << key << "'" << std::endl;
+    return std::nullopt;
+  }
+}
+
+bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
+  if (spec.type == "tempctl") {
+    // Parse device-specific config parameters
+    sim_devices::tempctl::Config config;
+    config.initial_temp = parse_double(spec.config, "initial_temp");
+    config.temp_range = parse_range(spec.config, "temp_range");
+
+    // Initialize tempctl with device-specific ID and config
+    sim_devices::tempctl::init(spec.id, config);
+
+    DeviceRegistryEntry entry;
+    entry.id = spec.id;
+    entry.type = spec.type;
+    entry.config = spec.config;
+    g_device_registry[spec.id] = entry;
+
+    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
+              << "' (type: tempctl)";
+    if (config.initial_temp.has_value()) {
+      std::cerr << " with initial_temp=" << config.initial_temp.value();
+    }
+    std::cerr << std::endl;
+    return true;
+  } else if (spec.type == "motorctl") {
+    // Parse device-specific config parameters
+    sim_devices::motorctl::Config config;
+    config.max_speed = parse_double(spec.config, "max_speed");
+
+    // Initialize motorctl with device-specific ID and config
+    sim_devices::motorctl::init(spec.id, config);
+
+    DeviceRegistryEntry entry;
+    entry.id = spec.id;
+    entry.type = spec.type;
+    entry.config = spec.config;
+    g_device_registry[spec.id] = entry;
+
+    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
+              << "' (type: motorctl)";
+    if (config.max_speed.has_value()) {
+      std::cerr << " with max_speed=" << config.max_speed.value();
+    }
+    std::cerr << std::endl;
+    return true;
+  } else if (spec.type == "relayio") {
+    sim_devices::relayio::init(spec.id);
+
+    DeviceRegistryEntry entry;
+    entry.id = spec.id;
+    entry.type = spec.type;
+    entry.config = spec.config;
+    g_device_registry[spec.id] = entry;
+
+    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
+              << "' (type: relayio)" << std::endl;
+    return true;
+  } else if (spec.type == "analogsensor") {
+    sim_devices::analogsensor::init(spec.id);
+
+    DeviceRegistryEntry entry;
+    entry.id = spec.id;
+    entry.type = spec.type;
+    entry.config = spec.config;
+    g_device_registry[spec.id] = entry;
+
+    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
+              << "' (type: analogsensor)" << std::endl;
+    return true;
+  } else {
+    throw std::runtime_error("[DeviceFactory] Unknown device type: " +
+                             spec.type);
   }
 }
 

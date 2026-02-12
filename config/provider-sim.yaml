@@ -8,7 +8,7 @@ devices:
 
   - id: motorctl0
     type: motorctl
-    max_speed: 100.0
+    max_speed: 3000.0
 
   - id: relayio0
     type: relayio

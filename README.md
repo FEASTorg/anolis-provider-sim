@@ -1,6 +1,6 @@
 # anolis-provider-sim
 
-Simulation device provider for anolis runtime, implementing the Anolis Device Provider Protocol (ADPP) v0.
+Simulation device provider for anolis runtime, implementing the Anolis Device Provider Protocol (ADPP) v1.
 
 ## Overview
 
@@ -8,13 +8,13 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 ### Device Roster
 
-| Device ID       | Type                 | Signals                                                              | Functions                                   |
-| --------------- | -------------------- | -------------------------------------------------------------------- | ------------------------------------------- |
-| `tempctl0`      | Temperature Control  | `mode`, `setpoint`, `temp_pv`, `heater_state`                        | `set_mode`, `set_setpoint`, `set_relay`     |
-| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_current`, `motor2_current`   | `set_motor1_speed`, `set_motor2_speed`      |
-| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`            |
-| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                       | `calibrate_channel`, `inject_noise`         |
-| `sim_control`   | Fault Injection      | _(none)_                                                             | See [Fault Injection API](#fault-injection) |
+| Device ID       | Type                 | Signals                                                              | Functions                                       |
+| --------------- | -------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| `tempctl0`      | Temperature Control  | `mode`, `setpoint`, `temp_pv`, `heater_state`                        | `set_mode`, `set_setpoint`, `set_relay`         |
+| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_current`, `motor2_current`   | `set_motor1_speed`, `set_motor2_speed`          |
+| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`                |
+| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                       | `calibrate_channel`, `inject_noise`             |
+| `sim_control`   | Fault Injection      | _(none)_                                                             | See [Fault Injection API](#fault-injection-api) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
@@ -25,11 +25,8 @@ Provider-sim supports device configuration via YAML files. This allows operators
 ### Basic Usage
 
 ```bash
-# Run with configuration file
+# Run with configuration file (required)
 ./anolis-provider-sim --config config/provider-sim.yaml
-
-# Run without configuration (uses hardcoded defaults)
-./anolis-provider-sim
 ```
 
 ### Configuration Files
@@ -120,7 +117,7 @@ Causes a specific function to fail probabilistically.
 **Parameters:**
 
 - `device_id` (string): Target device ID
-- `function_id` (string): Target function ID
+- `function_id` (string): Target function ID (numeric ID as string, e.g., "1" for first function)
 - `failure_rate` (double): Failure probability (0.0 = never fail, 1.0 = always fail)
 
 **Behavior:**
@@ -156,11 +153,11 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_device_unavailable", 
     }
 })
 
-# Inject 50% failure rate on set_setpoint
+# Inject 50% failure rate on set_setpoint (function_id=2)
 requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_call_failure", json={
     "args": {
         "device_id": "tempctl0",
-        "function_id": "set_setpoint",
+        "function_id": "2",
         "failure_rate": 0.5
     }
 })
@@ -175,7 +172,7 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args":
 
 ```powershell
 # Install dependencies
-vcpkg install protobuf grpc
+vcpkg install protobuf yaml-cpp
 
 # Build
 mkdir build
@@ -191,28 +188,58 @@ See [docs/SETUP-LINUX.md](docs/SETUP-LINUX.md)
 ## Running
 
 ```bash
-./build/Release/anolis-provider-sim
+# Requires --config argument
+./build/Release/anolis-provider-sim --config config/provider-sim.yaml
 ```
 
-Provider listens on `localhost:50051` for ADPP connections from anolis-runtime.
+Provider uses stdio+uint32_le transport for ADPP v1 communication with anolis-runtime.
 
 ## Testing
 
-Run the validation scenario suite:
+### Test Scripts
+
+Provider-sim includes comprehensive test coverage:
+
+**Basic Protocol Tests:**
 
 ```bash
-# From anolis repo root
+python scripts/test_hello.py              # ADPP Hello handshake validation
+python scripts/test_adpp_integration.py   # Full ADPP protocol compliance
+python scripts/test_multi_instance.py     # Multiple provider instances
+```
+
+**Fault Injection Tests:**
+
+```bash
+# Run all fault injection tests
+python scripts/test_fault_injection.py --test all
+
+# Run individual fault injection tests
+python scripts/test_fault_injection.py --test device_unavailable
+python scripts/test_fault_injection.py --test signal_fault
+python scripts/test_fault_injection.py --test call_latency
+python scripts/test_fault_injection.py --test call_failure
+python scripts/test_fault_injection.py --test clear_faults
+python scripts/test_fault_injection.py --test multiple_devices
+```
+
+**Integration Tests:**
+
+```bash
+# From anolis repo root (requires anolis-runtime)
 python scripts/run_scenarios.py
 ```
 
+All tests use the stdio+uint32_le transport and validate correct ADPP v1 behavior.
+
 ## Architecture
 
-Provider-sim implements ADPP v0 using gRPC. Key components:
+Provider-sim implements ADPP v1 using stdio+uint32_le transport. Key components:
 
 - **device_manager**: Routes ADPP calls to device implementations
 - **Device implementations**: Simulate realistic device behaviors with state machines
 - **Fault injection**: Global state tracking for injected faults
-- **Transport**: gRPC server with ADPP service handlers
+- **Transport**: stdio with uint32_le message framing (ADPP v1 standard)
 
 Physical device documentation and operational context available in [docs/](docs/).
 

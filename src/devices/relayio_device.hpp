@@ -25,14 +25,16 @@ void init(const std::string &device_id);
 void update_physics(const std::string &device_id, double dt);
 
 // Get device info for a specific instance
-Device get_device_info(const std::string &device_id, bool include_health = false);
+Device get_device_info(const std::string &device_id,
+                       bool include_health = false);
 
 // Get capabilities (type-level, not instance-specific)
 CapabilitySet get_capabilities();
 
 // Read signals from a specific instance
 std::vector<SignalValue>
-read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids);
+read_signals(const std::string &device_id,
+             const std::vector<std::string> &signal_ids);
 
 // Call function on a specific instance
 CallResult call_function(const std::string &device_id, uint32_t function_id,

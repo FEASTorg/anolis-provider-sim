@@ -1,0 +1,9 @@
+# Test config with invalid max_speed to verify fail-fast behavior
+
+devices:
+  - id: motorctl0
+    type: motorctl
+    max_speed: -100.0 # Invalid: negative speed
+
+simulation:
+  noise_enabled: false

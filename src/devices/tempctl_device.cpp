@@ -62,9 +62,31 @@ static State &get_state(const std::string &device_id) {
 // Initialization
 // -----------------------------
 
-void init(const std::string &device_id) {
-  // Initialize state for this device instance
-  g_device_states[device_id] = State();
+void init(const std::string &device_id, const Config &config) {
+  // Initialize state for this device instance with defaults
+  State s;
+
+  // Apply initial_temp if provided
+  if (config.initial_temp.has_value()) {
+    double temp = config.initial_temp.value();
+
+    // Validate against temp_range if provided
+    if (config.temp_range.has_value()) {
+      double min_temp = config.temp_range.value().first;
+      double max_temp = config.temp_range.value().second;
+      if (temp < min_temp || temp > max_temp) {
+        throw std::runtime_error(
+            "[TempCtl] initial_temp " + std::to_string(temp) +
+            " out of valid range [" + std::to_string(min_temp) + ", " +
+            std::to_string(max_temp) + "]");
+      }
+    }
+
+    s.tc1_c = temp;
+    s.tc2_c = temp;
+  }
+
+  g_device_states[device_id] = s;
 }
 
 // -----------------------------
@@ -283,7 +305,8 @@ static std::vector<std::string> default_signals() {
 }
 
 std::vector<SignalValue>
-read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+read_signals(const std::string &device_id,
+             const std::vector<std::string> &signal_ids) {
   State &s = get_state(device_id);
 
   std::vector<std::string> ids = signal_ids;

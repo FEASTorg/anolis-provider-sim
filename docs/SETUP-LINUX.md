@@ -173,9 +173,9 @@ status {
   message: "ok"
 }
 hello {
-  protocol_version: "v0"
+  protocol_version: "v1"
   provider_name: "anolis-provider-sim"
-  provider_version: "0.0.1"
+  provider_version: "0.0.3"
   ...
 }
 
@@ -279,25 +279,27 @@ export PATH="$VCPKG_ROOT/installed/x64-linux/tools/protobuf:$PATH"
 For comprehensive device testing, see test scripts in `scripts/`:
 
 - `test_hello.py` - Protocol handshake validation
-- `test_phase2.py` - Device simulation and ADPP handlers
+- `test_adpp_integration.py` - Full ADPP protocol compliance
+- `test_multi_instance.py` - Multiple provider instances
+- `test_fault_injection.py` - Fault injection test suite
 
-**Run full Phase 2 validation** (all 6 tests):
+**Run ADPP integration tests** (6 tests):
 
 ```bash
-python3 scripts/test_phase2.py --test all
+python3 scripts/test_adpp_integration.py --test all
 ```
 
-**Expected**: All tests pass with `🎉 All Phase 2 tests passed!`
+**Expected**: All tests pass with `All ADPP integration tests passed!`
 
 Individual tests can be run separately:
 
 ```bash
-python3 scripts/test_phase2.py --test list_devices
-python3 scripts/test_phase2.py --test describe_tempctl
-python3 scripts/test_phase2.py --test temp_convergence
-python3 scripts/test_phase2.py --test motor_control
-python3 scripts/test_phase2.py --test relay_control
-python3 scripts/test_phase2.py --test precondition_check
+python3 scripts/test_adpp_integration.py --test list_devices
+python3 scripts/test_adpp_integration.py --test describe_tempctl
+python3 scripts/test_adpp_integration.py --test temp_convergence
+python3 scripts/test_adpp_integration.py --test motor_control
+python3 scripts/test_adpp_integration.py --test relay_control
+python3 scripts/test_adpp_integration.py --test precondition_check
 ```
 
 ### Resources

@@ -152,9 +152,9 @@ status {
   message: "ok"
 }
 hello {
-  protocol_version: "v0"
+  protocol_version: "v1"
   provider_name: "anolis-provider-sim"
-  provider_version: "0.0.1"
+  provider_version: "0.0.3"
   ...
 }
 
@@ -242,25 +242,27 @@ $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\tools\protobuf;$env:PATH"
 For comprehensive device testing, see test scripts in `scripts/`:
 
 - `test_hello.py` - Protocol handshake validation
-- `test_phase2.py` - Device simulation and ADPP handlers
+- `test_adpp_integration.py` - Full ADPP protocol compliance
+- `test_multi_instance.py` - Multiple provider instances
+- `test_fault_injection.py` - Fault injection test suite
 
-**Run full Phase 2 validation** (all 6 tests):
+**Run ADPP integration tests** (6 tests):
 
 ```powershell
-python scripts\test_phase2.py --test all
+python scripts\test_adpp_integration.py --test all
 ```
 
-**Expected**: All tests pass with `🎉 All Phase 2 tests passed!`
+**Expected**: All tests pass with `All ADPP integration tests passed!`
 
 Individual tests can be run separately:
 
 ```powershell
-python scripts\test_phase2.py --test list_devices
-python scripts\test_phase2.py --test describe_tempctl
-python scripts\test_phase2.py --test temp_convergence
-python scripts\test_phase2.py --test motor_control
-python scripts\test_phase2.py --test relay_control
-python scripts\test_phase2.py --test precondition_check
+python scripts\test_adpp_integration.py --test list_devices
+python scripts\test_adpp_integration.py --test describe_tempctl
+python scripts\test_adpp_integration.py --test temp_convergence
+python scripts\test_adpp_integration.py --test motor_control
+python scripts\test_adpp_integration.py --test relay_control
+python scripts\test_adpp_integration.py --test precondition_check
 ```
 
 ---
@@ -271,7 +273,7 @@ python scripts\test_phase2.py --test precondition_check
 
 If you see errors like:
 
-```
+```text
 error C2039: 'GetTickCount': is not a member of 'google::protobuf::util::TimeUtil'
 error C2589: '(': illegal token on right side of '::'
 ```
@@ -288,6 +290,7 @@ Windows headers define macros (`min`, `max`, `GetTickCount`, etc.) that conflict
    ```
 
 2. Use parentheses to prevent macro expansion:
+
    ```cpp
    (std::max)(a, b);  // Not std::max(a, b)
    (TimeUtil::GetCurrentTime)();  // Not GetCurrentTime()

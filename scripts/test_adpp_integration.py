@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Phase 2 validation tests for anolis-provider-sim.
-Tests ListDevices, DescribeDevice, ReadSignals, Call handlers with simulated devices.
+ADPP Integration Tests for anolis-provider-sim.
+
+Tests core ADPP v1 protocol operations and device simulation behaviors:
+- ListDevices, DescribeDevice, ReadSignals, CallFunction RPCs
+- Device state machines (tempctl PID control, motorctl speed control)
+- Physics simulation convergence
+- Precondition enforcement and error handling
 """
 
 import argparse
@@ -31,9 +36,9 @@ except ImportError:
 class ProviderClient:
     """Simple synchronous client for ADPP stdio transport."""
 
-    def __init__(self, exe_path):
+    def __init__(self, exe_path, config_path):
         self.proc = subprocess.Popen(
-            [str(exe_path)],
+            [str(exe_path), "--config", str(config_path)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=sys.stderr,
@@ -145,18 +150,29 @@ def make_bool_value(b):
 
 
 def test_list_devices(client):
-    """Test 1: Verify ListDevices returns both devices."""
+    """Test 1: Verify ListDevices returns expected devices from config."""
     print("\n=== Test 1: ListDevices ===")
     resp = client.list_devices()
 
     assert resp.status.code == 1, f"Expected CODE_OK, got {resp.status.code}"
-    assert len(resp.list_devices.devices) == 2, (
-        f"Expected 2 devices, got {len(resp.list_devices.devices)}"
+
+    # provider-sim.yaml has 4 devices + sim_control = 5 total
+    assert len(resp.list_devices.devices) == 5, (
+        f"Expected 5 devices, got {len(resp.list_devices.devices)}"
     )
 
     device_ids = [d.device_id for d in resp.list_devices.devices]
-    assert "tempctl0" in device_ids, "Missing tempctl0"
-    assert "motorctl0" in device_ids, "Missing motorctl0"
+
+    # Verify all expected devices are present
+    expected_devices = [
+        "tempctl0",
+        "motorctl0",
+        "relayio0",
+        "analogsensor0",
+        "sim_control",
+    ]
+    for device_id in expected_devices:
+        assert device_id in device_ids, f"Missing {device_id}"
 
     print(f"OK: Found {len(resp.list_devices.devices)} devices: {device_ids}")
     return True
@@ -365,7 +381,9 @@ def test_precondition_check(client):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Phase 2 validation tests")
+    parser = argparse.ArgumentParser(
+        description="ADPP integration tests for anolis-provider-sim"
+    )
     parser.add_argument(
         "--test",
         default="all",
@@ -385,7 +403,13 @@ def main():
     exe_path = find_executable()
     print(f"Testing: {exe_path}")
 
-    client = ProviderClient(exe_path)
+    # Use provider-sim.yaml config
+    config_path = repo_root / "config" / "provider-sim.yaml"
+    if not config_path.exists():
+        print(f"ERROR: Config file not found: {config_path}", file=sys.stderr)
+        sys.exit(1)
+
+    client = ProviderClient(exe_path, config_path)
 
     try:
         tests = {
@@ -398,7 +422,7 @@ def main():
         }
 
         if args.test == "all":
-            print("Running all Phase 2 tests...")
+            print("Running all ADPP integration tests...")
             results = []
             for name, test_func in tests.items():
                 try:
@@ -416,7 +440,7 @@ def main():
 
             all_passed = all(r[1] for r in results)
             if all_passed:
-                print("\nHooray! All Phase 2 tests passed!")
+                print("\nAll ADPP integration tests passed!")
                 return 0
             else:
                 print("\nSome tests failed")

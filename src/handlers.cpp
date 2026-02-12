@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "devices/device_factory.hpp"
 #include "devices/device_manager.hpp"
 #include "health.hpp"
 #include "transport/framed_stdio.hpp"
@@ -15,8 +16,8 @@ using anolis::deviceprovider::v1::GetHealthRequest;
 using anolis::deviceprovider::v1::HelloRequest;
 using anolis::deviceprovider::v1::ListDevicesRequest;
 using anolis::deviceprovider::v1::ReadSignalsRequest;
-using anolis::deviceprovider::v1::WaitReadyRequest;
 using anolis::deviceprovider::v1::Status;
+using anolis::deviceprovider::v1::WaitReadyRequest;
 
 static inline void set_status_ok(anolis::deviceprovider::v1::Response &resp) {
   resp.mutable_status()->set_code(Status::CODE_OK);
@@ -59,7 +60,8 @@ void handle_list_devices(const ListDevicesRequest &req,
     *out->add_devices() = d;
   }
 
-  // v1 sim: we ignore include_health for now (device_health omitted intentionally).
+  // v1 sim: we ignore include_health for now (device_health omitted
+  // intentionally).
   set_status_ok(resp);
 }
 
@@ -104,6 +106,15 @@ void handle_read_signals(const ReadSignalsRequest &req,
   ids.reserve(static_cast<size_t>(req.signal_ids_size()));
   for (const auto &s : req.signal_ids())
     ids.push_back(s);
+
+  // Check if device exists before attempting to read signals
+  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+      !anolis_provider_sim::DeviceFactory::is_device_registered(
+          req.device_id())) {
+    set_status(resp, Status::CODE_NOT_FOUND,
+               "unknown device_id: " + req.device_id());
+    return;
+  }
 
   const auto values = sim_devices::read_signals(req.device_id(), ids);
 
@@ -192,7 +203,7 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
 
   auto *out = resp.mutable_wait_ready();
   (*out->mutable_diagnostics())["init_time_ms"] = "0";
-  (*out->mutable_diagnostics())["device_count"] = 
+  (*out->mutable_diagnostics())["device_count"] =
       std::to_string(sim_devices::list_devices(false).size());
   (*out->mutable_diagnostics())["provider_impl"] = "sim";
 

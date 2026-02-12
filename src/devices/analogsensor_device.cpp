@@ -224,7 +224,8 @@ CapabilitySet get_capabilities() {
 // -----------------------------
 
 std::vector<SignalValue>
-read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+read_signals(const std::string &device_id,
+             const std::vector<std::string> &signal_ids) {
   State &s = get_state(device_id);
   std::vector<SignalValue> out;
 

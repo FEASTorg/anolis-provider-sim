@@ -37,6 +37,8 @@ struct State {
 
   double speed1 = 0.0; // arbitrary RPM
   double speed2 = 0.0;
+
+  double max_rpm = 3200.0; // maximum RPM (configurable)
 };
 
 // Per-device instance state storage
@@ -50,9 +52,25 @@ static State &get_state(const std::string &device_id) {
 // Initialization
 // -----------------------------
 
-void init(const std::string &device_id) {
-  // Initialize state for this device instance
-  g_device_states[device_id] = State();
+void init(const std::string &device_id, const Config &config) {
+  // Initialize state for this device instance with defaults
+  State s;
+
+  // Apply max_speed if provided
+  if (config.max_speed.has_value()) {
+    double max_speed = config.max_speed.value();
+
+    // Validate reasonable range (0 to 10000 RPM)
+    if (max_speed <= 0 || max_speed > 10000.0) {
+      throw std::runtime_error("[MotorCtl] max_speed " +
+                               std::to_string(max_speed) +
+                               " out of valid range (0, 10000] RPM");
+    }
+
+    s.max_rpm = max_speed;
+  }
+
+  g_device_states[device_id] = s;
 }
 
 // -----------------------------
@@ -62,13 +80,12 @@ void init(const std::string &device_id) {
 void update_physics(const std::string &device_id, double dt) {
   State &s = get_state(device_id);
 
-  // Speed approaches duty * maxRPM with lag
-  const double max_rpm = 3200.0;
+  // Speed approaches duty * max_rpm with lag
   const double motor_tau = 0.8; // seconds
   const double motor_alpha = 1.0 - std::exp(-dt / motor_tau);
 
-  const double tgt1 = clamp(s.duty1, 0.0, 1.0) * max_rpm;
-  const double tgt2 = clamp(s.duty2, 0.0, 1.0) * max_rpm;
+  const double tgt1 = clamp(s.duty1, 0.0, 1.0) * s.max_rpm;
+  const double tgt2 = clamp(s.duty2, 0.0, 1.0) * s.max_rpm;
 
   s.speed1 += motor_alpha * (tgt1 - s.speed1);
   s.speed2 += motor_alpha * (tgt2 - s.speed2);
@@ -209,7 +226,8 @@ static std::vector<std::string> default_signals() {
 }
 
 std::vector<SignalValue>
-read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+read_signals(const std::string &device_id,
+             const std::vector<std::string> &signal_ids) {
   State &s = get_state(device_id);
 
   std::vector<std::string> ids = signal_ids;
