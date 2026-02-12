@@ -71,7 +71,7 @@ devices:
 
   - id: motorctl0
     type: motorctl
-    max_speed: 100.0
+    max_speed: 3000.0
 
   - id: relayio0
     type: relayio
@@ -103,7 +103,7 @@ devices:
 
   - id: motorctl0
     type: motorctl
-    max_speed: 100.0
+    max_speed: 3000.0
 
 simulation:
   noise_enabled: false
@@ -294,13 +294,13 @@ Validate configuration changes:
 
 ```bash
 # Test configuration loads correctly
-./anolis-provider-sim --config config/test.yaml 2>&1 | grep "CONFIG"
+./build/anolis-provider-sim --config config/provider-sim.yaml
 
 # Verify devices via runtime
 curl http://localhost:8080/v0/devices
 
 # Run full test suite
-python tests/scenarios/run_scenarios.py
+./scripts/test.sh --suite all
 ```
 
 ## Future: ADPP Configure Message

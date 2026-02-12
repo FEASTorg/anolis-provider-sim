@@ -8,13 +8,13 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 ### Device Roster
 
-| Device ID       | Type                 | Signals                                                                | Functions                               |
-| --------------- | -------------------- | ---------------------------------------------------------------------- | --------------------------------------- |
-| `tempctl0`      | Temperature Control  | `tc1_temp`, `tc2_temp`, `relay1_state`, `relay2_state`, `control_mode`, `setpoint` | `set_mode`, `set_setpoint`, `set_relay` |
-| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_duty`, `motor2_duty`           | `set_motor_duty`                         |
-| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2` | `set_relay_ch1`, `set_relay_ch2`        |
-| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                         | `calibrate_channel`, `inject_noise`      |
-| `sim_control`   | Fault Injection      | _(none)_                                                               | See [Fault Injection API](#fault-injection-api) |
+| Device ID       | Type                 | Signals                                                                            | Functions                                       |
+| --------------- | -------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `tempctl0`      | Temperature Control  | `tc1_temp`, `tc2_temp`, `relay1_state`, `relay2_state`, `control_mode`, `setpoint` | `set_mode`, `set_setpoint`, `set_relay`         |
+| `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_duty`, `motor2_duty`                       | `set_motor_duty`                                |
+| `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2`               | `set_relay_ch1`, `set_relay_ch2`                |
+| `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                                     | `calibrate_channel`, `inject_noise`             |
+| `sim_control`   | Fault Injection      | _(none)_                                                                           | See [Fault Injection API](#fault-injection-api) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
@@ -325,7 +325,7 @@ Validate safe defaults:
 
 ```bash
 # Start provider-sim
-./anolis-provider-sim
+./build/anolis-provider-sim --config config/provider-sim.yaml
 
 # In separate terminal, use anolis runtime
 # - Runtime starts in IDLE mode (control operations blocked)
