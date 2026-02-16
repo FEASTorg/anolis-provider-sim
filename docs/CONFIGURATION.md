@@ -48,13 +48,149 @@ Each device in the `devices` list requires:
 
 ### Simulation Parameters
 
-Optional section for simulation-wide settings:
+Configures simulation behavior:
 
 ```yaml
 simulation:
-  noise_enabled: true # Enable/disable sensor noise
-  update_rate_hz: 10 # Physics update rate
+  mode: physics                    # Required: inert | non_interacting | physics
+  tick_rate_hz: 10.0              # Required: Update rate (0.1-1000 Hz)
+  physics_config: physics.yaml    # Required when mode=physics
 ```
+
+**Modes:**
+- **`inert`** - Devices return static values, no automatic updates
+- **`non_interacting`** - Each device has internal physics, no cross-device flow
+- **`physics`** - Full physics engine with signal routing
+
+**Path resolution:** `physics_config` paths are relative to provider config directory.
+
+## Physics Configuration
+
+When `simulation.mode = physics`, a separate physics config file defines models, signal routing, and rules.
+
+### Structure
+
+```yaml
+physics:
+  models:        # Physics models (thermal, mechanical, etc.)
+    - ...
+  signal_graph:  # Signal routing with transforms
+    - ...
+  rules:         # Automated actions based on conditions
+    - ...
+```
+
+### Models
+
+```yaml
+models:
+  - id: chamber_thermal              # Unique model ID
+    type: thermal_mass               # Model type
+    params:
+      thermal_mass: 5000.0          # Model-specific parameters
+      heat_transfer_coeff: 15.0
+      initial_temp: 25.0
+```
+
+**Available models:**
+- **`thermal_mass`** - Lumped-capacitance thermal model
+  - Params: `thermal_mass` (J/K), `heat_transfer_coeff` (W/K), `initial_temp` (°C)
+
+### Signal Graph
+
+Defines signal routing with optional transforms:
+
+```yaml
+signal_graph:
+  - source: device_id/signal_id     # Source path
+    target: model_id/input_name     # Target path
+    transform:                      # Optional transform
+      type: linear
+      scale: 100.0
+      offset: 0.0
+```
+
+**Path format:** `device_id/signal_id` or `model_id/signal_name`
+
+**Transform types:**
+
+| Type | Parameters | Description |
+|------|------------|-------------|
+| `first_order_lag` | `tau_s` (>0), `initial_value` (opt) | Low-pass filter |
+| `noise` | `amplitude` (>0), `seed` (int) | Gaussian noise |
+| `saturation` | `min`, `max` | Clamp to range |
+| `linear` | `scale`, `offset` (opt), `clamp_min/max` (opt) | Affine transform |
+| `deadband` | `threshold` (≥0) | Suppress small changes |
+| `rate_limiter` | `max_rate_per_sec` (>0) | Limit rate of change |
+| `delay` | `delay_sec` (≥0), `buffer_size` (opt) | Time delay |
+| `moving_average` | `window_size` (int, >0) | Sliding average |
+
+### Rules
+
+Automated actions triggered by signal conditions:
+
+```yaml
+rules:
+  - id: overheat_shutdown
+    condition: "chamber_thermal/temperature > 85.0"
+    on_error: log_and_continue
+    actions:
+      - device: tempctl0
+        function: set_relay
+        args:
+          relay_id: 1
+          enabled: false
+```
+
+**Condition syntax:** `device_id/signal_id comparator threshold`  
+**Comparators:** `<`, `>`, `<=`, `>=`, `==`, `!=`
+
+**Action execution:** Calls device function with YAML args converted to protobuf types.
+
+### Complete Example
+
+```yaml
+# provider-config.yaml
+devices:
+  - id: chamber
+    type: tempctl
+    initial_temp: 22.0
+
+simulation:
+  mode: physics
+  tick_rate_hz: 10.0
+  physics_config: chamber-physics.yaml
+
+# chamber-physics.yaml
+physics:
+  models:
+    - id: chamber_air
+      type: thermal_mass
+      params:
+        thermal_mass: 8000.0
+        heat_transfer_coeff: 20.0
+        initial_temp: 22.0
+
+  signal_graph:
+    - source: chamber/relay1_state
+      target: chamber_air/heating_power
+      transform: { type: linear, scale: 750.0 }
+    
+    - source: chamber_air/temperature
+      target: chamber/tc1_temp
+      transform: { type: first_order_lag, tau_s: 3.0 }
+
+  rules:
+    - id: overheat_protection
+      condition: "chamber_air/temperature > 140.0"
+      on_error: log_and_continue
+      actions:
+        - device: chamber
+          function: set_relay
+          args: { relay_id: 1, enabled: false }
+```
+
+See [demo-chamber.md](demo-chamber.md) and [demo-reactor.md](demo-reactor.md) for complete examples.
 
 ## Example Configurations
 

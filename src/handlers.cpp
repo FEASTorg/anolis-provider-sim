@@ -108,7 +108,7 @@ void handle_read_signals(const ReadSignalsRequest &req,
     ids.push_back(s);
 
   // Check if device exists before attempting to read signals
-  //Special-case sim_control (has no signals but is always available)
+  // Special-case sim_control (has no signals but is always available)
   if (req.device_id() != "sim_control" &&
       (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
        !anolis_provider_sim::DeviceFactory::is_device_registered(

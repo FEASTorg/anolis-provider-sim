@@ -2,4 +2,7 @@ devices:
   - id: tempctl0
     type: tempctl
     initial_temp: 25.0
-    temp_range: [100.0, 10.0]  # Invalid: min >= max
+    temp_range: [100.0, 10.0] # Invalid: min >= max
+
+simulation:
+  mode: inert

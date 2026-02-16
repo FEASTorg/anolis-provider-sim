@@ -43,13 +43,49 @@ protobuf_generate_cpp(
     ${ADPP_PROTO}
 )
 
+# ===========================
+# Simulation Engine Library
+# ===========================
+# This is the protocol-agnostic simulation engine.
+# CRITICAL: This library target MUST NOT depend on ADPP protocol or device implementations.
+# It depends ONLY on yaml-cpp for config parsing and ISignalSource interface.
+# This enforces architectural boundaries and enables future extraction to standalone repo.
+
+add_library(anolis_sim_engine STATIC
+    src/physics/sim_physics.cpp
+    src/physics/model_registry.cpp
+    src/physics/thermal_mass_model.cpp
+    src/physics/model_interface.hpp
+    src/physics/sim_physics.hpp
+    src/config.hpp
+    src/config.cpp
+)
+
+target_include_directories(anolis_sim_engine PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(anolis_sim_engine PUBLIC
+    yaml-cpp::yaml-cpp
+)
+
+# Enforce zero ADPP dependencies: do NOT link protobuf to sim_engine
+# If compilation fails with protocol.pb.h not found, that's GOOD - it means
+# we're enforcing separation. Fix by removing the offending include.
+
+# ===========================
+# Provider-Sim Executable
+# ===========================
+# This is the ADPP provider implementation that uses the sim engine library.
+
 add_executable(anolis-provider-sim
     src/main.cpp
     src/handlers.cpp
     src/fault_injection.cpp
-    src/config.cpp
     src/devices/device_manager.cpp
     src/devices/device_factory.cpp
+    src/devices/signal_registry.cpp
+    src/devices/rule_engine.cpp
     src/devices/tempctl_device.cpp
     src/devices/motorctl_device.cpp
     src/devices/relayio_device.cpp
@@ -65,8 +101,9 @@ target_include_directories(anolis-provider-sim PRIVATE
 )
 
 target_link_libraries(anolis-provider-sim PRIVATE
-    protobuf::libprotobuf
-    yaml-cpp::yaml-cpp
+    anolis_sim_engine     # Simulation engine library (protocol-agnostic)
+    protobuf::libprotobuf # ADPP protocol
+    yaml-cpp::yaml-cpp    # Config parsing
 )
 
 if (WIN32)

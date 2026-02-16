@@ -1,20 +1,36 @@
 #include "device_manager.hpp"
 
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
+#include "../config.hpp"
 #include "../fault_injection.hpp"
+#include "../physics/sim_physics.hpp"
 #include "analogsensor_device.hpp"
 #include "device_factory.hpp"
 #include "motorctl_device.hpp"
 #include "relayio_device.hpp"
+#include "rule_engine.hpp"
+#include "signal_registry.hpp"
 #include "sim_control_device.hpp"
 #include "tempctl_device.hpp"
 
 namespace sim_devices {
 
 // -----------------------------
-// Physics time-stepping
+// Physics engine and signal registry (owned by device_manager)
+// -----------------------------
+
+static std::unique_ptr<sim_physics::SimPhysics> g_physics_engine;
+static std::unique_ptr<sim_coordination::SignalRegistry>
+    g_signal_registry_owned;
+sim_coordination::SignalRegistry *g_signal_registry = nullptr; // Public pointer
+
+static std::unique_ptr<RuleEngine> g_rule_engine;  // Rule evaluation engine
+
+// -----------------------------
+// Physics time-stepping (non_interacting mode only)
 // -----------------------------
 
 static std::chrono::steady_clock::time_point last_update =
@@ -53,6 +69,112 @@ static void step_world() {
     relayio::update_physics(relayio::kDeviceId, seconds);
     analogsensor::update_physics(analogsensor::kDeviceId, seconds);
   }
+}
+
+// -----------------------------
+// Physics engine management
+// -----------------------------
+
+void initialize_physics(
+    const anolis_provider_sim::ProviderConfig &provider_config) {
+
+  // Create SignalRegistry for physics-device coordination
+  g_signal_registry_owned =
+      std::make_unique<sim_coordination::SignalRegistry>();
+  g_signal_registry = g_signal_registry_owned.get();
+
+  // Set up device reader callback for registry
+  // This is called when physics reads actuator signals (non-physics-driven)
+  g_signal_registry->set_device_reader(
+      [](const std::string &path) -> std::optional<double> {
+        // Parse path: "device_id/signal_id"
+        size_t slash_pos = path.find('/');
+        if (slash_pos == std::string::npos) {
+          return std::nullopt;
+        }
+
+        std::string device_id = path.substr(0, slash_pos);
+        std::string signal_id = path.substr(slash_pos + 1);
+
+        // Read actual device signal via device manager
+        auto signals = read_signals(device_id, {signal_id});
+        if (signals.empty()) {
+          return std::nullopt;
+        }
+
+        // Convert protobuf Value to double
+        // NOTE: This is the ONLY place we convert ADPP protocol types to double
+        const auto &val = signals[0].value();
+        using anolis::deviceprovider::v1::ValueType;
+
+        if (val.type() == ValueType::VALUE_TYPE_DOUBLE) {
+          return val.double_value();
+        } else if (val.type() == ValueType::VALUE_TYPE_INT64) {
+          return static_cast<double>(val.int64_value());
+        } else if (val.type() == ValueType::VALUE_TYPE_BOOL) {
+          return val.bool_value() ? 1.0 : 0.0;
+        }
+
+        return std::nullopt;
+      });
+
+  // Load physics config if in physics mode
+  if (provider_config.simulation_mode ==
+      anolis_provider_sim::SimulationMode::Physics) {
+    std::cerr << "[DeviceManager] Loading physics config from: "
+              << *provider_config.physics_config_path << std::endl;
+
+    // Resolve physics config path relative to provider config directory
+    std::filesystem::path config_dir =
+        std::filesystem::path(provider_config.config_file_path).parent_path();
+    std::filesystem::path physics_path =
+        config_dir / *provider_config.physics_config_path;
+
+    anolis_provider_sim::PhysicsConfig physics_config =
+        anolis_provider_sim::load_physics_config(physics_path.string());
+
+    // Create physics engine with signal registry
+    g_physics_engine = std::make_unique<sim_physics::SimPhysics>(
+        g_signal_registry, provider_config, physics_config);
+
+    // Create rule engine if rules are defined
+    if (!physics_config.rules.empty()) {
+      g_rule_engine = std::make_unique<RuleEngine>(g_signal_registry, physics_config);
+      
+      // Set callback so physics ticker calls rule engine
+      g_physics_engine->set_rule_callback([&]() {
+        if (g_rule_engine) {
+          g_rule_engine->evaluate_rules();
+        }
+      });
+      
+      std::cerr << "[DeviceManager] Initialized " << physics_config.rules.size()
+                << " automation rules" << std::endl;
+    }
+  } else {
+    // Create minimal physics engine for non-physics modes
+    anolis_provider_sim::PhysicsConfig empty_physics_config;
+    g_physics_engine = std::make_unique<sim_physics::SimPhysics>(
+        g_signal_registry, provider_config, empty_physics_config);
+  }
+}
+
+void start_physics() {
+  if (g_physics_engine) {
+    g_physics_engine->start();
+  }
+}
+
+void stop_physics() {
+  if (g_physics_engine) {
+   g_physics_engine->stop();
+    g_physics_engine.reset();
+  }
+  
+  // Clean up rule engine
+  g_rule_engine.reset();
+  g_signal_registry = nullptr;
+  g_signal_registry_owned.reset();
 }
 
 // -----------------------------
@@ -145,7 +267,8 @@ CapabilitySet describe_device(const std::string &device_id) {
 std::vector<SignalValue>
 read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
-  step_world();
+  // Phase 22: No automatic stepping in request handlers
+  // Ticker threads drive physics updates
 
   // Check if device is unavailable due to fault injection
   if (fault_injection::is_device_unavailable(device_id)) {

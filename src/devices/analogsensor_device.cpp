@@ -25,6 +25,8 @@ static constexpr uint32_t kFnInjectNoise = 2;
 // Signal IDs
 static constexpr const char *kSigVoltageCh1 = "voltage_ch1";
 static constexpr const char *kSigVoltageCh2 = "voltage_ch2";
+static constexpr const char *kSigVoltageCh3 = "voltage_ch3";
+static constexpr const char *kSigVoltageCh4 = "voltage_ch4";
 static constexpr const char *kSigSensorQuality = "sensor_quality";
 
 // -----------------------------
@@ -35,6 +37,8 @@ struct State {
   // Analog channel values (volts, 0-10V range)
   double voltage_ch1_base = 2.5;
   double voltage_ch2_base = 5.0;
+  double voltage_ch3_base = 7.5;
+  double voltage_ch4_base = 3.3;
 
   // Noise and drift state
   double drift_accumulator = 0.0;
@@ -116,7 +120,7 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
   d.set_provider_name(kProviderName);
   d.set_type_id("sim.analog_sensor_module");
   d.set_type_version("1.0");
-  d.set_label("Sim Analog Sensor Module (2 channels)");
+  d.set_label("Sim Analog Sensor Module (4 channels)");
   d.set_address("sim://" + device_id);
   (*d.mutable_tags())["family"] = "sim";
   (*d.mutable_tags())["kind"] = "analog_input";
@@ -180,6 +184,28 @@ CapabilitySet get_capabilities() {
   }
   {
     SignalSpec s;
+    s.set_signal_id(kSigVoltageCh3);
+    s.set_name("Voltage Ch3");
+    s.set_description("Analog input channel 3 voltage (0-10V)");
+    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+    s.set_unit("V");
+    s.set_poll_hint_hz(10.0);
+    s.set_stale_after_ms(500);
+    *caps.add_signals() = s;
+  }
+  {
+    SignalSpec s;
+    s.set_signal_id(kSigVoltageCh4);
+    s.set_name("Voltage Ch4");
+    s.set_description("Analog input channel 4 voltage (0-10V)");
+    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+    s.set_unit("V");
+    s.set_poll_hint_hz(10.0);
+    s.set_stale_after_ms(500);
+    *caps.add_signals() = s;
+  }
+  {
+    SignalSpec s;
     s.set_signal_id(kSigSensorQuality);
     s.set_name("Sensor Quality");
     s.set_description("Overall sensor quality: GOOD, NOISY, or FAULT");
@@ -199,9 +225,9 @@ CapabilitySet get_capabilities() {
         "Calibrate a specific analog input channel (requires GOOD quality)");
     *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_CONFIG);
     auto a = make_arg("channel", ValueType::VALUE_TYPE_INT64, true,
-                      "Channel index (1 or 2)");
+                      "Channel index (1-4)");
     a.set_min_int64(1);
-    a.set_max_int64(2);
+    a.set_max_int64(4);
     *f.add_args() = a;
     *caps.add_functions() = f;
   }
@@ -232,7 +258,8 @@ read_signals(const std::string &device_id,
   // If signal_ids empty, return all signals
   std::vector<std::string> ids = signal_ids;
   if (ids.empty()) {
-    ids = {kSigVoltageCh1, kSigVoltageCh2, kSigSensorQuality};
+    ids = {kSigVoltageCh1, kSigVoltageCh2, kSigVoltageCh3, kSigVoltageCh4,
+           kSigSensorQuality};
   }
 
   for (const auto &id : ids) {
@@ -242,6 +269,12 @@ read_signals(const std::string &device_id,
     else if (id == kSigVoltageCh2)
       out.push_back(make_signal_value(
           id, make_double(get_noisy_reading(s, s.voltage_ch2_base))));
+    else if (id == kSigVoltageCh3)
+      out.push_back(make_signal_value(
+          id, make_double(get_noisy_reading(s, s.voltage_ch3_base))));
+    else if (id == kSigVoltageCh4)
+      out.push_back(make_signal_value(
+          id, make_double(get_noisy_reading(s, s.voltage_ch4_base))));
     else if (id == kSigSensorQuality)
       out.push_back(make_signal_value(id, make_string(s.quality)));
   }
@@ -267,8 +300,8 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
     if (!get_arg_int64(args, "channel", channel))
       return bad("missing or invalid 'channel' int64 argument");
 
-    if (channel < 1 || channel > 2)
-      return bad("channel must be 1 or 2");
+    if (channel < 1 || channel > 4)
+      return bad("channel must be 1-4");
 
     // Calibration resets drift for all channels
     s.drift_accumulator = 0.0;

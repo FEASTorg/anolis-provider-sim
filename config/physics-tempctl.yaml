@@ -1,0 +1,53 @@
+# Phase 22 Physics Configuration - Temperature Control Chamber
+# This config demonstrates the full physics engine with ThermalMassModel
+
+physics:
+  # Physics models to instantiate
+  models:
+    - id: chamber_thermal
+      type: thermal_mass
+      params:
+        thermal_mass: 5000.0           # J/K - heat capacity of chamber
+        heat_transfer_coeff: 15.0      # W/K - convective heat transfer
+        initial_temp: 25.0             # C - starting temperature
+
+  # Signal routing graph (source -> transform -> target)
+  signal_graph:
+    # Relay power -> heating power (relay state to watts)
+    - source: tempctl0/relay1_state
+      target: chamber_thermal/heating_power
+      transform:
+        type: linear
+        scale: 500.0      # Each relay = 500.0W when ON
+        offset: 0.0
+    
+    - source: tempctl0/relay2_state
+      target: chamber_thermal/heating_power
+      transform:
+        type: linear
+        scale: 500.0      # Second relay also 500.0W
+        offset: 0.0
+    
+    # Thermal model output -> device temperature sensors
+    - source: chamber_thermal/temperature
+      target: tempctl0/tc1_temp
+      transform:
+        type: first_order_lag
+        tau_s: 2.0        # TC1 has 2 second sensor lag
+    
+    - source: chamber_thermal/temperature
+      target: tempctl0/tc2_temp
+      transform:
+        type: first_order_lag
+        tau_s: 1.5        # TC2 has 1.5 second sensor lag
+    
+    # Add noise to TC2 (more realistic sensor)
+    - source: tempctl0/tc2_temp
+      target: tempctl0/tc2_temp
+      transform:
+        type: noise
+        amplitude: 0.5    # ±0.5°C noise
+        seed: 42
+
+  # Automation rules (Phase 22.6 - not yet implemented)
+  rules: []

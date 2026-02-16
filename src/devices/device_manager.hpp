@@ -2,11 +2,19 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "../config.hpp"
 #include "device_common.hpp"
 #include "protocol.pb.h"
+#include "signal_registry.hpp"
+
+// Forward declaration
+namespace sim_physics {
+class SimPhysics;
+}
 
 namespace sim_devices {
 
@@ -14,6 +22,18 @@ using anolis::deviceprovider::v1::CapabilitySet;
 using anolis::deviceprovider::v1::Device;
 using anolis::deviceprovider::v1::SignalValue;
 using anolis::deviceprovider::v1::Value;
+
+// ---- Physics engine management ----
+
+void initialize_physics(
+    const anolis_provider_sim::ProviderConfig &provider_config);
+void start_physics();
+void stop_physics();
+
+// ---- Signal Registry (for physics-device coordination) ----
+
+extern sim_coordination::SignalRegistry
+    *g_signal_registry; // Global registry instance
 
 // ---- Public API used by handlers ----
 

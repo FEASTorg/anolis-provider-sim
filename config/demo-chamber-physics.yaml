@@ -1,0 +1,65 @@
+# Physics Configuration: Environmental Chamber
+# Models a medium-sized thermal chamber with realistic heat transfer
+
+physics:
+  models:
+    - id: chamber_air
+      type: thermal_mass
+      params:
+        thermal_mass: 8000.0            # J/K - larger chamber, more thermal inertia
+        heat_transfer_coeff: 20.0       # W/K - insulated walls, moderate loss
+        initial_temp: 22.0              # C - room temperature
+
+  signal_graph:
+    # Control relays drive heating elements
+    - source: chamber/relay1_state
+      target: chamber_air/heating_power
+      transform:
+        type: linear
+        scale: 750.0        # Primary heater: 750W
+        offset: 0.0
+    
+    - source: chamber/relay2_state
+      target: chamber_air/heating_power
+      transform:
+        type: linear
+        scale: 750.0        # Secondary heater: 750W
+        offset: 0.0
+    
+    # Chamber temperature drives thermocouples with realistic lag
+    - source: chamber_air/temperature
+      target: chamber/tc1_temp
+      transform:
+        type: first_order_lag
+        tau_s: 3.0          # TC1: slower response (deep in chamber)
+    
+    - source: chamber_air/temperature
+      target: chamber/tc2_temp
+      transform:
+        type: first_order_lag
+        tau_s: 1.8          # TC2: faster response (near wall)
+      
+    # Add measurement noise to TC2 (realistic sensor)
+    - source: chamber/tc2_temp
+      target: chamber/tc2_temp
+      transform:
+        type: noise
+        amplitude: 0.3      # ±0.3°C measurement uncertainty
+        seed: 123
+
+  rules:
+    # Safety rule: Disable heaters if chamber exceeds safe temperature
+    - id: overheat_protection
+      condition: "chamber_air/temperature > 140.0"
+      on_error: log_and_continue
+      actions:
+        - device: chamber
+          function: set_relay
+          args:
+            relay_id: 1
+            enabled: false
+        - device: chamber
+          function: set_relay
+          args:
+            relay_id: 2
+            enabled: false

@@ -6,4 +6,5 @@ devices:
     max_speed: -100.0 # Invalid: negative speed
 
 simulation:
+  mode: inert
   noise_enabled: false

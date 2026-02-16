@@ -1,5 +1,5 @@
 # Provider-Sim Configuration (Default)
-# Matches hardcoded devices for backward compatibility testing
+# Phase 22: Migrated to explicit simulation mode
 
 devices:
   - id: tempctl0
@@ -17,5 +17,6 @@ devices:
     type: analogsensor
 
 simulation:
+  mode: non_interacting
+  tick_rate_hz: 10.0
   noise_enabled: true
-  update_rate_hz: 10

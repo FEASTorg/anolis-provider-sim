@@ -3,6 +3,8 @@
 #include <cmath>
 #include <set>
 
+#include "device_manager.hpp" // For g_signal_registry
+
 namespace sim_devices {
 namespace tempctl {
 
@@ -309,6 +311,41 @@ read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
   State &s = get_state(device_id);
 
+  // In closed-loop mode, run bang-bang controller to set relay states
+  if (s.mode == "closed") {
+    // Simple bang-bang with hysteresis: turn on if below setpoint-2, off if
+    // above setpoint+2
+
+    // Read TC1 temperature (check physics registry first)
+    double temp = s.tc1_c; // Default to internal state
+    if (g_signal_registry) {
+      std::string tc1_path = device_id + "/tc1_temp";
+      if (g_signal_registry->is_physics_driven(tc1_path)) {
+        auto phys_val = g_signal_registry->read_signal(tc1_path);
+        if (phys_val) {
+          temp = *phys_val;
+        }
+      }
+    }
+
+    double error = s.setpoint_c - temp;
+
+    if (error > 10.0) {
+      // Far below setpoint: both relays on
+      s.relay1 = true;
+      s.relay2 = true;
+    } else if (error > 2.0) {
+      // Moderately below: one relay on
+      s.relay1 = true;
+      s.relay2 = false;
+    } else if (error < -2.0) {
+      // Above setpoint: both off
+      s.relay1 = false;
+      s.relay2 = false;
+    }
+    // Else: in dead band (-2 to +2), keep current state
+  }
+
   std::vector<std::string> ids = signal_ids;
   if (ids.empty()) {
     ids = default_signals();
@@ -322,11 +359,33 @@ read_signals(const std::string &device_id,
       continue;
     }
 
-    if (id == kSigTc1Temp)
-      out.push_back(make_signal_value(id, make_double(s.tc1_c)));
-    else if (id == kSigTc2Temp)
-      out.push_back(make_signal_value(id, make_double(s.tc2_c)));
-    else if (id == kSigRelay1State)
+    if (id == kSigTc1Temp) {
+      // Check if physics is driving this signal
+      double value = s.tc1_c; // Default to internal state
+      if (g_signal_registry) {
+        std::string full_path = device_id + "/tc1_temp";
+        if (g_signal_registry->is_physics_driven(full_path)) {
+          auto phys_val = g_signal_registry->read_signal(full_path);
+          if (phys_val) {
+            value = *phys_val;
+          }
+        }
+      }
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigTc2Temp) {
+      // Check if physics is driving this signal
+      double value = s.tc2_c; // Default to internal state
+      if (g_signal_registry) {
+        std::string full_path = device_id + "/tc2_temp";
+        if (g_signal_registry->is_physics_driven(full_path)) {
+          auto phys_val = g_signal_registry->read_signal(full_path);
+          if (phys_val) {
+            value = *phys_val;
+          }
+        }
+      }
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigRelay1State)
       out.push_back(make_signal_value(id, make_bool(s.relay1)));
     else if (id == kSigRelay2State)
       out.push_back(make_signal_value(id, make_bool(s.relay2)));

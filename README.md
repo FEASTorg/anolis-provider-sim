@@ -18,6 +18,46 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
+## Physics Simulation
+
+Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the **Signal Registry pattern** for clean separation between simulation and protocol layers.
+
+### Simulation Modes
+
+- **`inert`** - No automatic updates, devices return static values
+- **`non_interacting`** - Each device has internal physics, no cross-device flow
+- **`physics`** - Full physics engine with declarative signal routing
+
+### Key Features
+
+- **8 transform primitives** - FirstOrderLag, Noise, Saturation, Linear, Deadband, RateLimiter, Delay, MovingAverage
+- **ThermalMassModel** - First-principles thermal physics (lumped capacitance)
+- **Rule engine** - Automated actions based on signal conditions
+- **Declarative routing** - Full device→model→device signal flow in YAML config
+
+### Demo Scenarios
+
+**Thermal Chamber** (`demo-chamber.yaml`):
+- Single temperature controller with dual heating elements
+- Realistic thermal model with lag and noise
+- Overheat protection rule (auto-shutdown at 140°C)
+- See [docs/demo-chamber.md](docs/demo-chamber.md)
+
+**Multi-Zone Reactor** (`demo-reactor.yaml`):
+- 2x tempctl + 1x motorctl with thermal coupling
+- Core and jacket thermal zones with bidirectional heat transfer
+- 3 coordinated safety rules
+- Demonstrates multi-instance signal routing
+- See [docs/demo-reactor.md](docs/demo-reactor.md)
+
+### Architecture
+
+Physics engine operates on `ISignalSource` abstraction (zero protocol dependencies). SignalRegistry coordinates between:
+- **Physics ticker** - Reads actuators, evaluates graph, writes sensors
+- **Device handlers** - Check registry for physics-driven signals
+
+See [docs/architecture-signal-registry.md](docs/architecture-signal-registry.md) for details.
+
 ## Configuration
 
 Provider-sim supports device configuration via YAML files. This allows operators to customize device topology without code changes.

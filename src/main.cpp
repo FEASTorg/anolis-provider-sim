@@ -13,6 +13,7 @@
 
 #include "config.hpp"
 #include "devices/device_factory.hpp"
+#include "devices/device_manager.hpp"
 #include "handlers.hpp"
 #include "protocol.pb.h"
 #include "transport/framed_stdio.hpp"
@@ -56,14 +57,18 @@ int main(int argc, char **argv) {
   }
 
   // Load configuration
+  anolis_provider_sim::ProviderConfig config;
   try {
     log_err("loading configuration from: " + *config_path);
-    anolis_provider_sim::ProviderConfig config =
-        anolis_provider_sim::load_config(*config_path);
+    config = anolis_provider_sim::load_config(*config_path);
     int initialized =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
     log_err("initialized " + std::to_string(initialized) +
             " devices from config");
+
+    // Initialize physics engine (but don't start ticker yet - wait for
+    // WaitReady)
+    sim_devices::initialize_physics(config);
   } catch (const std::exception &e) {
     log_err("FATAL: Failed to load configuration: " + std::string(e.what()));
     return 1;
@@ -94,9 +99,11 @@ int main(int argc, char **argv) {
     if (!ok) {
       if (io_err.empty()) {
         log_err("EOF on stdin; exiting cleanly");
+        sim_devices::stop_physics(); // Clean shutdown
         return 0;
       }
       log_err(std::string("read_frame error: ") + io_err);
+      sim_devices::stop_physics(); // Clean shutdown
       return 2;
     }
 
@@ -117,6 +124,8 @@ int main(int argc, char **argv) {
       handlers::handle_hello(req.hello(), resp);
     } else if (req.has_wait_ready()) {
       handlers::handle_wait_ready(req.wait_ready(), resp);
+      // Start physics ticker after WaitReady completes
+      sim_devices::start_physics();
     } else if (req.has_list_devices()) {
       handlers::handle_list_devices(req.list_devices(), resp);
     } else if (req.has_describe_device()) {

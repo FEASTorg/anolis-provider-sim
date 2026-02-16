@@ -1,0 +1,14 @@
+# Demo: Thermal Chamber Simulation
+# Single-zone environmental chamber with physics-based thermal model
+# Demonstrates basic Signal Registry architecture with closed-loop control
+
+devices:
+  - id: chamber
+    type: tempctl
+    initial_temp: 22.0      # Room temperature start
+    temp_range: [-40.0, 150.0]
+
+simulation:
+  mode: physics
+  tick_rate_hz: 10.0
+  physics_config: demo-chamber-physics.yaml
