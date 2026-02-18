@@ -11,7 +11,6 @@
 
 #include "../config.hpp"
 #include "../fault_injection.hpp"
-#include "../flux_client.hpp"
 #include "analogsensor_device.hpp"
 #include "device_factory.hpp"
 #include "motorctl_device.hpp"
@@ -22,22 +21,19 @@
 namespace sim_devices {
 
 // -----------------------------
-// Signal registry and FluxGraph client state
+// Shared coordination/runtime state
 // -----------------------------
 
 static std::unique_ptr<sim_coordination::SignalRegistry> g_signal_registry_owned;
 sim_coordination::SignalRegistry *g_signal_registry = nullptr;
 
-static sim_flux::FluxGraphClient *g_flux_client = nullptr; // non-owning
+static std::unique_ptr<sim_engine::SimulationEngine> g_simulation_engine;
 
 static std::unique_ptr<std::thread> g_ticker_thread;
 static std::atomic<bool> g_ticker_running{false};
 static double g_tick_rate_hz = 10.0;
 static anolis_provider_sim::SimulationMode g_sim_mode =
     anolis_provider_sim::SimulationMode::Inert;
-
-static std::chrono::steady_clock::time_point last_update =
-    std::chrono::steady_clock::now();
 
 static std::map<std::string, std::map<std::string, uint32_t>>
     g_function_name_to_id;
@@ -47,43 +43,8 @@ static std::vector<std::string> g_physics_output_paths;
 // Helpers
 // -----------------------------
 
-void set_flux_client(sim_flux::FluxGraphClient *client) { g_flux_client = client; }
-
-sim_flux::FluxGraphClient *get_flux_client() { return g_flux_client; }
-
-static void step_world() {
-  const auto now = std::chrono::steady_clock::now();
-  const std::chrono::duration<double> dt = now - last_update;
-  double seconds = dt.count();
-  if (seconds <= 0.0) {
-    return;
-  }
-
-  // Clamp dt to avoid large jumps under debugger pauses.
-  seconds = clamp(seconds, 0.0, 0.25);
-  last_update = now;
-
-  if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
-    auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
-    for (const auto &entry : registered) {
-      if (entry.type == "tempctl") {
-        tempctl::update_physics(entry.id, seconds);
-      } else if (entry.type == "motorctl") {
-        motorctl::update_physics(entry.id, seconds);
-      } else if (entry.type == "relayio") {
-        relayio::update_physics(entry.id, seconds);
-      } else if (entry.type == "analogsensor") {
-        analogsensor::update_physics(entry.id, seconds);
-      }
-    }
-    return;
-  }
-
-  // Fallback singleton behavior (legacy path).
-  tempctl::update_physics(tempctl::kDeviceId, seconds);
-  motorctl::update_physics(motorctl::kDeviceId, seconds);
-  relayio::update_physics(relayio::kDeviceId, seconds);
-  analogsensor::update_physics(analogsensor::kDeviceId, seconds);
+void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine) {
+  g_simulation_engine = std::move(engine);
 }
 
 static void cache_device_capabilities() {
@@ -103,14 +64,15 @@ static void rebuild_physics_output_paths(
     const anolis_provider_sim::ProviderConfig &provider_config) {
   g_physics_output_paths.clear();
 
-  if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Physics ||
+  if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim ||
       !provider_config.physics_config_path) {
     return;
   }
 
   std::filesystem::path config_dir =
       std::filesystem::path(provider_config.config_file_path).parent_path();
-  std::filesystem::path physics_path = config_dir / *provider_config.physics_config_path;
+  std::filesystem::path physics_path =
+      config_dir / *provider_config.physics_config_path;
 
   auto physics_cfg = anolis_provider_sim::load_physics_config(physics_path.string());
 
@@ -175,30 +137,17 @@ static void collect_actuator_signals(std::map<std::string, double> &signals) {
   }
 }
 
-static void sync_flux_outputs_to_registry() {
-  if (!g_flux_client || !g_signal_registry) {
-    return;
-  }
-
-  for (const auto &path : g_physics_output_paths) {
-    auto v = g_flux_client->read_signal_value(path);
-    if (v) {
-      g_signal_registry->write_signal(path, *v);
-    }
-  }
-}
-
-static void execute_flux_command(const sim_flux::Command &cmd) {
-  const auto dev_it = g_function_name_to_id.find(cmd.device_name);
+static void execute_engine_command(const sim_engine::Command &cmd) {
+  const auto dev_it = g_function_name_to_id.find(cmd.device_id);
   if (dev_it == g_function_name_to_id.end()) {
-    std::cerr << "[DeviceManager] Unknown command device: " << cmd.device_name
+    std::cerr << "[DeviceManager] Unknown command device: " << cmd.device_id
               << "\n";
     return;
   }
 
   const auto fn_it = dev_it->second.find(cmd.function_name);
   if (fn_it == dev_it->second.end()) {
-    std::cerr << "[DeviceManager] Unknown command function: " << cmd.device_name
+    std::cerr << "[DeviceManager] Unknown command function: " << cmd.device_id
               << "::" << cmd.function_name << "\n";
     return;
   }
@@ -222,7 +171,7 @@ static void execute_flux_command(const sim_flux::Command &cmd) {
     pb_args[k] = pb;
   }
 
-  const auto result = call_function(cmd.device_name, fn_it->second, pb_args);
+  const auto result = call_function(cmd.device_id, fn_it->second, pb_args);
   if (result.code != anolis::deviceprovider::v1::Status::CODE_OK) {
     std::cerr << "[DeviceManager] Command failed: " << result.message << "\n";
   }
@@ -236,26 +185,33 @@ static void ticker_thread_func(double tick_rate_hz) {
   auto next_tick = std::chrono::steady_clock::now();
 
   while (g_ticker_running.load()) {
-    std::map<std::string, double> signals;
-    collect_actuator_signals(signals);
+    std::map<std::string, double> actuators;
+    collect_actuator_signals(actuators);
 
-    // Phase 22 parity: ambient defaults to 25.0C.
-    signals["environment/ambient_temp"] = 25.0;
+    if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim) {
+      // Phase 22 parity: ambient defaults to 25.0C.
+      actuators["environment/ambient_temp"] = 25.0;
+    }
 
-    if (g_flux_client) {
-      try {
-        const bool tick_occurred =
-            g_flux_client->update_signals(signals, "dimensionless");
-        if (tick_occurred) {
-          sync_flux_outputs_to_registry();
+    if (!g_simulation_engine) {
+      std::cerr << "[DeviceManager] Missing simulation engine in ticker\n";
+      break;
+    }
 
-          for (const auto &cmd : g_flux_client->drain_commands()) {
-            execute_flux_command(cmd);
-          }
+    const sim_engine::TickResult result = g_simulation_engine->tick(actuators);
+
+    if (result.success) {
+      if (g_signal_registry) {
+        for (const auto &[path, value] : result.sensors) {
+          g_signal_registry->write_signal(path, value);
         }
-      } catch (const std::exception &e) {
-        std::cerr << "[DeviceManager] Flux tick error: " << e.what() << "\n";
       }
+
+      for (const auto &cmd : result.commands) {
+        execute_engine_command(cmd);
+      }
+    } else {
+      std::cerr << "[DeviceManager] Tick failed, continuing with stale data\n";
     }
 
     next_tick += tick_duration;
@@ -275,7 +231,6 @@ void initialize_physics(
     const anolis_provider_sim::ProviderConfig &provider_config) {
   g_sim_mode = provider_config.simulation_mode;
   g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
-  last_update = std::chrono::steady_clock::now();
 
   g_signal_registry_owned = std::make_unique<sim_coordination::SignalRegistry>();
   g_signal_registry = g_signal_registry_owned.get();
@@ -315,12 +270,12 @@ void initialize_physics(
 }
 
 void start_physics() {
-  if (g_sim_mode != anolis_provider_sim::SimulationMode::Physics) {
+  if (g_sim_mode == anolis_provider_sim::SimulationMode::Inert) {
     return;
   }
-  if (!g_flux_client) {
-    std::cerr << "[DeviceManager] Physics mode requires FluxGraph client; ticker "
-                 "not started\n";
+  if (!g_simulation_engine) {
+    std::cerr << "[DeviceManager] Non-inert mode requires simulation engine; "
+                 "ticker not started\n";
     return;
   }
   if (g_ticker_running.load()) {
@@ -342,6 +297,7 @@ void stop_physics() {
   g_function_name_to_id.clear();
   g_signal_registry = nullptr;
   g_signal_registry_owned.reset();
+  g_simulation_engine.reset();
 }
 
 // -----------------------------
@@ -454,10 +410,6 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  if (g_sim_mode == anolis_provider_sim::SimulationMode::NonInteracting) {
-    step_world();
-  }
-
   if (fault_injection::is_device_unavailable(device_id)) {
     return bad("device unavailable (injected fault)");
   }

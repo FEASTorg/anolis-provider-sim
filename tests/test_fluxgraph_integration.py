@@ -117,7 +117,7 @@ class ProviderClient:
         provider_exe = find_provider_executable()
         
         self.proc = subprocess.Popen(
-            [provider_exe, "--config", str(config_path), "--flux-server", flux_server],
+            [provider_exe, "--config", str(config_path), "--sim-server", flux_server],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

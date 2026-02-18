@@ -12,6 +12,7 @@
 #   -BuildDir <path>       Override build directory
 #   -Generator <name>      CMake generator (default: VS on Windows, Ninja elsewhere)
 #   -Jobs <N>              Parallel build jobs
+#   -DNAME=VALUE           Pass CMake definitions (e.g., -DENABLE_FLUXGRAPH=OFF)
 #   -Help                  Show this help
 
 [CmdletBinding(PositionalBinding = $false)]
@@ -31,6 +32,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Support GNU-style long options (e.g. --clean, --build-dir build).
+# Collect CMake arguments (-D flags) separately to pass through.
+$cmakeArgs = @()
 for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
     $arg = $ExtraArgs[$i]
     switch -Regex ($arg) {
@@ -60,6 +63,11 @@ for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
             continue
         }
         '^--jobs=(.+)$' { $Jobs = [int]$Matches[1]; continue }
+        '^-D' {
+            # CMake definition flag - pass through
+            $cmakeArgs += $arg
+            continue
+        }
         default { throw "Unknown argument: $arg" }
     }
 }
@@ -180,6 +188,9 @@ $configArgs = @(
 )
 if ($TSan) {
     $configArgs += "-DENABLE_TSAN=ON"
+}
+if ($cmakeArgs) {
+    $configArgs += $cmakeArgs
 }
 
 $buildArgs = @("--build", $BuildDir, "--config", $buildType, "--parallel")

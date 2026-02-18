@@ -2,7 +2,7 @@
 # This config tests the full physics engine with tempctl device
 
 simulation:
-  mode: physics # Enable full physics engine
+  mode: sim # Enable full physics engine
   tick_rate_hz: 10.0 # 10 Hz ticker (0.1 second timesteps)
   physics_config: physics-tempctl.yaml # Relative to config directory
 

@@ -5,7 +5,7 @@
 #
 # Examples:
 #   .\scripts\run_local.ps1 -- --config config/provider-sim.yaml
-#   .\scripts\run_local.ps1 -- --config config/test-physics.yaml --flux-server localhost:50051
+#   .\scripts\run_local.ps1 -- --config config/test-physics.yaml --sim-server localhost:50051
 
 param(
     [string]$BuildDir = "",

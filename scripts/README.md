@@ -138,11 +138,11 @@ Options:
 # Run with minimal config (no physics)
 .\scripts\run_local.ps1 -- --config config/minimal.yaml
 
-# Run with physics mode
+# Run with sim mode
 .\scripts\run_local.ps1 -- --config config/test-physics.yaml
 
 # Run with FluxGraph integration
-.\scripts\run_local.ps1 -- --config config/test-flux-integration.yaml --flux-server localhost:50051
+.\scripts\run_local.ps1 -- --config config/test-flux-integration.yaml --sim-server localhost:50051
 ```
 
 ### Linux/macOS
@@ -259,7 +259,7 @@ python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 
    ```powershell
    cd ..\anolis-provider-sim
-   .\scripts\run_local.ps1 -- --config config/test-flux-integration.yaml --flux-server localhost:50051
+   .\scripts\run_local.ps1 -- --config config/test-flux-integration.yaml --sim-server localhost:50051
    ```
 
 3. **Provider will connect and register with FluxGraph server**

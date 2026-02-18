@@ -24,9 +24,15 @@ Provider-sim includes a configurable physics engine for realistic multi-device s
 
 ### Simulation Modes
 
-- **`inert`** - No automatic updates, devices return static values
-- **`non_interacting`** - Each device has internal physics, no cross-device flow
-- **`physics`** - Full physics engine with declarative signal routing
+- **`inert`** - No simulation engine, devices return static/default values
+- **`non_interacting`** - Local physics engine with first-order device models
+- **`sim`** - External simulation via FluxGraph adapter (requires `ENABLE_FLUXGRAPH=ON`)
+
+**Deprecated (Phase 26-27, removed Phase 28):**
+- `mode: physics` → use `mode: sim` (warning emitted)
+- `--flux-server` → use `--sim-server` (warning emitted)
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for migration guide.
 
 ### Key Features
 
@@ -226,6 +232,20 @@ mkdir build
 cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
 cmake --build . --config Release
+```
+
+### Build Options
+
+**`ENABLE_FLUXGRAPH`** (default: `ON`)
+- Controls FluxGraph adapter for external simulation support
+- When `ON`: Enables `sim` mode with FluxGraph protocol adapter
+- When `OFF`: Standalone build supporting only `inert` and `non_interacting` modes
+
+```bash
+# Standalone build (no FluxGraph dependencies)
+.\scripts\build.ps1 -Clean -Release -BuildDir build-standalone -DENABLE_FLUXGRAPH=OFF
+
+# sim mode will fail with: "mode=sim requires FluxGraph support. Rebuild with -DENABLE_FLUXGRAPH=ON"
 ```
 
 ### Linux

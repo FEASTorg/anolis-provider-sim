@@ -14,12 +14,15 @@ SimulationMode parse_simulation_mode(const std::string &mode_str) {
     return SimulationMode::NonInteracting;
   } else if (mode_str == "inert") {
     return SimulationMode::Inert;
+  } else if (mode_str == "sim") {
+    return SimulationMode::Sim;
   } else if (mode_str == "physics") {
-    return SimulationMode::Physics;
+    std::cerr << "WARNING: simulation.mode='physics' is deprecated, use 'sim'\n";
+    return SimulationMode::Sim;
   } else {
     throw std::runtime_error(
         "Invalid simulation.mode: '" + mode_str +
-        "'. Valid values: non_interacting, inert, physics");
+        "'. Valid values: non_interacting, inert, sim");
   }
 }
 
@@ -272,7 +275,7 @@ ProviderConfig load_config(const std::string &path) {
                              std::string(e.what()));
   }
 
-  // Parse simulation.tick_rate_hz (required for non_interacting and physics)
+  // Parse simulation.tick_rate_hz (required for non_interacting and sim)
   if (yaml["simulation"]["tick_rate_hz"]) {
     double tick_rate = yaml["simulation"]["tick_rate_hz"].as<double>();
 
@@ -285,7 +288,7 @@ ProviderConfig load_config(const std::string &path) {
     config.tick_rate_hz = tick_rate;
   }
 
-  // Parse simulation.physics_config (required for physics mode)
+  // Parse simulation.physics_config (required for sim mode)
   if (yaml["simulation"]["physics_config"]) {
     config.physics_config_path =
         yaml["simulation"]["physics_config"].as<std::string>();
@@ -317,24 +320,24 @@ ProviderConfig load_config(const std::string &path) {
     }
     break;
 
-  case SimulationMode::Physics:
+  case SimulationMode::Sim:
     if (!config.tick_rate_hz) {
       throw std::runtime_error(
-          "[CONFIG] mode=physics requires simulation.tick_rate_hz");
+          "[CONFIG] mode=sim requires simulation.tick_rate_hz");
     }
     if (!config.physics_config_path) {
       throw std::runtime_error(
-          "[CONFIG] mode=physics requires simulation.physics_config");
+          "[CONFIG] mode=sim requires simulation.physics_config");
     }
     break;
   }
 
-  // Validate physics_bindings are only used in physics mode
-  if (config.simulation_mode != SimulationMode::Physics) {
+  // Validate physics_bindings are only used in sim mode
+  if (config.simulation_mode != SimulationMode::Sim) {
     for (const auto &device : config.devices) {
       if (device.config.find("physics_bindings") != device.config.end()) {
         throw std::runtime_error("[CONFIG] Device '" + device.id +
-                                 "' has physics_bindings but mode!= physics "
+                                 "' has physics_bindings but mode!= sim "
                                  "(prevents silent ignored config)");
       }
     }

@@ -85,7 +85,8 @@ void FluxGraphClient::register_provider(const std::string &provider_id,
 }
 
 bool FluxGraphClient::update_signals(const std::map<std::string, double> &signals,
-                                     const std::string &default_unit) {
+                                     const std::string &default_unit,
+                                     std::chrono::milliseconds timeout) {
   if (!registered_) {
     throw std::runtime_error("FluxGraph provider session not registered");
   }
@@ -101,6 +102,10 @@ bool FluxGraphClient::update_signals(const std::map<std::string, double> &signal
 
   fluxgraph::rpc::TickResponse res;
   grpc::ClientContext ctx;
+  if (timeout.count() > 0) {
+    const auto deadline = std::chrono::system_clock::now() + timeout;
+    ctx.set_deadline(deadline);
+  }
   const auto status = stub_->UpdateSignals(&ctx, req, &res);
   if (!status.ok()) {
     throw std::runtime_error("UpdateSignals RPC failed: " +

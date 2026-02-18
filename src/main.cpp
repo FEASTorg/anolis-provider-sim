@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -13,14 +14,20 @@
 #include <io.h>
 #endif
 
-#include "config_translator.hpp"
 #include "config.hpp"
-#include "flux_client.hpp"
 #include "devices/device_factory.hpp"
 #include "devices/device_manager.hpp"
+#include "engines/local_engine.hpp"
+#include "engines/null_engine.hpp"
+#include "engines/remote_engine.hpp"
 #include "handlers.hpp"
 #include "protocol.pb.h"
+#include "simulation_engine.hpp"
 #include "transport/framed_stdio.hpp"
+
+#ifdef HAVE_FLUXGRAPH
+#include "adapters/fluxgraph_adapter.hpp"
+#endif
 
 static void set_binary_mode_stdio() {
 #ifdef _WIN32
@@ -33,10 +40,43 @@ static void log_err(const std::string &msg) {
   std::cerr << "anolis-provider-sim: " << msg << "\n";
 }
 
+static std::unique_ptr<sim_engine::SimulationEngine>
+create_engine(const anolis_provider_sim::ProviderConfig &config,
+              const std::string &sim_server_address) {
+  using anolis_provider_sim::SimulationMode;
+
+  switch (config.simulation_mode) {
+  case SimulationMode::Inert:
+    log_err("mode=inert (no simulation)");
+    return std::make_unique<sim_engine::NullEngine>();
+
+  case SimulationMode::NonInteracting:
+    log_err("mode=non_interacting (local physics)");
+    return std::make_unique<sim_engine::LocalEngine>();
+
+  case SimulationMode::Sim:
+#ifdef HAVE_FLUXGRAPH
+    if (sim_server_address.empty()) {
+      throw std::runtime_error("mode=sim requires --sim-server <host:port>");
+    }
+    log_err("mode=sim (external simulation at " + sim_server_address + ")");
+    return std::make_unique<sim_engine::RemoteEngine>(
+        std::make_unique<sim_adapters::FluxGraphAdapter>(sim_server_address),
+        config.tick_rate_hz.value_or(10.0));
+#else
+    (void)sim_server_address;
+    throw std::runtime_error(
+        "mode=sim requires FluxGraph support. Rebuild with "
+        "-DENABLE_FLUXGRAPH=ON");
+#endif
+  }
+
+  throw std::runtime_error("Unknown simulation mode");
+}
+
 int main(int argc, char **argv) {
-  // Parse command-line arguments
   std::optional<std::string> config_path;
-  std::optional<std::string> flux_server_address;
+  std::optional<std::string> sim_server_address;
   double crash_after_sec = -1.0;
 
   for (int i = 1; i < argc; ++i) {
@@ -51,76 +91,71 @@ int main(int argc, char **argv) {
         log_err("invalid --crash-after value");
         return 1;
       }
+    } else if (arg == "--sim-server" && i + 1 < argc) {
+      sim_server_address = argv[++i];
     } else if (arg == "--flux-server" && i + 1 < argc) {
-      flux_server_address = argv[++i];
+      std::cerr << "WARNING: --flux-server is deprecated, use --sim-server\n";
+      sim_server_address = argv[++i];
     }
   }
 
-  // Require configuration file
   if (!config_path) {
     log_err("FATAL: --config argument is required");
     log_err("Usage: anolis-provider-sim --config <path/to/config.yaml> "
-            "[--flux-server <host:port>]");
+            "[--sim-server <host:port>]");
     return 1;
   }
 
-  // Load configuration
   anolis_provider_sim::ProviderConfig config;
-  std::unique_ptr<sim_flux::FluxGraphClient> flux_client;
   try {
     log_err("loading configuration from: " + *config_path);
     config = anolis_provider_sim::load_config(*config_path);
+
     int initialized =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
     log_err("initialized " + std::to_string(initialized) +
             " devices from config");
 
-    if (config.simulation_mode == anolis_provider_sim::SimulationMode::Physics) {
-      if (!flux_server_address) {
-        log_err("FATAL: mode=physics requires --flux-server <host:port>");
-        return 1;
-      }
+    if (config.simulation_mode != anolis_provider_sim::SimulationMode::Sim &&
+        sim_server_address) {
+      log_err("WARNING: --sim-server ignored for non-sim mode");
+    }
 
-      log_err("connecting to FluxGraph server at: " + *flux_server_address);
-      flux_client = std::make_unique<sim_flux::FluxGraphClient>(*flux_server_address);
+    auto engine = create_engine(config, sim_server_address.value_or(""));
 
+    if (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) {
       std::filesystem::path config_dir =
           std::filesystem::path(config.config_file_path).parent_path();
       std::filesystem::path physics_path =
           config_dir / *config.physics_config_path;
-
-      log_err("translating physics config for FluxGraph: " + physics_path.string());
-      std::string fluxgraph_yaml =
-          sim_config::translate_to_fluxgraph_format(physics_path.string());
-
-      flux_client->load_config_content(fluxgraph_yaml);
-
-      std::vector<std::string> device_ids;
-      device_ids.reserve(config.devices.size());
-      for (const auto &d : config.devices) {
-        device_ids.push_back(d.id);
-      }
-      flux_client->register_provider("provider-sim", device_ids);
-
-      log_err("FluxGraph client initialized and provider registered");
-    } else if (flux_server_address) {
-      log_err("WARNING: --flux-server ignored for non-physics mode");
+      engine->initialize(physics_path.string());
+    } else {
+      engine->initialize("");
     }
 
-    sim_devices::set_flux_client(flux_client.get());
+    std::vector<std::string> device_ids;
+    device_ids.reserve(config.devices.size());
+    for (const auto &device : config.devices) {
+      device_ids.push_back(device.id);
+    }
+    engine->register_devices(device_ids);
 
-    // Initialize physics engine (but don't start ticker yet - wait for
-    // WaitReady)
+    sim_devices::set_simulation_engine(std::move(engine));
     sim_devices::initialize_physics(config);
+
+    // Start physics automatically for non-inert modes
+    if (config.simulation_mode != anolis_provider_sim::SimulationMode::Inert) {
+      sim_devices::start_physics();
+    }
+
   } catch (const std::exception &e) {
-    log_err("FATAL: Failed to load configuration: " + std::string(e.what()));
+    log_err("FATAL: Failed to initialize simulation: " + std::string(e.what()));
     return 1;
   }
 
   set_binary_mode_stdio();
   log_err("starting (transport=stdio+uint32_le)");
 
-  // Start crash timer if requested (for supervision testing)
   if (crash_after_sec > 0.0) {
     log_err("CHAOS MODE: will crash after " + std::to_string(crash_after_sec) +
             " seconds");
@@ -142,11 +177,11 @@ int main(int argc, char **argv) {
     if (!ok) {
       if (io_err.empty()) {
         log_err("EOF on stdin; exiting cleanly");
-        sim_devices::stop_physics(); // Clean shutdown
+        sim_devices::stop_physics();
         return 0;
       }
       log_err(std::string("read_frame error: ") + io_err);
-      sim_devices::stop_physics(); // Clean shutdown
+      sim_devices::stop_physics();
       return 2;
     }
 
@@ -162,12 +197,10 @@ int main(int argc, char **argv) {
         anolis::deviceprovider::v1::Status::CODE_INTERNAL);
     resp.mutable_status()->set_message("uninitialized");
 
-    // Dispatch
     if (req.has_hello()) {
       handlers::handle_hello(req.hello(), resp);
     } else if (req.has_wait_ready()) {
       handlers::handle_wait_ready(req.wait_ready(), resp);
-      // Start physics ticker after WaitReady completes
       sim_devices::start_physics();
     } else if (req.has_list_devices()) {
       handlers::handle_list_devices(req.list_devices(), resp);

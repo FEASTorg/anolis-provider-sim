@@ -7,13 +7,10 @@
 #include <vector>
 
 #include "../config.hpp"
+#include "../simulation_engine.hpp"
 #include "device_common.hpp"
 #include "protocol.pb.h"
 #include "signal_registry.hpp"
-
-namespace sim_flux {
-class FluxGraphClient;
-}
 
 namespace sim_devices {
 
@@ -28,8 +25,7 @@ void initialize_physics(
     const anolis_provider_sim::ProviderConfig &provider_config);
 void start_physics();
 void stop_physics();
-void set_flux_client(sim_flux::FluxGraphClient *client);
-sim_flux::FluxGraphClient *get_flux_client();
+void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine);
 
 // ---- Signal Registry (for physics-device coordination) ----
 

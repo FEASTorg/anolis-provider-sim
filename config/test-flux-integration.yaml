@@ -2,7 +2,7 @@
 # Simplified config without self-loops (Blocker 3 workaround)
 
 simulation:
-  mode: physics
+  mode: sim
   tick_rate_hz: 10.0
   physics_config: physics-flux-integration.yaml
 

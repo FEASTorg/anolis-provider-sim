@@ -2,6 +2,8 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -34,7 +36,9 @@ public:
                          const std::vector<std::string> &device_ids);
 
   bool update_signals(const std::map<std::string, double> &signals,
-                      const std::string &default_unit = "dimensionless");
+                      const std::string &default_unit = "dimensionless",
+                      std::chrono::milliseconds timeout =
+                          std::chrono::milliseconds{0});
 
   struct SignalInfo {
     double value = 0.0;

@@ -12,7 +12,7 @@ namespace anolis_provider_sim {
 enum class SimulationMode {
   NonInteracting, // Fixed-tick, device-only physics, no cross-device flow
   Inert,          // No automatic updates, function calls only
-  Physics         // Fixed-tick, full physics engine with signal routing
+  Sim             // Fixed-tick, external simulation engine with signal routing
 };
 
 // Transform primitive type
@@ -77,8 +77,8 @@ struct ProviderConfig {
   std::vector<DeviceSpec> devices;
   SimulationMode simulation_mode;
   std::optional<double>
-      tick_rate_hz; // Required for non_interacting and physics modes
-  std::optional<std::string> physics_config_path; // Required for physics mode
+      tick_rate_hz; // Required for non_interacting and sim modes
+  std::optional<std::string> physics_config_path; // Required for sim mode
   std::map<std::string, YAML::Node>
       simulation; // Legacy params (will be migrated)
 };

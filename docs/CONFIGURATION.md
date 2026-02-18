@@ -52,21 +52,56 @@ Configures simulation behavior:
 
 ```yaml
 simulation:
-  mode: physics                    # Required: inert | non_interacting | physics
+  mode: sim                        # Required: inert | non_interacting | sim
   tick_rate_hz: 10.0              # Required: Update rate (0.1-1000 Hz)
-  physics_config: physics.yaml    # Required when mode=physics
+  physics_config: physics.yaml    # Required when mode=sim
 ```
 
 **Modes:**
 - **`inert`** - Devices return static values, no automatic updates
 - **`non_interacting`** - Each device has internal physics, no cross-device flow
-- **`physics`** - Full physics engine with signal routing
+- **`sim`** - External simulation engine with signal routing
+- **`physics`** - Deprecated alias for `sim` (Phase 26-27 compatibility)
 
 **Path resolution:** `physics_config` paths are relative to provider config directory.
 
+### Migration Guide (Phase 26)
+
+**Configuration Changes:**
+
+```yaml
+# OLD (Phase ≤25)
+simulation:
+  mode: physics
+  physics_config: config.yaml
+
+# NEW (Phase 26+)
+simulation:
+  mode: sim
+  physics_config: config.yaml
+```
+
+**Command-Line Changes:**
+
+```bash
+# OLD
+./anolis-provider-sim --flux-server localhost:50051
+
+# NEW
+./anolis-provider-sim --sim-server localhost:50051
+```
+
+**Backward Compatibility:**
+- Phase 26-27: `mode: physics` and `--flux-server` accepted with deprecation warnings
+- Phase 28+: Legacy names removed, must use `mode: sim` and `--sim-server`
+
+**Build Options:**
+- `ENABLE_FLUXGRAPH=ON` (default): Full support for all modes
+- `ENABLE_FLUXGRAPH=OFF`: Standalone build, `sim` mode disabled (only `inert` and `non_interacting` available)
+
 ## Physics Configuration
 
-When `simulation.mode = physics`, a separate physics config file defines models, signal routing, and rules.
+When `simulation.mode = sim`, a separate physics config file defines models, signal routing, and rules.
 
 ### Structure
 
@@ -157,7 +192,7 @@ devices:
     initial_temp: 22.0
 
 simulation:
-  mode: physics
+  mode: sim
   tick_rate_hz: 10.0
   physics_config: chamber-physics.yaml
 

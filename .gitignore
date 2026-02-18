@@ -252,6 +252,8 @@ artifacts/
 
 # build files
 build/
+build-*/
+.venv-*/
 
 # private files
 _reference

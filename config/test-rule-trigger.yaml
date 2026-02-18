@@ -5,6 +5,6 @@ devices:
     temp_range: [20.0, 50.0]
 
 simulation:
-  mode: physics
+  mode: sim
   tick_rate_hz: 10.0
   physics_config: test-rule-trigger-physics.yaml
