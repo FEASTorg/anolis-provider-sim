@@ -1,0 +1,17 @@
+devices:
+  - id: chamber
+    type: tempctl
+    initial_temp: 25.0
+    temp_range: [0, 150]
+  
+  - id: motor
+    type: motorctl
+    max_speed: 3000
+
+simulation:
+  mode: non_interacting
+  tick_rate_hz: 10.0  # 10 Hz ticker (dt = 0.1s)
+  
+  # Built-in first-order physics:
+  # - Temperature: τ = 6s
+  # - Motor: τ = 2s

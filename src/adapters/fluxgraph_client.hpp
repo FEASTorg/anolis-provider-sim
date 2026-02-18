@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef HAVE_FLUXGRAPH
+
 #include <grpcpp/grpcpp.h>
 
 #include <chrono>
@@ -79,3 +81,5 @@ private:
 };
 
 } // namespace sim_flux
+
+#endif // HAVE_FLUXGRAPH

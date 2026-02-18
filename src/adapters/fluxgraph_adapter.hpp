@@ -4,7 +4,7 @@
 
 #ifdef HAVE_FLUXGRAPH
 
-#include "../flux_client.hpp"
+#include "fluxgraph_client.hpp"
 
 #include <memory>
 #include <set>
@@ -28,6 +28,8 @@ public:
   read_signals(const std::vector<std::string> &signal_paths) override;
 
   std::vector<sim_engine::Command> drain_commands() override;
+
+  std::vector<std::string> list_signals() override;
 
 private:
   std::unique_ptr<sim_flux::FluxGraphClient> client_;

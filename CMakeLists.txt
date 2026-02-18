@@ -121,8 +121,7 @@ if(ENABLE_FLUXGRAPH)
     add_custom_target(fluxgraph_proto_gen DEPENDS ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS})
 
     list(APPEND SOURCES
-        src/flux_client.cpp
-        src/config_translator.cpp
+        src/adapters/fluxgraph_client.cpp
         src/adapters/fluxgraph_adapter.cpp
         ${FLUXGRAPH_GEN_SRCS}
     )

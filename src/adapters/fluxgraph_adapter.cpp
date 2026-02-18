@@ -2,11 +2,11 @@
 
 #include "fluxgraph_adapter.hpp"
 
-#include "../config.hpp"
-#include "../config_translator.hpp"
-
+#include <fstream>
+#include <iostream>
 #include <set>
 #include <utility>
+#include <yaml-cpp/yaml.h>
 
 namespace sim_adapters {
 
@@ -19,16 +19,28 @@ void FluxGraphAdapter::connect(const std::string &) {
 }
 
 void FluxGraphAdapter::load_config(const std::string &config_path) {
-  std::string fluxgraph_yaml =
-      sim_config::translate_to_fluxgraph_format(config_path);
+  // Load FluxGraph config directly (already in FluxGraph format)
+  std::ifstream file(config_path);
+  if (!file.is_open()) {
+    throw std::runtime_error("Failed to open physics config: " + config_path);
+  }
+  std::string fluxgraph_yaml((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
   client_->load_config_content(fluxgraph_yaml);
 
   output_paths_.clear();
   std::set<std::string> dedup;
-  const auto cfg = anolis_provider_sim::load_physics_config(config_path);
-  for (const auto &edge : cfg.signal_graph) {
-    if (dedup.insert(edge.target).second) {
-      output_paths_.push_back(edge.target);
+  
+  // Parse YAML to extract edge targets (FluxGraph format uses "edges" not "signal_graph")
+  YAML::Node root = YAML::LoadFile(config_path);
+  if (root["edges"] && root["edges"].IsSequence()) {
+    for (const auto &edge : root["edges"]) {
+      if (edge["target"]) {
+        std::string target = edge["target"].as<std::string>();
+        if (dedup.insert(target).second) {
+          output_paths_.push_back(target);
+        }
+      }
     }
   }
 }
@@ -47,7 +59,16 @@ bool FluxGraphAdapter::update_signals(
     const std::map<std::string, double> &actuators,
     const std::string &unit,
     std::chrono::milliseconds timeout) {
-  return client_->update_signals(actuators, unit, timeout);
+  static int update_count = 0;
+  if (update_count < 3) {
+    std::cerr << "[FluxGraphAdapter] Update #" << update_count << " sending " << actuators.size() << " signals to FluxGraph\n";
+  }
+  bool result = client_->update_signals(actuators, unit, timeout);
+  if (update_count < 3) {
+    std::cerr << "[FluxGraphAdapter] Update #" << update_count << " result: " << (result ? "SUCCESS" : "FAILED") << "\n";
+  }
+  update_count++;
+  return result;
 }
 
 std::map<std::string, double> FluxGraphAdapter::read_signals(
@@ -68,11 +89,27 @@ std::map<std::string, double> FluxGraphAdapter::read_signals(
     }
   }
 
+  static int read_count = 0;
+  if (read_count < 3) {
+    std::cerr << "[FluxGraphAdapter] Read #" << read_count << " querying " << paths_to_read.size() << " paths:\n";
+    for (const auto &path : paths_to_read) {
+      std::cerr << "  " << path << "\n";
+    }
+  }
+
   for (const auto &path : paths_to_read) {
     if (auto value = client_->read_signal_value(path)) {
       sensors[path] = *value;
     }
   }
+
+  if (read_count < 3) {
+    std::cerr << "[FluxGraphAdapter] Read #" << read_count << " got " << sensors.size() << " values:\n";
+    for (const auto &[path, value] : sensors) {
+      std::cerr << "  " << path << " = " << value << "\n";
+    }
+  }
+  read_count++;
 
   return sensors;
 }
@@ -87,6 +124,10 @@ std::vector<sim_engine::Command> FluxGraphAdapter::drain_commands() {
     out.push_back(std::move(mapped));
   }
   return out;
+}
+
+std::vector<std::string> FluxGraphAdapter::list_signals() {
+  return output_paths_;
 }
 
 } // namespace sim_adapters

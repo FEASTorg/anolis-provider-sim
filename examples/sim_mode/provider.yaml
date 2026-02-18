@@ -1,0 +1,13 @@
+devices:
+  - id: chamber
+    type: tempctl
+    initial_temp: 25.0
+    temp_range: [0, 150]
+
+simulation:
+  mode: sim
+  tick_rate_hz: 10.0
+  physics_config: physics.yaml
+  
+  # Server address provided via CLI:
+  # --sim-server localhost:50051

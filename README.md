@@ -213,6 +213,21 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_call_failure", json={
 requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args": {}})
 ```
 
+## Examples
+
+Comprehensive working examples for each simulation mode are available inthe [`examples/`](examples/) directory:
+
+- **[inert_mode](examples/inert_mode/)** - Protocol testing without physics (fast, deterministic)
+- **[non_interacting_mode](examples/non_interacting_mode/)** - Built-in first-order physics (standalone)
+- **[sim_mode](examples/sim_mode/)** - FluxGraph external simulation (advanced coupling)
+
+Each example includes:
+- Complete YAML configurations
+- Python test scripts with expected output
+- README with usage instructions
+
+See [examples/README.md](examples/README.md) for the full index and quick start guide.
+
 ## Building
 
 ```bash

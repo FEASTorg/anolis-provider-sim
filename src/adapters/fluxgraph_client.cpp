@@ -1,4 +1,6 @@
-#include "flux_client.hpp"
+#ifdef HAVE_FLUXGRAPH
+
+#include "fluxgraph_client.hpp"
 
 #include <chrono>
 #include <fstream>
@@ -240,3 +242,5 @@ void FluxGraphClient::invalidate_cache() {
 }
 
 } // namespace sim_flux
+
+#endif // HAVE_FLUXGRAPH

@@ -1,0 +1,23 @@
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 25.0
+    temp_range: [0, 150]
+  
+  - id: motorctl0
+    type: motorctl
+    max_speed: 3000
+  
+  - id: relayio0
+    type: relayio
+    relay_count: 4
+  
+  - id: analogsensor0
+    type: analogsensor
+    channel_count: 4
+
+simulation:
+  mode: inert
+  # No ticker thread
+  # No physics computation
+  # Sensors return defaults

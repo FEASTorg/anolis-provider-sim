@@ -64,8 +64,34 @@ static void rebuild_physics_output_paths(
     const anolis_provider_sim::ProviderConfig &provider_config) {
   g_physics_output_paths.clear();
 
-  if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim ||
-      !provider_config.physics_config_path) {
+  // Sim mode: query the engine directly - it already parsed FluxGraph config
+  if (provider_config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) {
+    if (g_simulation_engine) {
+      std::set<std::string> known_device_ids;
+      for (const auto &dev : provider_config.devices) {
+        known_device_ids.insert(dev.id);
+      }
+
+      auto signal_paths = g_simulation_engine->list_signals();
+      for (const auto &path : signal_paths) {
+        // Filter to only signals owned by our devices
+        const auto slash = path.find('/');
+        if (slash != std::string::npos) {
+          std::string device_id = path.substr(0, slash);
+          if (known_device_ids.count(device_id) > 0) {
+            g_physics_output_paths.push_back(path);
+            if (g_signal_registry) {
+              g_signal_registry->mark_physics_driven(path);
+            }
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  // Non-interacting mode: parse legacy format physics config
+  if (!provider_config.physics_config_path) {
     return;
   }
 
@@ -184,6 +210,8 @@ static void ticker_thread_func(double tick_rate_hz) {
           std::chrono::duration<double>(dt));
   auto next_tick = std::chrono::steady_clock::now();
 
+  int tick_count = 0;
+  
   while (g_ticker_running.load()) {
     std::map<std::string, double> actuators;
     collect_actuator_signals(actuators);
@@ -191,6 +219,14 @@ static void ticker_thread_func(double tick_rate_hz) {
     if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim) {
       // Phase 22 parity: ambient defaults to 25.0C.
       actuators["environment/ambient_temp"] = 25.0;
+    }
+
+    // Debug first few ticks
+    if (tick_count < 3) {
+      std::cerr << "[Ticker] Tick #" << tick_count << " sending " << actuators.size() << " signals:\n";
+      for (const auto &[path, value] : actuators) {
+        std::cerr << "  " << path << " = " << value << "\n";
+      }
     }
 
     if (!g_simulation_engine) {
@@ -201,6 +237,13 @@ static void ticker_thread_func(double tick_rate_hz) {
     const sim_engine::TickResult result = g_simulation_engine->tick(actuators);
 
     if (result.success) {
+      if (tick_count < 3) {
+        std::cerr << "[Ticker] Tick #" << tick_count << " received " << result.sensors.size() << " signals:\n";
+        for (const auto &[path, value] : result.sensors) {
+          std::cerr << "  " << path << " = " << value << "\n";
+        }
+      }
+      
       if (g_signal_registry) {
         for (const auto &[path, value] : result.sensors) {
           g_signal_registry->write_signal(path, value);
@@ -214,6 +257,8 @@ static void ticker_thread_func(double tick_rate_hz) {
       std::cerr << "[DeviceManager] Tick failed, continuing with stale data\n";
     }
 
+    tick_count++;
+    
     next_tick += tick_duration;
     const auto now = std::chrono::steady_clock::now();
     if (next_tick <= now) {
