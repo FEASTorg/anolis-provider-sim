@@ -1,7 +1,10 @@
 #include "analogsensor_device.hpp"
 
 #include <cmath>
+#include <optional>
 #include <random>
+
+#include "device_manager.hpp" // For g_signal_registry
 
 namespace sim_devices {
 namespace analogsensor {
@@ -262,21 +265,38 @@ read_signals(const std::string &device_id,
            kSigSensorQuality};
   }
 
+  auto maybe_physics_value = [&](const std::string &signal_id)
+      -> std::optional<double> {
+    if (!g_signal_registry) {
+      return std::nullopt;
+    }
+    const std::string path = device_id + "/" + signal_id;
+    if (!g_signal_registry->is_physics_driven(path)) {
+      return std::nullopt;
+    }
+    return g_signal_registry->read_signal(path);
+  };
+
   for (const auto &id : ids) {
-    if (id == kSigVoltageCh1)
-      out.push_back(make_signal_value(
-          id, make_double(get_noisy_reading(s, s.voltage_ch1_base))));
-    else if (id == kSigVoltageCh2)
-      out.push_back(make_signal_value(
-          id, make_double(get_noisy_reading(s, s.voltage_ch2_base))));
-    else if (id == kSigVoltageCh3)
-      out.push_back(make_signal_value(
-          id, make_double(get_noisy_reading(s, s.voltage_ch3_base))));
-    else if (id == kSigVoltageCh4)
-      out.push_back(make_signal_value(
-          id, make_double(get_noisy_reading(s, s.voltage_ch4_base))));
-    else if (id == kSigSensorQuality)
+    if (id == kSigVoltageCh1) {
+      const double value = maybe_physics_value(id).value_or(
+          get_noisy_reading(s, s.voltage_ch1_base));
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigVoltageCh2) {
+      const double value = maybe_physics_value(id).value_or(
+          get_noisy_reading(s, s.voltage_ch2_base));
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigVoltageCh3) {
+      const double value = maybe_physics_value(id).value_or(
+          get_noisy_reading(s, s.voltage_ch3_base));
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigVoltageCh4) {
+      const double value = maybe_physics_value(id).value_or(
+          get_noisy_reading(s, s.voltage_ch4_base));
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigSensorQuality) {
       out.push_back(make_signal_value(id, make_string(s.quality)));
+    }
   }
 
   return out;

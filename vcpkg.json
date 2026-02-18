@@ -1,10 +1,11 @@
 {
   "name": "anolis-provider-sim",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Simulated device provider for Anolis runtime testing",
   "dependencies": [
     "protobuf",
-    "yaml-cpp"
+    "yaml-cpp",
+    "grpc"
   ],
   "builtin-baseline": "66c0373dc7fca549e5803087b9487edfe3aca0a1"
 }

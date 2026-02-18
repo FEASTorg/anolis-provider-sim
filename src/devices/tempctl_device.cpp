@@ -353,6 +353,18 @@ read_signals(const std::string &device_id,
 
   std::vector<SignalValue> out;
 
+  auto maybe_physics_value = [&](const std::string &signal_id)
+      -> std::optional<double> {
+    if (!g_signal_registry) {
+      return std::nullopt;
+    }
+    const std::string full_path = device_id + "/" + signal_id;
+    if (!g_signal_registry->is_physics_driven(full_path)) {
+      return std::nullopt;
+    }
+    return g_signal_registry->read_signal(full_path);
+  };
+
   for (const auto &id : ids) {
     if (get_known_signals().count(id) == 0) {
       // Omit unknown signals
@@ -360,36 +372,18 @@ read_signals(const std::string &device_id,
     }
 
     if (id == kSigTc1Temp) {
-      // Check if physics is driving this signal
-      double value = s.tc1_c; // Default to internal state
-      if (g_signal_registry) {
-        std::string full_path = device_id + "/tc1_temp";
-        if (g_signal_registry->is_physics_driven(full_path)) {
-          auto phys_val = g_signal_registry->read_signal(full_path);
-          if (phys_val) {
-            value = *phys_val;
-          }
-        }
-      }
+      const double value = maybe_physics_value(id).value_or(s.tc1_c);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigTc2Temp) {
-      // Check if physics is driving this signal
-      double value = s.tc2_c; // Default to internal state
-      if (g_signal_registry) {
-        std::string full_path = device_id + "/tc2_temp";
-        if (g_signal_registry->is_physics_driven(full_path)) {
-          auto phys_val = g_signal_registry->read_signal(full_path);
-          if (phys_val) {
-            value = *phys_val;
-          }
-        }
-      }
+      const double value = maybe_physics_value(id).value_or(s.tc2_c);
       out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigRelay1State)
-      out.push_back(make_signal_value(id, make_bool(s.relay1)));
-    else if (id == kSigRelay2State)
-      out.push_back(make_signal_value(id, make_bool(s.relay2)));
-    else if (id == kSigControlMode)
+    } else if (id == kSigRelay1State) {
+      const bool value = maybe_physics_value(id).value_or(s.relay1 ? 1.0 : 0.0) >= 0.5;
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigRelay2State) {
+      const bool value = maybe_physics_value(id).value_or(s.relay2 ? 1.0 : 0.0) >= 0.5;
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigControlMode)
       out.push_back(make_signal_value(id, make_string(s.mode)));
     else if (id == kSigSetpoint)
       out.push_back(make_signal_value(id, make_double(s.setpoint_c)));

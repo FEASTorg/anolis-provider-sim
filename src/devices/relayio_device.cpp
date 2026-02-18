@@ -1,5 +1,9 @@
 #include "relayio_device.hpp"
 
+#include <optional>
+
+#include "device_manager.hpp" // For g_signal_registry
+
 namespace sim_devices {
 namespace relayio {
 
@@ -283,23 +287,48 @@ read_signals(const std::string &device_id,
            kSigGpioInput3,    kSigGpioInput4};
   }
 
+  auto maybe_physics_bool = [&](const std::string &signal_id)
+      -> std::optional<bool> {
+    if (!g_signal_registry) {
+      return std::nullopt;
+    }
+    const std::string path = device_id + "/" + signal_id;
+    if (!g_signal_registry->is_physics_driven(path)) {
+      return std::nullopt;
+    }
+    auto value = g_signal_registry->read_signal(path);
+    if (!value) {
+      return std::nullopt;
+    }
+    return *value >= 0.5;
+  };
+
   for (const auto &id : ids) {
-    if (id == kSigRelayCh1State)
-      out.push_back(make_signal_value(id, make_bool(s.relay_ch1)));
-    else if (id == kSigRelayCh2State)
-      out.push_back(make_signal_value(id, make_bool(s.relay_ch2)));
-    else if (id == kSigRelayCh3State)
-      out.push_back(make_signal_value(id, make_bool(s.relay_ch3)));
-    else if (id == kSigRelayCh4State)
-      out.push_back(make_signal_value(id, make_bool(s.relay_ch4)));
-    else if (id == kSigGpioInput1)
-      out.push_back(make_signal_value(id, make_bool(s.gpio_input_1)));
-    else if (id == kSigGpioInput2)
-      out.push_back(make_signal_value(id, make_bool(s.gpio_input_2)));
-    else if (id == kSigGpioInput3)
-      out.push_back(make_signal_value(id, make_bool(s.gpio_input_3)));
-    else if (id == kSigGpioInput4)
-      out.push_back(make_signal_value(id, make_bool(s.gpio_input_4)));
+    if (id == kSigRelayCh1State) {
+      const bool value = maybe_physics_bool(id).value_or(s.relay_ch1);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigRelayCh2State) {
+      const bool value = maybe_physics_bool(id).value_or(s.relay_ch2);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigRelayCh3State) {
+      const bool value = maybe_physics_bool(id).value_or(s.relay_ch3);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigRelayCh4State) {
+      const bool value = maybe_physics_bool(id).value_or(s.relay_ch4);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigGpioInput1) {
+      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_1);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigGpioInput2) {
+      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_2);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigGpioInput3) {
+      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_3);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    } else if (id == kSigGpioInput4) {
+      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_4);
+      out.push_back(make_signal_value(id, make_bool(value)));
+    }
   }
 
   return out;

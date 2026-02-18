@@ -1,0 +1,13 @@
+# Phase 25 FluxGraph Integration Test
+# Simplified config without self-loops (Blocker 3 workaround)
+
+simulation:
+  mode: physics
+  tick_rate_hz: 10.0
+  physics_config: physics-flux-integration.yaml
+
+devices:
+  - id: tempctl0
+    type: tempctl
+    params:
+      initial_temp: 25.0

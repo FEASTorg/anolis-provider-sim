@@ -3,6 +3,8 @@
 #include <cmath>
 #include <set>
 
+#include "device_manager.hpp" // For g_signal_registry
+
 namespace sim_devices {
 namespace motorctl {
 
@@ -237,20 +239,37 @@ read_signals(const std::string &device_id,
 
   std::vector<SignalValue> out;
 
+  auto maybe_physics_value = [&](const std::string &signal_id)
+      -> std::optional<double> {
+    if (!g_signal_registry) {
+      return std::nullopt;
+    }
+    const std::string path = device_id + "/" + signal_id;
+    if (!g_signal_registry->is_physics_driven(path)) {
+      return std::nullopt;
+    }
+    return g_signal_registry->read_signal(path);
+  };
+
   for (const auto &id : ids) {
     if (get_known_signals().count(id) == 0) {
       // Omit unknown signals
       continue;
     }
 
-    if (id == kSigMotor1Speed)
-      out.push_back(make_signal_value(id, make_double(s.speed1)));
-    else if (id == kSigMotor2Speed)
-      out.push_back(make_signal_value(id, make_double(s.speed2)));
-    else if (id == kSigMotor1Duty)
-      out.push_back(make_signal_value(id, make_double(s.duty1)));
-    else if (id == kSigMotor2Duty)
-      out.push_back(make_signal_value(id, make_double(s.duty2)));
+    if (id == kSigMotor1Speed) {
+      const double value = maybe_physics_value(id).value_or(s.speed1);
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigMotor2Speed) {
+      const double value = maybe_physics_value(id).value_or(s.speed2);
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigMotor1Duty) {
+      const double value = maybe_physics_value(id).value_or(s.duty1);
+      out.push_back(make_signal_value(id, make_double(value)));
+    } else if (id == kSigMotor2Duty) {
+      const double value = maybe_physics_value(id).value_or(s.duty2);
+      out.push_back(make_signal_value(id, make_double(value)));
+    }
   }
 
   return out;

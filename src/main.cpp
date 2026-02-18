@@ -1,6 +1,8 @@
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <thread>
@@ -11,7 +13,9 @@
 #include <io.h>
 #endif
 
+#include "config_translator.hpp"
 #include "config.hpp"
+#include "flux_client.hpp"
 #include "devices/device_factory.hpp"
 #include "devices/device_manager.hpp"
 #include "handlers.hpp"
@@ -32,6 +36,7 @@ static void log_err(const std::string &msg) {
 int main(int argc, char **argv) {
   // Parse command-line arguments
   std::optional<std::string> config_path;
+  std::optional<std::string> flux_server_address;
   double crash_after_sec = -1.0;
 
   for (int i = 1; i < argc; ++i) {
@@ -46,18 +51,22 @@ int main(int argc, char **argv) {
         log_err("invalid --crash-after value");
         return 1;
       }
+    } else if (arg == "--flux-server" && i + 1 < argc) {
+      flux_server_address = argv[++i];
     }
   }
 
   // Require configuration file
   if (!config_path) {
     log_err("FATAL: --config argument is required");
-    log_err("Usage: anolis-provider-sim --config <path/to/config.yaml>");
+    log_err("Usage: anolis-provider-sim --config <path/to/config.yaml> "
+            "[--flux-server <host:port>]");
     return 1;
   }
 
   // Load configuration
   anolis_provider_sim::ProviderConfig config;
+  std::unique_ptr<sim_flux::FluxGraphClient> flux_client;
   try {
     log_err("loading configuration from: " + *config_path);
     config = anolis_provider_sim::load_config(*config_path);
@@ -65,6 +74,40 @@ int main(int argc, char **argv) {
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
     log_err("initialized " + std::to_string(initialized) +
             " devices from config");
+
+    if (config.simulation_mode == anolis_provider_sim::SimulationMode::Physics) {
+      if (!flux_server_address) {
+        log_err("FATAL: mode=physics requires --flux-server <host:port>");
+        return 1;
+      }
+
+      log_err("connecting to FluxGraph server at: " + *flux_server_address);
+      flux_client = std::make_unique<sim_flux::FluxGraphClient>(*flux_server_address);
+
+      std::filesystem::path config_dir =
+          std::filesystem::path(config.config_file_path).parent_path();
+      std::filesystem::path physics_path =
+          config_dir / *config.physics_config_path;
+
+      log_err("translating physics config for FluxGraph: " + physics_path.string());
+      std::string fluxgraph_yaml =
+          sim_config::translate_to_fluxgraph_format(physics_path.string());
+
+      flux_client->load_config_content(fluxgraph_yaml);
+
+      std::vector<std::string> device_ids;
+      device_ids.reserve(config.devices.size());
+      for (const auto &d : config.devices) {
+        device_ids.push_back(d.id);
+      }
+      flux_client->register_provider("provider-sim", device_ids);
+
+      log_err("FluxGraph client initialized and provider registered");
+    } else if (flux_server_address) {
+      log_err("WARNING: --flux-server ignored for non-physics mode");
+    }
+
+    sim_devices::set_flux_client(flux_client.get());
 
     // Initialize physics engine (but don't start ticker yet - wait for
     // WaitReady)

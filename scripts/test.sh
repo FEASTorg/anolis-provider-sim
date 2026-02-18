@@ -98,7 +98,7 @@ fi
 export ANOLIS_PROVIDER_SIM_BUILD_DIR="$BUILD_DIR"
 
 if [[ "$GENERATE" == true ]]; then
-    "$SCRIPT_DIR/generate_python_proto.sh"
+    "$SCRIPT_DIR/generate-proto-python.sh"
 fi
 
 # Validate Python protobuf runtime for the selected interpreter.

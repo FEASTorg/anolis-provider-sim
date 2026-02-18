@@ -11,9 +11,8 @@
 #include "protocol.pb.h"
 #include "signal_registry.hpp"
 
-// Forward declaration
-namespace sim_physics {
-class SimPhysics;
+namespace sim_flux {
+class FluxGraphClient;
 }
 
 namespace sim_devices {
@@ -29,6 +28,8 @@ void initialize_physics(
     const anolis_provider_sim::ProviderConfig &provider_config);
 void start_physics();
 void stop_physics();
+void set_flux_client(sim_flux::FluxGraphClient *client);
+sim_flux::FluxGraphClient *get_flux_client();
 
 // ---- Signal Registry (for physics-device coordination) ----
 
