@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "device_common.hpp"
+#include "devices/common/device_common.hpp"
 #include "protocol.pb.h"
 
 namespace sim_devices {

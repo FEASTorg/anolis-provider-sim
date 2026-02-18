@@ -1,4 +1,4 @@
-#include "signal_registry.hpp"
+#include "devices/common/signal_registry.hpp"
 #include <iostream>
 
 namespace sim_coordination {

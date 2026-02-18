@@ -1,10 +1,10 @@
 #include "local_engine.hpp"
 
-#include "../devices/analogsensor_device.hpp"
-#include "../devices/device_factory.hpp"
-#include "../devices/motorctl_device.hpp"
-#include "../devices/relayio_device.hpp"
-#include "../devices/tempctl_device.hpp"
+#include "devices/analogsensor/analogsensor_device.hpp"
+#include "devices/common/device_factory.hpp"
+#include "devices/motorctl/motorctl_device.hpp"
+#include "devices/relayio/relayio_device.hpp"
+#include "devices/tempctl/tempctl_device.hpp"
 
 #include <algorithm>
 

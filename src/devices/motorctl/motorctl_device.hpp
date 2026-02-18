@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 
-#include "device_common.hpp"
+#include "devices/common/device_common.hpp"
 #include "protocol.pb.h"
 
 namespace sim_devices {
-namespace tempctl {
+namespace motorctl {
 
 using anolis::deviceprovider::v1::CapabilitySet;
 using anolis::deviceprovider::v1::Device;
@@ -17,12 +17,11 @@ using anolis::deviceprovider::v1::SignalValue;
 using anolis::deviceprovider::v1::Value;
 
 // Device ID
-constexpr const char *kDeviceId = "tempctl0";
+constexpr const char *kDeviceId = "motorctl0";
 
 // Configuration parameters
 struct Config {
-  std::optional<double> initial_temp; // Initial temperature (C)
-  std::optional<std::pair<double, double>> temp_range; // Min/max temp range (C)
+  std::optional<double> max_speed; // Maximum speed (RPM)
 };
 
 // Initialize device state for a specific instance
@@ -47,5 +46,5 @@ read_signals(const std::string &device_id,
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args);
 
-} // namespace tempctl
+} // namespace motorctl
 } // namespace sim_devices

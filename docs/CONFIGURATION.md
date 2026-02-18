@@ -44,7 +44,7 @@ Each device in the `devices` list requires:
 | `relayio`      | Relay/GPIO module      | (none currently)             |
 | `analogsensor` | Analog sensor module   | (none currently)             |
 
-**Note:** `sim_control` device is always present and does not need to be configured.
+**Note:** `chaos_control` device is always present and does not need to be configured.
 
 ### Simulation Parameters
 

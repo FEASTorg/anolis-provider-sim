@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device_common.hpp"
+#include "devices/common/device_common.hpp"
 
 namespace sim_devices {
 namespace analogsensor {

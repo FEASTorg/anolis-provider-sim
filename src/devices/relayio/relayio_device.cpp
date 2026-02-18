@@ -1,8 +1,8 @@
-#include "relayio_device.hpp"
+#include "devices/relayio/relayio_device.hpp"
 
 #include <optional>
 
-#include "device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp" // For g_signal_registry
 
 namespace sim_devices {
 namespace relayio {

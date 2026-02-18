@@ -1,10 +1,10 @@
-#include "sim_control_device.hpp"
-#include "../fault_injection.hpp"
+#include "chaos/chaos_control_device.hpp"
+#include "chaos/fault_injection.hpp"
 
 #include <thread>
 
 namespace sim_devices {
-namespace sim_control {
+namespace chaos_control {
 
 using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
@@ -39,12 +39,12 @@ Device get_device_info(bool /*include_health*/) {
   Device d;
   d.set_device_id(kDeviceId);
   d.set_provider_name(kProviderName);
-  d.set_type_id("sim.control");
+  d.set_type_id("chaos.control");
   d.set_type_version("1.0");
-  d.set_label("Sim Fault Injection Control");
-  d.set_address("sim://control");
-  (*d.mutable_tags())["family"] = "sim";
-  (*d.mutable_tags())["kind"] = "control";
+  d.set_label("Chaos Fault Injection Control");
+  d.set_address("chaos://control");
+  (*d.mutable_tags())["family"] = "chaos";
+  (*d.mutable_tags())["kind"] = "fault_injection";
   return d;
 }
 
@@ -249,5 +249,5 @@ CallResult call_function(uint32_t function_id,
   return nf("unknown function_id");
 }
 
-} // namespace sim_control
+} // namespace chaos_control
 } // namespace sim_devices

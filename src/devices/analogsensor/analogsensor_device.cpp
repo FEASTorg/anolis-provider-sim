@@ -1,10 +1,10 @@
-#include "analogsensor_device.hpp"
+#include "devices/analogsensor/analogsensor_device.hpp"
 
 #include <cmath>
 #include <optional>
 #include <random>
 
-#include "device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp" // For g_signal_registry
 
 namespace sim_devices {
 namespace analogsensor {

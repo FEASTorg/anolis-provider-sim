@@ -50,4 +50,4 @@ If examples fail:
 
 - [Mode Selection Guide](../docs/MODE_SELECTION.md) - Which mode to use when
 - [Configuration Reference](../docs/CONFIGURATION.md) - YAML configuration syntax
-- [Phase 26 Architecture](../working/phase_26_completion.md) - Implementation details
+- [Phase 26 Architecture](../working/archive/phase_26_completion.md) - Implementation details

@@ -14,7 +14,7 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 | `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_duty`, `motor2_duty`                       | `set_motor_duty`                                |
 | `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2`               | `set_relay_ch1`, `set_relay_ch2`                |
 | `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                                     | `calibrate_channel`, `inject_noise`             |
-| `sim_control`   | Fault Injection      | _(none)_                                                                           | See [Fault Injection API](#fault-injection-api) |
+| `chaos_control` | Fault Injection | _(none)_ | See [Fault Injection API](#fault-injection-api) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
@@ -58,9 +58,16 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for migration guide.
 
 ### Architecture
 
-Physics engine operates on `ISignalSource` abstraction (zero protocol dependencies). SignalRegistry coordinates between:
-- **Physics ticker** - Reads actuators, evaluates graph, writes sensors
-- **Device handlers** - Check registry for physics-driven signals
+Provider-sim is organized into explicit layers:
+
+- **`src/core/`**: ADPP protocol handling and transport
+- **`src/devices/`**: device modules and shared device infrastructure
+- **`src/simulation/`**: simulation engine + external sim adapters
+- **`src/chaos/`**: runtime fault injection and control device
+
+Physics execution uses the SignalRegistry pattern to coordinate between:
+- **Physics ticker**: reads actuators, evaluates graph, writes sensors
+- **Device handlers**: check registry for physics-driven signals
 
 See [docs/architecture-signal-registry.md](docs/architecture-signal-registry.md) for details.
 
@@ -106,7 +113,7 @@ simulation:
 
 ## Fault Injection API
 
-Provider-sim includes a special control device (`sim_control`) with functions for injecting deterministic failures into the simulation. This enables testing of fault handling, recovery workflows, and edge cases.
+Provider-sim includes a special control device (`chaos_control`) with functions for injecting deterministic failures into the simulation. This enables testing of fault handling, recovery workflows, and edge cases.
 
 ### Functions
 
@@ -193,7 +200,7 @@ import requests
 BASE_URL = "http://localhost:8080"
 
 # Inject device unavailable for 5 seconds
-requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_device_unavailable", json={
+requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/inject_device_unavailable", json={
     "args": {
         "device_id": "tempctl0",
         "duration_ms": 5000
@@ -201,7 +208,7 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_device_unavailable", 
 })
 
 # Inject 50% failure rate on set_setpoint (function_id=2)
-requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_call_failure", json={
+requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/inject_call_failure", json={
     "args": {
         "device_id": "tempctl0",
         "function_id": "2",
@@ -210,7 +217,7 @@ requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/inject_call_failure", json={
 })
 
 # Clear all faults
-requests.post(f"{BASE_URL}/v0/call/sim0/sim_control/clear_faults", json={"args": {}})
+requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/clear_faults", json={"args": {}})
 ```
 
 ## Examples
@@ -343,13 +350,13 @@ Provider-sim demonstrates compliance with the **Anolis Provider Safe Initializat
 | **motorctl0**     | Duty cycle = 0 (both motors)         | No motion; PWM outputs disabled                    |
 | **relayio0**      | Both relays OPEN (de-energized)      | Fail-safe state; external equipment unaffected     |
 | **analogsensor0** | No output control (read-only device) | Sensor readings available; no actuation capability |
-| **sim_control**   | No faults injected on startup        | Clean slate for fault injection testing            |
+| **chaos_control** | No faults injected on startup | Clean slate for fault injection testing |
 
 ### Implementation Details
 
 Device state structures use C++ member initializers to guarantee safe defaults:
 
-**tempctl0** (`src/devices/tempctl_device.cpp`):
+**tempctl0** (`src/devices/tempctl/tempctl_device.cpp`):
 
 ```cpp
 struct State {
@@ -362,7 +369,7 @@ struct State {
 };
 ```
 
-**motorctl0** (`src/devices/motorctl_device.cpp`):
+**motorctl0** (`src/devices/motorctl/motorctl_device.cpp`):
 
 ```cpp
 struct State {
@@ -373,7 +380,7 @@ struct State {
 };
 ```
 
-**relayio0** (`src/devices/relayio_device.cpp`):
+**relayio0** (`src/devices/relayio/relayio_device.cpp`):
 
 ```cpp
 struct State {

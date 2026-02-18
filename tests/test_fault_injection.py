@@ -2,7 +2,7 @@
 """
 Fault Injection Tests for anolis-provider-sim.
 
-Tests the sim_control device's fault injection API:
+Tests the chaos_control device's fault injection API:
 - inject_device_unavailable: Device appears unavailable for duration
 - inject_signal_fault: Signal reports FAULT quality for duration
 - inject_call_latency: Adds artificial latency to function calls
@@ -192,7 +192,7 @@ def test_device_unavailable(client):
     # Inject device unavailable fault (500ms duration)
     print("  Injecting device_unavailable fault (500ms)...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         1,  # inject_device_unavailable
         {
             "device_id": make_string_value("tempctl0"),
@@ -251,7 +251,7 @@ def test_signal_fault(client):
     # Inject signal fault (300ms duration)
     print("  Injecting signal fault on tc1_temp (300ms)...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         2,  # inject_signal_fault
         {
             "device_id": make_string_value("tempctl0"),
@@ -304,7 +304,7 @@ def test_call_latency(client):
     # Inject 200ms latency
     print("  Injecting 200ms call latency...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         3,  # inject_call_latency
         {
             "device_id": make_string_value("tempctl0"),
@@ -328,7 +328,7 @@ def test_call_latency(client):
     print(f"  [OK] Added latency: {added_latency:.1f}ms (expected ~200ms)")
 
     # Clear fault and verify latency removed
-    resp = client.call_function("sim_control", 5, {})  # clear_faults
+    resp = client.call_function("chaos_control", 5, {})  # clear_faults
     assert resp.status.code == 1
 
     start = time.time()
@@ -353,7 +353,7 @@ def test_call_failure(client):
     # Inject 100% failure rate (use function_id as string: "1" = set_mode)
     print("  Injecting 100% call failure rate on set_mode (function_id='1')...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         4,  # inject_call_failure
         {
             "device_id": make_string_value("tempctl0"),
@@ -371,7 +371,7 @@ def test_call_failure(client):
     # Test 0% failure rate (should succeed)
     print("  Changing to 0% failure rate...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         4,
         {
             "device_id": make_string_value("tempctl0"),
@@ -386,7 +386,7 @@ def test_call_failure(client):
     print("  [OK] Function succeeds with 0% failure rate")
 
     # Clear fault
-    resp = client.call_function("sim_control", 5, {})  # clear_faults
+    resp = client.call_function("chaos_control", 5, {})  # clear_faults
     assert resp.status.code == 1
 
     resp = client.call_function("tempctl0", 1, {"mode": make_string_value("closed")})
@@ -406,7 +406,7 @@ def test_clear_faults(client):
 
     # Device unavailable
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         1,
         {
             "device_id": make_string_value("tempctl0"),
@@ -417,7 +417,7 @@ def test_clear_faults(client):
 
     # Call latency on motorctl0
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         3,
         {
             "device_id": make_string_value("motorctl0"),
@@ -433,7 +433,7 @@ def test_clear_faults(client):
 
     # Clear all faults
     print("  Calling clear_faults...")
-    resp = client.call_function("sim_control", 5, {})  # clear_faults
+    resp = client.call_function("chaos_control", 5, {})  # clear_faults
     assert resp.status.code == 1
 
     # Verify all faults cleared
@@ -465,7 +465,7 @@ def test_multiple_devices(client):
     # Inject fault on tempctl0
     print("  Injecting fault on tempctl0...")
     resp = client.call_function(
-        "sim_control",
+        "chaos_control",
         1,
         {
             "device_id": make_string_value("tempctl0"),
@@ -496,7 +496,7 @@ def test_multiple_devices(client):
     print("  [OK] relayio0 still available (fault isolated)")
 
     # Clear and verify
-    resp = client.call_function("sim_control", 5, {})
+    resp = client.call_function("chaos_control", 5, {})
     resp = client.describe_device("tempctl0")
     assert resp.status.code == 1, "tempctl0 should be available after clear"
     assert len(resp.describe_device.capabilities.signals) > 0, (

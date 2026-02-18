@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protocol_adapter.hpp"
+#include "simulation/adapters/protocol_adapter.hpp"
 
 #ifdef HAVE_FLUXGRAPH
 

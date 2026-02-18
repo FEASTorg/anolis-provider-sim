@@ -1,9 +1,9 @@
-#include "motorctl_device.hpp"
+#include "devices/motorctl/motorctl_device.hpp"
 
 #include <cmath>
 #include <set>
 
-#include "device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp" // For g_signal_registry
 
 namespace sim_devices {
 namespace motorctl {

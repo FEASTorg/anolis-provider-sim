@@ -86,7 +86,7 @@ Use Case: ADPP protocol testing without physics simulation
 Benefits: Fast, deterministic, no dependencies
 
 [1] Listing devices...
-✓ Found devices: ['tempctl0', 'motorctl0', 'relayio0', 'analogsensor0', 'sim_control']
+✓ Found devices: ['tempctl0', 'motorctl0', 'relayio0', 'analogsensor0', 'chaos_control']
 [2] Reading signals...
   tc1_temp = 23.0
   tc2_temp = 23.0

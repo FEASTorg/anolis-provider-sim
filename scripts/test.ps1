@@ -102,7 +102,7 @@ if (-not $pythonCmd) {
 }
 
 if (-not $NoGenerate) {
-    & (Join-Path $scriptDir "generate-proto-python.ps1")
+    & (Join-Path $scriptDir "generate_proto_python.ps1")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

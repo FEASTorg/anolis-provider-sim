@@ -1,8 +1,8 @@
 #include "device_factory.hpp"
-#include "analogsensor_device.hpp"
-#include "motorctl_device.hpp"
-#include "relayio_device.hpp"
-#include "tempctl_device.hpp"
+#include "devices/analogsensor/analogsensor_device.hpp"
+#include "devices/motorctl/motorctl_device.hpp"
+#include "devices/relayio/relayio_device.hpp"
+#include "devices/tempctl/tempctl_device.hpp"
 
 #include <algorithm>
 #include <iostream>

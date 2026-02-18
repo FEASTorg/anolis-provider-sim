@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../adapters/protocol_adapter.hpp"
-#include "../simulation_engine.hpp"
+#include "simulation/adapters/protocol_adapter.hpp"
+#include "simulation/simulation_engine.hpp"
 
 #include <memory>
 

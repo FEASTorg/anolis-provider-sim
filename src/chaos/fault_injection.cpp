@@ -1,4 +1,4 @@
-#include "fault_injection.hpp"
+#include "chaos/fault_injection.hpp"
 
 #include <algorithm>
 #include <mutex>

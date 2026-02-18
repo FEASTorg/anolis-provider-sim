@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "device_common.hpp"
+#include "devices/common/device_common.hpp"
 #include "protocol.pb.h"
 
 namespace sim_devices {
-namespace sim_control {
+namespace chaos_control {
 
 using anolis::deviceprovider::v1::CapabilitySet;
 using anolis::deviceprovider::v1::Device;
@@ -16,7 +16,7 @@ using anolis::deviceprovider::v1::SignalValue;
 using anolis::deviceprovider::v1::Value;
 
 // Device ID
-constexpr const char *kDeviceId = "sim_control";
+constexpr const char *kDeviceId = "chaos_control";
 
 // Initialize device state
 void init();
@@ -38,5 +38,5 @@ read_signals(const std::vector<std::string> &signal_ids);
 CallResult call_function(uint32_t function_id,
                          const std::map<std::string, Value> &args);
 
-} // namespace sim_control
+} // namespace chaos_control
 } // namespace sim_devices

@@ -1,12 +1,12 @@
-#include "handlers.hpp"
+#include "core/handlers.hpp"
 
 #include <string>
 #include <vector>
 
-#include "devices/device_factory.hpp"
-#include "devices/device_manager.hpp"
-#include "health.hpp"
-#include "transport/framed_stdio.hpp"
+#include "devices/common/device_factory.hpp"
+#include "devices/common/device_manager.hpp"
+#include "core/health.hpp"
+#include "core/transport/framed_stdio.hpp"
 
 namespace handlers {
 
@@ -108,8 +108,8 @@ void handle_read_signals(const ReadSignalsRequest &req,
     ids.push_back(s);
 
   // Check if device exists before attempting to read signals
-  // Special-case sim_control (has no signals but is always available)
-  if (req.device_id() != "sim_control" &&
+  // Special-case chaos_control (has no signals but is always available)
+  if (req.device_id() != "chaos_control" &&
       (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
        !anolis_provider_sim::DeviceFactory::is_device_registered(
            req.device_id()))) {

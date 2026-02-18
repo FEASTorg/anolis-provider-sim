@@ -167,13 +167,13 @@ Required before running Python tests.
 **Windows:**
 
 ```powershell
-.\scripts\generate-proto-python.ps1
+.\scripts\generate_proto_python.ps1
 ```
 
 **Linux/macOS:**
 
 ```bash
-./scripts/generate-proto-python.sh
+./scripts/generate_proto_python.sh
 ```
 
 Generates `build/protocol_pb2.py` from the ADPP protocol specification.
@@ -236,7 +236,7 @@ Generates `build/protocol_pb2.py` from the ADPP protocol specification.
 
 3. **Generate Python bindings:**
    ```powershell
-   .\scripts\generate-proto-python.ps1
+   .\scripts\generate_proto_python.ps1
    ```
 
 ### Run Integration Test
@@ -252,7 +252,7 @@ python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 
    ```powershell
    cd ..\fluxgraph
-   .\scripts\run-server.ps1 -Port 50051
+   .\scripts\run_server.ps1 -Port 50051
    ```
 
 2. **In another terminal, start provider:**
@@ -290,12 +290,12 @@ python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 # Terminal 1: Build and start FluxGraph server
 cd ..\fluxgraph
 .\scripts\build.ps1 -Server -Clean
-.\scripts\run-server.ps1
+.\scripts\run_server.ps1
 
 # Terminal 2: Build provider-sim and run integration test
 cd ..\anolis-provider-sim
 .\scripts\build.ps1 -Clean
-.\scripts\generate-proto-python.ps1
+.\scripts\generate_proto_python.ps1
 python tests/test_fluxgraph_integration.py -d 30
 ```
 
@@ -336,7 +336,7 @@ $env:ANOLIS_PROVIDER_SIM_EXE = "D:\path\to\anolis-provider-sim.exe"
 
 ```powershell
 # Generate Python protobuf bindings
-.\scripts\generate-proto-python.ps1
+.\scripts\generate_proto_python.ps1
 ```
 
 ### FluxGraph Server Not Found
@@ -364,6 +364,6 @@ All scripts follow consistent naming:
 - `build.ps1` / `build.sh` - Build the project
 - `test.ps1` / `test.sh` - Run test suites
 - `run_local.ps1` / `run_local.sh` - Start provider locally
-- `generate-proto-python.ps1` / `.sh` - Generate Python bindings
+- `generate_proto_python.ps1` / `.sh` - Generate Python bindings
 
 Tests are in `tests/` directory, not in `scripts/`.

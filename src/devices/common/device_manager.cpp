@@ -1,4 +1,4 @@
-#include "device_manager.hpp"
+#include "devices/common/device_manager.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -9,14 +9,14 @@
 #include <set>
 #include <thread>
 
-#include "../config.hpp"
-#include "../fault_injection.hpp"
-#include "analogsensor_device.hpp"
+#include "config.hpp"
+#include "chaos/fault_injection.hpp"
+#include "devices/analogsensor/analogsensor_device.hpp"
 #include "device_factory.hpp"
-#include "motorctl_device.hpp"
-#include "relayio_device.hpp"
-#include "sim_control_device.hpp"
-#include "tempctl_device.hpp"
+#include "devices/motorctl/motorctl_device.hpp"
+#include "devices/relayio/relayio_device.hpp"
+#include "chaos/chaos_control_device.hpp"
+#include "devices/tempctl/tempctl_device.hpp"
 
 namespace sim_devices {
 
@@ -374,7 +374,7 @@ std::vector<Device> list_devices(bool include_health) {
       out.push_back(device_info);
     }
 
-    out.push_back(sim_control::get_device_info(include_health));
+    out.push_back(chaos_control::get_device_info(include_health));
   }
 
   return out;
@@ -385,8 +385,8 @@ CapabilitySet describe_device(const std::string &device_id) {
     return CapabilitySet();
   }
 
-  if (device_id == sim_control::kDeviceId) {
-    return sim_control::get_capabilities();
+  if (device_id == chaos_control::kDeviceId) {
+    return chaos_control::get_capabilities();
   }
 
   if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
@@ -419,8 +419,8 @@ read_signals(const std::string &device_id,
     return {};
   }
 
-  if (device_id == sim_control::kDeviceId) {
-    return sim_control::read_signals(signal_ids);
+  if (device_id == chaos_control::kDeviceId) {
+    return chaos_control::read_signals(signal_ids);
   }
 
   if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
@@ -469,8 +469,8 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
     return bad("function call failed (injected fault)");
   }
 
-  if (device_id == sim_control::kDeviceId) {
-    return sim_control::call_function(function_id, args);
+  if (device_id == chaos_control::kDeviceId) {
+    return chaos_control::call_function(function_id, args);
   }
 
   if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||

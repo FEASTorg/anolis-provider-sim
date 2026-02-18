@@ -39,7 +39,7 @@ try:
 except ImportError:
     print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
     print(
-        "Run: ./scripts/generate-proto-python.sh (Linux/macOS) or pwsh ./scripts/generate-proto-python.ps1 (Windows)",
+        "Run: ./scripts/generate_proto_python.sh (Linux/macOS) or pwsh ./scripts/generate_proto_python.ps1 (Windows)",
         file=sys.stderr,
     )
     sys.exit(1)

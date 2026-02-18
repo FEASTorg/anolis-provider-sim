@@ -171,7 +171,7 @@ def test_list_devices(client):
 
     assert resp.status.code == 1, f"Expected CODE_OK, got {resp.status.code}"
 
-    # provider-sim.yaml has 4 devices + sim_control = 5 total
+    # provider-sim.yaml has 4 devices + chaos_control = 5 total
     assert len(resp.list_devices.devices) == 5, (
         f"Expected 5 devices, got {len(resp.list_devices.devices)}"
     )
@@ -184,7 +184,7 @@ def test_list_devices(client):
         "motorctl0",
         "relayio0",
         "analogsensor0",
-        "sim_control",
+        "chaos_control",
     ]
     for device_id in expected_devices:
         assert device_id in device_ids, f"Missing {device_id}"

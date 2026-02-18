@@ -15,18 +15,18 @@
 #endif
 
 #include "config.hpp"
-#include "devices/device_factory.hpp"
-#include "devices/device_manager.hpp"
-#include "engines/local_engine.hpp"
-#include "engines/null_engine.hpp"
-#include "engines/remote_engine.hpp"
-#include "handlers.hpp"
+#include "devices/common/device_factory.hpp"
+#include "devices/common/device_manager.hpp"
+#include "simulation/engines/local_engine.hpp"
+#include "simulation/engines/null_engine.hpp"
+#include "simulation/engines/remote_engine.hpp"
+#include "core/handlers.hpp"
 #include "protocol.pb.h"
-#include "simulation_engine.hpp"
-#include "transport/framed_stdio.hpp"
+#include "simulation/simulation_engine.hpp"
+#include "core/transport/framed_stdio.hpp"
 
 #ifdef HAVE_FLUXGRAPH
-#include "adapters/fluxgraph_adapter.hpp"
+#include "simulation/adapters/fluxgraph/fluxgraph_adapter.hpp"
 #endif
 
 static void set_binary_mode_stdio() {

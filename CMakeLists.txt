@@ -50,22 +50,31 @@ protobuf_generate_cpp(
 )
 
 set(SOURCES
-    src/main.cpp
-    src/handlers.cpp
-    src/fault_injection.cpp
+    # Configuration
     src/config.cpp
-    src/devices/device_manager.cpp
-    src/devices/device_factory.cpp
-    src/devices/signal_registry.cpp
-    src/devices/tempctl_device.cpp
-    src/devices/motorctl_device.cpp
-    src/devices/relayio_device.cpp
-    src/devices/analogsensor_device.cpp
-    src/devices/sim_control_device.cpp
-    src/transport/framed_stdio.cpp
-    src/engines/null_engine.cpp
-    src/engines/local_engine.cpp
-    src/engines/remote_engine.cpp
+
+    # Layer 1: Protocol core
+    src/core/main.cpp
+    src/core/handlers.cpp
+    src/core/transport/framed_stdio.cpp
+
+    # Layer 2: Devices
+    src/devices/common/device_manager.cpp
+    src/devices/common/device_factory.cpp
+    src/devices/common/signal_registry.cpp
+    src/devices/tempctl/tempctl_device.cpp
+    src/devices/motorctl/motorctl_device.cpp
+    src/devices/relayio/relayio_device.cpp
+    src/devices/analogsensor/analogsensor_device.cpp
+
+    # Layer 3: Simulation
+    src/simulation/engines/null_engine.cpp
+    src/simulation/engines/local_engine.cpp
+    src/simulation/engines/remote_engine.cpp
+
+    # Cross-cutting: Chaos engineering
+    src/chaos/fault_injection.cpp
+    src/chaos/chaos_control_device.cpp
 )
 
 if(ENABLE_FLUXGRAPH)
@@ -121,8 +130,8 @@ if(ENABLE_FLUXGRAPH)
     add_custom_target(fluxgraph_proto_gen DEPENDS ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS})
 
     list(APPEND SOURCES
-        src/adapters/fluxgraph_client.cpp
-        src/adapters/fluxgraph_adapter.cpp
+        src/simulation/adapters/fluxgraph/fluxgraph_client.cpp
+        src/simulation/adapters/fluxgraph/fluxgraph_adapter.cpp
         ${FLUXGRAPH_GEN_SRCS}
     )
 

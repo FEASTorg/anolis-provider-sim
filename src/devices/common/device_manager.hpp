@@ -6,11 +6,11 @@
 #include <string>
 #include <vector>
 
-#include "../config.hpp"
-#include "../simulation_engine.hpp"
-#include "device_common.hpp"
+#include "config.hpp"
+#include "simulation/simulation_engine.hpp"
+#include "devices/common/device_common.hpp"
 #include "protocol.pb.h"
-#include "signal_registry.hpp"
+#include "devices/common/signal_registry.hpp"
 
 namespace sim_devices {
 
