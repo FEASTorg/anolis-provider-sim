@@ -7,6 +7,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <thread>
 
 #include "config.hpp"
@@ -38,6 +39,12 @@ static anolis_provider_sim::SimulationMode g_sim_mode =
 static std::map<std::string, std::map<std::string, uint32_t>>
     g_function_name_to_id;
 static std::vector<std::string> g_physics_output_paths;
+
+struct ConstantSignalInput {
+  std::string path;
+  double value;
+};
+static std::optional<ConstantSignalInput> g_ambient_input;
 
 // -----------------------------
 // Helpers
@@ -163,6 +170,48 @@ static void collect_actuator_signals(std::map<std::string, double> &signals) {
   }
 }
 
+static void configure_simulation_inputs(
+    const anolis_provider_sim::ProviderConfig &provider_config) {
+  g_ambient_input.reset();
+
+  if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim) {
+    return;
+  }
+
+  const auto ambient_it = provider_config.simulation.find("ambient_temp_c");
+  if (ambient_it == provider_config.simulation.end()) {
+    return;
+  }
+
+  double ambient_temp = 0.0;
+  try {
+    ambient_temp = ambient_it->second.as<double>();
+  } catch (const YAML::Exception &) {
+    throw std::runtime_error(
+        "[CONFIG] simulation.ambient_temp_c must be numeric");
+  }
+
+  std::string ambient_path = "environment/ambient_temp";
+  const auto path_it = provider_config.simulation.find("ambient_signal_path");
+  if (path_it != provider_config.simulation.end()) {
+    try {
+      ambient_path = path_it->second.as<std::string>();
+    } catch (const YAML::Exception &) {
+      throw std::runtime_error(
+          "[CONFIG] simulation.ambient_signal_path must be a string");
+    }
+  }
+
+  if (ambient_path.empty()) {
+    throw std::runtime_error(
+        "[CONFIG] simulation.ambient_signal_path cannot be empty");
+  }
+
+  g_ambient_input = ConstantSignalInput{ambient_path, ambient_temp};
+  std::cerr << "[DeviceManager] Configured ambient input: " << ambient_path
+            << "=" << ambient_temp << "\n";
+}
+
 static void execute_engine_command(const sim_engine::Command &cmd) {
   const auto dev_it = g_function_name_to_id.find(cmd.device_id);
   if (dev_it == g_function_name_to_id.end()) {
@@ -208,25 +257,49 @@ static void ticker_thread_func(double tick_rate_hz) {
   const auto tick_duration =
       std::chrono::duration_cast<std::chrono::steady_clock::duration>(
           std::chrono::duration<double>(dt));
-  auto next_tick = std::chrono::steady_clock::now();
+  
+  const auto thread_start = std::chrono::steady_clock::now();
+  const auto thread_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+      thread_start.time_since_epoch()).count();
+  
+  std::cerr << "[Ticker] Thread started at steady_clock=" << thread_start_ms << "ms\\n";
+  std::cerr << "[Ticker] Tick period: " << (dt * 1000.0) << "ms (@" << tick_rate_hz << " Hz)\\n";
+  
+  // Start ticking immediately from thread creation time
+  auto next_tick = thread_start;
 
   int tick_count = 0;
   
   while (g_ticker_running.load()) {
+    const auto tick_start = std::chrono::steady_clock::now();
+    const auto tick_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        tick_start.time_since_epoch()).count();
+    
+    // Update device control logic BEFORE collecting actuator states.
+    // This allows closed-loop controllers to read sensor values from the
+    // previous tick and update relay/actuator states accordingly.
+    auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
+    for (const auto &dev : devices) {
+      if (dev.type == "tempctl") {
+        sim_devices::tempctl::update_control(dev.id);
+      }
+      // Future: add control updates for other device types here
+    }
+    
     std::map<std::string, double> actuators;
     collect_actuator_signals(actuators);
 
-    if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim) {
-      // Phase 22 parity: ambient defaults to 25.0C.
-      actuators["environment/ambient_temp"] = 25.0;
+    if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim &&
+        g_ambient_input.has_value()) {
+      actuators[g_ambient_input->path] = g_ambient_input->value;
     }
 
-    // Debug first few ticks
-    if (tick_count < 3) {
-      std::cerr << "[Ticker] Tick #" << tick_count << " sending " << actuators.size() << " signals:\n";
-      for (const auto &[path, value] : actuators) {
-        std::cerr << "  " << path << " = " << value << "\n";
-      }
+    // Debug first 2 ticks only
+    if (tick_count < 2) {
+      std::cerr << "[Ticker] Tick #" << tick_count 
+                << " at steady_clock " << tick_start_ms << " ms"
+                << " (delta=" << (tick_start_ms - thread_start_ms) << "ms from thread start)\n";
+      std::cerr << "[Ticker]   Sending " << actuators.size() << " signals\n";
     }
 
     if (!g_simulation_engine) {
@@ -237,11 +310,13 @@ static void ticker_thread_func(double tick_rate_hz) {
     const sim_engine::TickResult result = g_simulation_engine->tick(actuators);
 
     if (result.success) {
-      if (tick_count < 3) {
-        std::cerr << "[Ticker] Tick #" << tick_count << " received " << result.sensors.size() << " signals:\n";
-        for (const auto &[path, value] : result.sensors) {
-          std::cerr << "  " << path << " = " << value << "\n";
-        }
+      if (tick_count < 2) {
+        const auto tick_end = std::chrono::steady_clock::now();
+        const auto tick_end_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            tick_end.time_since_epoch()).count();
+        const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
+        std::cerr << "[Ticker] Tick #" << tick_count 
+                  << " SUCCESS (RPC took " << rpc_duration_ms << "ms)\n";
       }
       
       if (g_signal_registry) {
@@ -254,16 +329,26 @@ static void ticker_thread_func(double tick_rate_hz) {
         execute_engine_command(cmd);
       }
     } else {
-      std::cerr << "[DeviceManager] Tick failed, continuing with stale data\n";
+      if (tick_count < 2) {
+        std::cerr << "[Ticker] Tick #" << tick_count << " FAILED (maintaining schedule)\n";
+      }
+      // Continue with stale data but MAINTAIN THE TICK SCHEDULE.
+      // Don't let timeouts/failures shift our phase relative to other providers.
     }
 
     tick_count++;
     
+    // CRITICAL: Always advance next_tick by tick_duration, regardless of success/failure.
+    // This maintains consistent phase alignment across providers even when one times out.
     next_tick += tick_duration;
+    
+    // If we're significantly behind (e.g., first startup, or multi-second block),
+    // catch up gradually rather than immediately resetting phase.
     const auto now = std::chrono::steady_clock::now();
-    if (next_tick <= now) {
-      next_tick = now + tick_duration;
+    while (next_tick <= now && g_ticker_running.load()) {
+      next_tick += tick_duration;
     }
+    
     std::this_thread::sleep_until(next_tick);
   }
 }
@@ -276,6 +361,7 @@ void initialize_physics(
     const anolis_provider_sim::ProviderConfig &provider_config) {
   g_sim_mode = provider_config.simulation_mode;
   g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
+  configure_simulation_inputs(provider_config);
 
   g_signal_registry_owned = std::make_unique<sim_coordination::SignalRegistry>();
   g_signal_registry = g_signal_registry_owned.get();
@@ -316,6 +402,7 @@ void initialize_physics(
 
 void start_physics() {
   if (g_sim_mode == anolis_provider_sim::SimulationMode::Inert) {
+    std::cerr << "[DeviceManager] start_physics: inert mode, skipping\n";
     return;
   }
   if (!g_simulation_engine) {
@@ -324,11 +411,15 @@ void start_physics() {
     return;
   }
   if (g_ticker_running.load()) {
+    std::cerr << "[DeviceManager] start_physics: already running, skipping\n";
     return;
   }
 
+  std::cerr << "[DeviceManager] start_physics: spawning ticker thread (@" 
+            << g_tick_rate_hz << " Hz)\n";
   g_ticker_running = true;
   g_ticker_thread = std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
+  std::cerr << "[DeviceManager] start_physics: ticker thread started\n";
 }
 
 void stop_physics() {
@@ -343,6 +434,7 @@ void stop_physics() {
   g_signal_registry = nullptr;
   g_signal_registry_owned.reset();
   g_simulation_engine.reset();
+  g_ambient_input.reset();
 }
 
 // -----------------------------

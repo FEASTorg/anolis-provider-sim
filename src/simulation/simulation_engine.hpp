@@ -29,6 +29,9 @@ public:
   virtual ~SimulationEngine() = default;
 
   virtual void initialize(const std::string &config_path) = 0;
+  virtual void set_provider_id(const std::string &provider_id) {
+    (void)provider_id;
+  }
   virtual void register_devices(const std::vector<std::string> &device_ids) = 0;
   virtual TickResult tick(const std::map<std::string, double> &actuators) = 0;
 

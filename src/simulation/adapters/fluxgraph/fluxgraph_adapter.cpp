@@ -59,16 +59,7 @@ bool FluxGraphAdapter::update_signals(
     const std::map<std::string, double> &actuators,
     const std::string &unit,
     std::chrono::milliseconds timeout) {
-  static int update_count = 0;
-  if (update_count < 3) {
-    std::cerr << "[FluxGraphAdapter] Update #" << update_count << " sending " << actuators.size() << " signals to FluxGraph\n";
-  }
-  bool result = client_->update_signals(actuators, unit, timeout);
-  if (update_count < 3) {
-    std::cerr << "[FluxGraphAdapter] Update #" << update_count << " result: " << (result ? "SUCCESS" : "FAILED") << "\n";
-  }
-  update_count++;
-  return result;
+  return client_->update_signals(actuators, unit, timeout);
 }
 
 std::map<std::string, double> FluxGraphAdapter::read_signals(
@@ -89,27 +80,11 @@ std::map<std::string, double> FluxGraphAdapter::read_signals(
     }
   }
 
-  static int read_count = 0;
-  if (read_count < 3) {
-    std::cerr << "[FluxGraphAdapter] Read #" << read_count << " querying " << paths_to_read.size() << " paths:\n";
-    for (const auto &path : paths_to_read) {
-      std::cerr << "  " << path << "\n";
-    }
-  }
-
   for (const auto &path : paths_to_read) {
     if (auto value = client_->read_signal_value(path)) {
       sensors[path] = *value;
     }
   }
-
-  if (read_count < 3) {
-    std::cerr << "[FluxGraphAdapter] Read #" << read_count << " got " << sensors.size() << " values:\n";
-    for (const auto &[path, value] : sensors) {
-      std::cerr << "  " << path << " = " << value << "\n";
-    }
-  }
-  read_count++;
 
   return sensors;
 }

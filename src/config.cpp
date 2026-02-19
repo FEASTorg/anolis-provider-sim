@@ -16,9 +16,6 @@ SimulationMode parse_simulation_mode(const std::string &mode_str) {
     return SimulationMode::Inert;
   } else if (mode_str == "sim") {
     return SimulationMode::Sim;
-  } else if (mode_str == "physics") {
-    std::cerr << "WARNING: simulation.mode='physics' is deprecated, use 'sim'\n";
-    return SimulationMode::Sim;
   } else {
     throw std::runtime_error(
         "Invalid simulation.mode: '" + mode_str +
@@ -206,6 +203,31 @@ ProviderConfig load_config(const std::string &path) {
   ProviderConfig config;
   config.config_file_path = fs::absolute(path).string();
 
+  // Parse optional provider section
+  if (yaml["provider"]) {
+    if (!yaml["provider"].IsMap()) {
+      throw std::runtime_error("[CONFIG] 'provider' section must be a map");
+    }
+    if (!yaml["provider"]["name"]) {
+      throw std::runtime_error(
+          "[CONFIG] 'provider.name' is required when 'provider' section is present");
+    }
+    std::string provider_name;
+    try {
+      provider_name = yaml["provider"]["name"].as<std::string>();
+    } catch (const YAML::Exception &) {
+      throw std::runtime_error(
+          "[CONFIG] Invalid provider.name: must be a string");
+    }
+    const std::regex valid_pattern("^[A-Za-z0-9_.-]{1,64}$");
+    if (!std::regex_match(provider_name, valid_pattern)) {
+      throw std::runtime_error(
+          "[CONFIG] Invalid provider.name: must match "
+          "^[A-Za-z0-9_.-]{1,64}$");
+    }
+    config.provider_name = provider_name;
+  }
+
   // Parse devices section
   if (yaml["devices"]) {
     if (!yaml["devices"].IsSequence()) {
@@ -330,6 +352,46 @@ ProviderConfig load_config(const std::string &path) {
           "[CONFIG] mode=sim requires simulation.physics_config");
     }
     break;
+  }
+
+  const bool has_ambient_temp = static_cast<bool>(yaml["simulation"]["ambient_temp_c"]);
+  const bool has_ambient_path =
+      static_cast<bool>(yaml["simulation"]["ambient_signal_path"]);
+
+  if (config.simulation_mode != SimulationMode::Sim &&
+      (has_ambient_temp || has_ambient_path)) {
+    throw std::runtime_error(
+        "[CONFIG] simulation.ambient_* options are only valid in mode=sim");
+  }
+
+  if (config.simulation_mode == SimulationMode::Sim) {
+    if (has_ambient_path && !has_ambient_temp) {
+      throw std::runtime_error(
+          "[CONFIG] simulation.ambient_signal_path requires simulation.ambient_temp_c");
+    }
+
+    if (has_ambient_temp) {
+      try {
+        (void)yaml["simulation"]["ambient_temp_c"].as<double>();
+      } catch (const YAML::Exception &) {
+        throw std::runtime_error(
+            "[CONFIG] simulation.ambient_temp_c must be numeric");
+      }
+    }
+
+    if (has_ambient_path) {
+      std::string ambient_path;
+      try {
+        ambient_path = yaml["simulation"]["ambient_signal_path"].as<std::string>();
+      } catch (const YAML::Exception &) {
+        throw std::runtime_error(
+            "[CONFIG] simulation.ambient_signal_path must be a string");
+      }
+      if (ambient_path.empty()) {
+        throw std::runtime_error(
+            "[CONFIG] simulation.ambient_signal_path cannot be empty");
+      }
+    }
   }
 
   // Validate physics_bindings are only used in sim mode
@@ -538,7 +600,7 @@ PhysicsConfig load_physics_config(const std::string &path) {
         if (spec.on_error != "log_and_continue") {
           throw std::runtime_error(
               "[PHYSICS CONFIG] rules[" + std::to_string(i) +
-              "]: Phase 22 only supports on_error='log_and_continue'");
+              "]: Currently only supports on_error='log_and_continue'");
         }
       } else {
         spec.on_error = "log_and_continue";

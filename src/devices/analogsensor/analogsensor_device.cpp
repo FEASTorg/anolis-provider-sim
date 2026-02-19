@@ -1,6 +1,7 @@
 #include "devices/analogsensor/analogsensor_device.hpp"
 
 #include <cmath>
+#include <mutex>
 #include <optional>
 #include <random>
 
@@ -58,8 +59,9 @@ struct State {
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
+static std::mutex g_state_mutex;
 
-static State &get_state(const std::string &device_id) {
+static State &get_state_unlocked(const std::string &device_id) {
   return g_device_states[device_id];
 }
 
@@ -69,6 +71,7 @@ static State &get_state(const std::string &device_id) {
 
 void init(const std::string &device_id) {
   // Initialize state for this device instance
+  std::lock_guard<std::mutex> lock(g_state_mutex);
   g_device_states[device_id] = State();
 }
 
@@ -77,7 +80,8 @@ void init(const std::string &device_id) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   // Simulate drift over time (only when noise enabled)
   if (s.noise_enabled) {
@@ -255,7 +259,8 @@ CapabilitySet get_capabilities() {
 std::vector<SignalValue>
 read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
   std::vector<SignalValue> out;
 
   // If signal_ids empty, return all signals
@@ -308,7 +313,8 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   if (function_id == kFnCalibrateChannel) {
     // Enforce precondition: quality must be GOOD

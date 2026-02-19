@@ -30,7 +30,7 @@ enum class TransformType {
 // Graph edge with optional transform
 struct GraphEdge {
   std::string source; // device_id/signal_id or model_id/signal_id
-  std::string target; // model_id/signal_id (Phase 22 v1)
+  std::string target; // model_id/signal_id
   std::optional<TransformType> transform_type;
   std::map<std::string, YAML::Node> transform_params;
 };
@@ -54,7 +54,7 @@ struct RuleSpec {
   std::string id;
   std::string condition; // Simple comparison format
   std::vector<RuleAction> actions;
-  std::string on_error; // Phase 22: "log_and_continue" only
+  std::string on_error; // Currently only supports on_error='log_and_continue'
 };
 
 // Physics configuration
@@ -74,6 +74,7 @@ struct DeviceSpec {
 // Complete provider configuration
 struct ProviderConfig {
   std::string config_file_path; // Path to config file (for relative resolution)
+  std::optional<std::string> provider_name; // Optional provider identity
   std::vector<DeviceSpec> devices;
   SimulationMode simulation_mode;
   std::optional<double>

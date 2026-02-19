@@ -15,17 +15,22 @@ void RemoteEngine::initialize(const std::string &config_path) {
   adapter_->load_config(config_path);
 }
 
+void RemoteEngine::set_provider_id(const std::string &provider_id) {
+  provider_id_ = provider_id.empty() ? "provider-sim" : provider_id;
+}
+
 void RemoteEngine::register_devices(const std::vector<std::string> &device_ids) {
   device_ids_ = device_ids;
-  // Phase 26: fixed single-instance provider identity.
-  adapter_->register_provider("provider-sim", device_ids);
+  adapter_->register_provider(provider_id_, device_ids);
 }
 
 TickResult RemoteEngine::tick(const std::map<std::string, double> &actuators) {
   try {
-    auto timeout = std::chrono::milliseconds(200);
+    auto timeout = std::chrono::milliseconds(2000);
     if (tick_rate_hz_ > 0.0) {
-      const auto timeout_ms = static_cast<long long>((2.0 / tick_rate_hz_) * 1000.0);
+      // Multi-provider: use 20x tick period to allow barrier synchronization
+      // At 10Hz: 20 * (1/10) = 2 seconds
+      const auto timeout_ms = static_cast<long long>((20.0 / tick_rate_hz_) * 1000.0);
       timeout = std::chrono::milliseconds(timeout_ms > 0 ? timeout_ms : 1);
     }
 

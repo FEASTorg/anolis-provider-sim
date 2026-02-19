@@ -60,6 +60,8 @@ public:
   bool last_tick_occurred() const { return last_tick_occurred_; }
 
 private:
+  bool try_reregister_session();
+  void unregister_provider_noexcept();
   void check_connection();
   Command convert_command(const fluxgraph::rpc::Command &pb_cmd);
   void invalidate_cache();
@@ -69,6 +71,8 @@ private:
 
   std::string session_id_;
   bool registered_ = false;
+  std::string provider_id_;
+  std::vector<std::string> registered_device_ids_;
 
   double sim_time_sec_ = 0.0;
   bool last_tick_occurred_ = false;

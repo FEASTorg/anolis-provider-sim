@@ -1,6 +1,7 @@
 #include "devices/tempctl/tempctl_device.hpp"
 
 #include <cmath>
+#include <mutex>
 #include <set>
 
 #include "devices/common/device_manager.hpp" // For g_signal_registry
@@ -55,8 +56,9 @@ struct State {
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
+static std::mutex g_state_mutex;
 
-static State &get_state(const std::string &device_id) {
+static State &get_state_unlocked(const std::string &device_id) {
   return g_device_states[device_id];
 }
 
@@ -88,6 +90,7 @@ void init(const std::string &device_id, const Config &config) {
     s.tc2_c = temp;
   }
 
+  std::lock_guard<std::mutex> lock(g_state_mutex);
   g_device_states[device_id] = s;
 }
 
@@ -96,7 +99,8 @@ void init(const std::string &device_id, const Config &config) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   // Ambient temperature
   const double ambient = 23.0;
@@ -127,6 +131,52 @@ void update_physics(const std::string &device_id, double dt) {
   // Add slight sensor offset to make channels distinct
   s.tc1_c += alpha * (target - s.tc1_c);
   s.tc2_c += alpha * ((target - 1.5) - s.tc2_c);
+}
+
+void update_control(const std::string &device_id) {
+  if (!g_signal_registry) {
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
+    if (s.mode != "closed") {
+      return;
+    }
+  }
+
+  // Read current temperature from signal registry (updated by previous physics
+  // tick). Use tc1_temp as the control input.
+  const std::string temp_signal = device_id + "/tc1_temp";
+  const auto current_temp_opt = g_signal_registry->read_signal(temp_signal);
+  if (!current_temp_opt.has_value()) {
+    // No temperature reading available yet (first tick), leave relays as-is
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
+  if (s.mode != "closed") {
+    return;
+  }
+
+  const double current_temp = current_temp_opt.value();
+  const double error = s.setpoint_c - current_temp;
+  if (error > 10.0) {
+    // Far below setpoint: both relays on for stronger heating.
+    s.relay1 = true;
+    s.relay2 = true;
+  } else if (error > 2.0) {
+    // Near setpoint but still below: single-stage heating.
+    s.relay1 = true;
+    s.relay2 = false;
+  } else if (error < -2.0) {
+    // Above setpoint: shut both relays off.
+    s.relay1 = false;
+    s.relay2 = false;
+  }
+  // In dead-band [-2C, +2C], keep relay states unchanged.
 }
 
 // -----------------------------
@@ -309,41 +359,10 @@ static std::vector<std::string> default_signals() {
 std::vector<SignalValue>
 read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
-  State &s = get_state(device_id);
-
-  // In closed-loop mode, run bang-bang controller to set relay states
-  if (s.mode == "closed") {
-    // Simple bang-bang with hysteresis: turn on if below setpoint-2, off if
-    // above setpoint+2
-
-    // Read TC1 temperature (check physics registry first)
-    double temp = s.tc1_c; // Default to internal state
-    if (g_signal_registry) {
-      std::string tc1_path = device_id + "/tc1_temp";
-      if (g_signal_registry->is_physics_driven(tc1_path)) {
-        auto phys_val = g_signal_registry->read_signal(tc1_path);
-        if (phys_val) {
-          temp = *phys_val;
-        }
-      }
-    }
-
-    double error = s.setpoint_c - temp;
-
-    if (error > 10.0) {
-      // Far below setpoint: both relays on
-      s.relay1 = true;
-      s.relay2 = true;
-    } else if (error > 2.0) {
-      // Moderately below: one relay on
-      s.relay1 = true;
-      s.relay2 = false;
-    } else if (error < -2.0) {
-      // Above setpoint: both off
-      s.relay1 = false;
-      s.relay2 = false;
-    }
-    // Else: in dead band (-2 to +2), keep current state
+  State snapshot;
+  {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    snapshot = get_state_unlocked(device_id);
   }
 
   std::vector<std::string> ids = signal_ids;
@@ -372,21 +391,23 @@ read_signals(const std::string &device_id,
     }
 
     if (id == kSigTc1Temp) {
-      const double value = maybe_physics_value(id).value_or(s.tc1_c);
+      const double value = maybe_physics_value(id).value_or(snapshot.tc1_c);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigTc2Temp) {
-      const double value = maybe_physics_value(id).value_or(s.tc2_c);
+      const double value = maybe_physics_value(id).value_or(snapshot.tc2_c);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigRelay1State) {
-      const bool value = maybe_physics_value(id).value_or(s.relay1 ? 1.0 : 0.0) >= 0.5;
+      const bool value =
+          maybe_physics_value(id).value_or(snapshot.relay1 ? 1.0 : 0.0) >= 0.5;
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigRelay2State) {
-      const bool value = maybe_physics_value(id).value_or(s.relay2 ? 1.0 : 0.0) >= 0.5;
+      const bool value =
+          maybe_physics_value(id).value_or(snapshot.relay2 ? 1.0 : 0.0) >= 0.5;
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigControlMode)
-      out.push_back(make_signal_value(id, make_string(s.mode)));
+      out.push_back(make_signal_value(id, make_string(snapshot.mode)));
     else if (id == kSigSetpoint)
-      out.push_back(make_signal_value(id, make_double(s.setpoint_c)));
+      out.push_back(make_signal_value(id, make_double(snapshot.setpoint_c)));
   }
 
   return out;
@@ -398,7 +419,8 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   if (function_id == kFnSetMode) {
     std::string mode;

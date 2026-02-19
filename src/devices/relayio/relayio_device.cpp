@@ -1,5 +1,6 @@
 #include "devices/relayio/relayio_device.hpp"
 
+#include <mutex>
 #include <optional>
 
 #include "devices/common/device_manager.hpp" // For g_signal_registry
@@ -55,8 +56,9 @@ struct State {
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
+static std::mutex g_state_mutex;
 
-static State &get_state(const std::string &device_id) {
+static State &get_state_unlocked(const std::string &device_id) {
   return g_device_states[device_id];
 }
 
@@ -66,6 +68,7 @@ static State &get_state(const std::string &device_id) {
 
 void init(const std::string &device_id) {
   // Initialize state for this device instance
+  std::lock_guard<std::mutex> lock(g_state_mutex);
   g_device_states[device_id] = State();
 }
 
@@ -75,7 +78,8 @@ void init(const std::string &device_id) {
 
 void update_physics(const std::string &device_id, double dt) {
   (void)dt;
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   // Simulate GPIO inputs mirroring relay states (simple demo behavior)
   // In a real system, these would be independent
@@ -276,7 +280,11 @@ CapabilitySet get_capabilities() {
 std::vector<SignalValue>
 read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
-  State &s = get_state(device_id);
+  State snapshot;
+  {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    snapshot = get_state_unlocked(device_id);
+  }
   std::vector<SignalValue> out;
 
   // If signal_ids empty, return all signals
@@ -305,28 +313,28 @@ read_signals(const std::string &device_id,
 
   for (const auto &id : ids) {
     if (id == kSigRelayCh1State) {
-      const bool value = maybe_physics_bool(id).value_or(s.relay_ch1);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch1);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigRelayCh2State) {
-      const bool value = maybe_physics_bool(id).value_or(s.relay_ch2);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch2);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigRelayCh3State) {
-      const bool value = maybe_physics_bool(id).value_or(s.relay_ch3);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch3);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigRelayCh4State) {
-      const bool value = maybe_physics_bool(id).value_or(s.relay_ch4);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch4);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigGpioInput1) {
-      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_1);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_1);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigGpioInput2) {
-      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_2);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_2);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigGpioInput3) {
-      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_3);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_3);
       out.push_back(make_signal_value(id, make_bool(value)));
     } else if (id == kSigGpioInput4) {
-      const bool value = maybe_physics_bool(id).value_or(s.gpio_input_4);
+      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_4);
       out.push_back(make_signal_value(id, make_bool(value)));
     }
   }
@@ -340,7 +348,8 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   switch (function_id) {
   case kFnSetRelayCh1: {

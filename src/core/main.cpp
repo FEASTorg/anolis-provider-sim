@@ -93,9 +93,6 @@ int main(int argc, char **argv) {
       }
     } else if (arg == "--sim-server" && i + 1 < argc) {
       sim_server_address = argv[++i];
-    } else if (arg == "--flux-server" && i + 1 < argc) {
-      std::cerr << "WARNING: --flux-server is deprecated, use --sim-server\n";
-      sim_server_address = argv[++i];
     }
   }
 
@@ -122,6 +119,7 @@ int main(int argc, char **argv) {
     }
 
     auto engine = create_engine(config, sim_server_address.value_or(""));
+    engine->set_provider_id(config.provider_name.value_or("provider-sim"));
 
     if (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) {
       std::filesystem::path config_dir =
@@ -143,9 +141,15 @@ int main(int argc, char **argv) {
     sim_devices::set_simulation_engine(std::move(engine));
     sim_devices::initialize_physics(config);
 
-    // Start physics automatically for non-inert modes
-    if (config.simulation_mode != anolis_provider_sim::SimulationMode::Inert) {
+    // Start physics automatically for non-interacting mode only.
+    // For sim mode, wait_ready() will start physics after all providers
+    // have registered to prevent phase misalignment in multi-provider scenarios.
+    if (config.simulation_mode == anolis_provider_sim::SimulationMode::NonInteracting) {
+      log_err("mode=non-interacting: auto-starting physics ticker");
       sim_devices::start_physics();
+    } else {
+      std::string mode_str = (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) ? "sim" : "inert";
+      log_err("mode=" + mode_str + ": deferring physics ticker until wait_ready()");
     }
 
   } catch (const std::exception &e) {
@@ -201,7 +205,9 @@ int main(int argc, char **argv) {
       handlers::handle_hello(req.hello(), resp);
     } else if (req.has_wait_ready()) {
       handlers::handle_wait_ready(req.wait_ready(), resp);
+      log_err("waiting ready -> starting physics ticker");
       sim_devices::start_physics();
+      log_err("physics ticker started");
     } else if (req.has_list_devices()) {
       handlers::handle_list_devices(req.list_devices(), resp);
     } else if (req.has_describe_device()) {

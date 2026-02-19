@@ -31,6 +31,10 @@ void init(const std::string &device_id, const Config &config = Config{});
 // Update physics for a specific instance (called by device_manager)
 void update_physics(const std::string &device_id, double dt);
 
+// Update control logic (closed-loop bang-bang control)
+// Reads current temperature from signal registry, updates relay states based on mode/setpoint
+void update_control(const std::string &device_id);
+
 // Get device info for a specific instance
 Device get_device_info(const std::string &device_id,
                        bool include_health = false);

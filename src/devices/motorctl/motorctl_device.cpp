@@ -1,6 +1,7 @@
 #include "devices/motorctl/motorctl_device.hpp"
 
 #include <cmath>
+#include <mutex>
 #include <set>
 
 #include "devices/common/device_manager.hpp" // For g_signal_registry
@@ -45,8 +46,9 @@ struct State {
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
+static std::mutex g_state_mutex;
 
-static State &get_state(const std::string &device_id) {
+static State &get_state_unlocked(const std::string &device_id) {
   return g_device_states[device_id];
 }
 
@@ -72,6 +74,7 @@ void init(const std::string &device_id, const Config &config) {
     s.max_rpm = max_speed;
   }
 
+  std::lock_guard<std::mutex> lock(g_state_mutex);
   g_device_states[device_id] = s;
 }
 
@@ -80,7 +83,8 @@ void init(const std::string &device_id, const Config &config) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   // Speed approaches duty * max_rpm with lag
   const double motor_tau = 0.8; // seconds
@@ -230,7 +234,11 @@ static std::vector<std::string> default_signals() {
 std::vector<SignalValue>
 read_signals(const std::string &device_id,
              const std::vector<std::string> &signal_ids) {
-  State &s = get_state(device_id);
+  State snapshot;
+  {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    snapshot = get_state_unlocked(device_id);
+  }
 
   std::vector<std::string> ids = signal_ids;
   if (ids.empty()) {
@@ -258,16 +266,16 @@ read_signals(const std::string &device_id,
     }
 
     if (id == kSigMotor1Speed) {
-      const double value = maybe_physics_value(id).value_or(s.speed1);
+      const double value = maybe_physics_value(id).value_or(snapshot.speed1);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigMotor2Speed) {
-      const double value = maybe_physics_value(id).value_or(s.speed2);
+      const double value = maybe_physics_value(id).value_or(snapshot.speed2);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigMotor1Duty) {
-      const double value = maybe_physics_value(id).value_or(s.duty1);
+      const double value = maybe_physics_value(id).value_or(snapshot.duty1);
       out.push_back(make_signal_value(id, make_double(value)));
     } else if (id == kSigMotor2Duty) {
-      const double value = maybe_physics_value(id).value_or(s.duty2);
+      const double value = maybe_physics_value(id).value_or(snapshot.duty2);
       out.push_back(make_signal_value(id, make_double(value)));
     }
   }
@@ -281,7 +289,8 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
-  State &s = get_state(device_id);
+  std::lock_guard<std::mutex> lock(g_state_mutex);
+  State &s = get_state_unlocked(device_id);
 
   if (function_id == kFnSetDuty) {
     int64_t idx = 0;
