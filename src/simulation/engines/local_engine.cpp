@@ -49,8 +49,8 @@ TickResult LocalEngine::tick(const std::map<std::string, double> &) {
   sim_devices::tempctl::update_physics(sim_devices::tempctl::kDeviceId, dt);
   sim_devices::motorctl::update_physics(sim_devices::motorctl::kDeviceId, dt);
   sim_devices::relayio::update_physics(sim_devices::relayio::kDeviceId, dt);
-  sim_devices::analogsensor::update_physics(sim_devices::analogsensor::kDeviceId,
-                                            dt);
+  sim_devices::analogsensor::update_physics(
+      sim_devices::analogsensor::kDeviceId, dt);
 
   return TickResult{true, {}, {}};
 }

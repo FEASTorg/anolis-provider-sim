@@ -10,13 +10,13 @@
 #include <stdexcept>
 #include <thread>
 
-#include "config.hpp"
+#include "chaos/chaos_control_device.hpp"
 #include "chaos/fault_injection.hpp"
-#include "devices/analogsensor/analogsensor_device.hpp"
+#include "config.hpp"
 #include "device_factory.hpp"
+#include "devices/analogsensor/analogsensor_device.hpp"
 #include "devices/motorctl/motorctl_device.hpp"
 #include "devices/relayio/relayio_device.hpp"
-#include "chaos/chaos_control_device.hpp"
 #include "devices/tempctl/tempctl_device.hpp"
 
 namespace sim_devices {
@@ -25,7 +25,8 @@ namespace sim_devices {
 // Shared coordination/runtime state
 // -----------------------------
 
-static std::unique_ptr<sim_coordination::SignalRegistry> g_signal_registry_owned;
+static std::unique_ptr<sim_coordination::SignalRegistry>
+    g_signal_registry_owned;
 sim_coordination::SignalRegistry *g_signal_registry = nullptr;
 
 static std::unique_ptr<sim_engine::SimulationEngine> g_simulation_engine;
@@ -50,7 +51,8 @@ static std::optional<ConstantSignalInput> g_ambient_input;
 // Helpers
 // -----------------------------
 
-void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine) {
+void set_simulation_engine(
+    std::unique_ptr<sim_engine::SimulationEngine> engine) {
   g_simulation_engine = std::move(engine);
 }
 
@@ -72,7 +74,8 @@ static void rebuild_physics_output_paths(
   g_physics_output_paths.clear();
 
   // Sim mode: query the engine directly - it already parsed FluxGraph config
-  if (provider_config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) {
+  if (provider_config.simulation_mode ==
+      anolis_provider_sim::SimulationMode::Sim) {
     if (g_simulation_engine) {
       std::set<std::string> known_device_ids;
       for (const auto &dev : provider_config.devices) {
@@ -107,7 +110,8 @@ static void rebuild_physics_output_paths(
   std::filesystem::path physics_path =
       config_dir / *provider_config.physics_config_path;
 
-  auto physics_cfg = anolis_provider_sim::load_physics_config(physics_path.string());
+  auto physics_cfg =
+      anolis_provider_sim::load_physics_config(physics_path.string());
 
   std::set<std::string> known_device_ids;
   std::set<std::string> seen_paths;
@@ -153,7 +157,8 @@ static void maybe_collect_signal(const std::string &path,
 }
 
 static void collect_actuator_signals(std::map<std::string, double> &signals) {
-  auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
+  auto registered =
+      anolis_provider_sim::DeviceFactory::get_registered_devices();
   for (const auto &entry : registered) {
     if (entry.type == "tempctl") {
       maybe_collect_signal(entry.id + "/relay1_state", signals);
@@ -174,7 +179,8 @@ static void configure_simulation_inputs(
     const anolis_provider_sim::ProviderConfig &provider_config) {
   g_ambient_input.reset();
 
-  if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim) {
+  if (provider_config.simulation_mode !=
+      anolis_provider_sim::SimulationMode::Sim) {
     return;
   }
 
@@ -257,24 +263,30 @@ static void ticker_thread_func(double tick_rate_hz) {
   const auto tick_duration =
       std::chrono::duration_cast<std::chrono::steady_clock::duration>(
           std::chrono::duration<double>(dt));
-  
+
   const auto thread_start = std::chrono::steady_clock::now();
-  const auto thread_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-      thread_start.time_since_epoch()).count();
-  
-  std::cerr << "[Ticker] Thread started at steady_clock=" << thread_start_ms << "ms\\n";
-  std::cerr << "[Ticker] Tick period: " << (dt * 1000.0) << "ms (@" << tick_rate_hz << " Hz)\\n";
-  
+  const auto thread_start_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          thread_start.time_since_epoch())
+          .count();
+
+  std::cerr << "[Ticker] Thread started at steady_clock=" << thread_start_ms
+            << "ms\\n";
+  std::cerr << "[Ticker] Tick period: " << (dt * 1000.0) << "ms (@"
+            << tick_rate_hz << " Hz)\\n";
+
   // Start ticking immediately from thread creation time
   auto next_tick = thread_start;
 
   int tick_count = 0;
-  
+
   while (g_ticker_running.load()) {
     const auto tick_start = std::chrono::steady_clock::now();
-    const auto tick_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        tick_start.time_since_epoch()).count();
-    
+    const auto tick_start_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            tick_start.time_since_epoch())
+            .count();
+
     // Update device control logic BEFORE collecting actuator states.
     // This allows closed-loop controllers to read sensor values from the
     // previous tick and update relay/actuator states accordingly.
@@ -285,7 +297,7 @@ static void ticker_thread_func(double tick_rate_hz) {
       }
       // Future: add control updates for other device types here
     }
-    
+
     std::map<std::string, double> actuators;
     collect_actuator_signals(actuators);
 
@@ -296,9 +308,10 @@ static void ticker_thread_func(double tick_rate_hz) {
 
     // Debug first 2 ticks only
     if (tick_count < 2) {
-      std::cerr << "[Ticker] Tick #" << tick_count 
-                << " at steady_clock " << tick_start_ms << " ms"
-                << " (delta=" << (tick_start_ms - thread_start_ms) << "ms from thread start)\n";
+      std::cerr << "[Ticker] Tick #" << tick_count << " at steady_clock "
+                << tick_start_ms << " ms"
+                << " (delta=" << (tick_start_ms - thread_start_ms)
+                << "ms from thread start)\n";
       std::cerr << "[Ticker]   Sending " << actuators.size() << " signals\n";
     }
 
@@ -312,13 +325,15 @@ static void ticker_thread_func(double tick_rate_hz) {
     if (result.success) {
       if (tick_count < 2) {
         const auto tick_end = std::chrono::steady_clock::now();
-        const auto tick_end_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            tick_end.time_since_epoch()).count();
+        const auto tick_end_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                tick_end.time_since_epoch())
+                .count();
         const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
-        std::cerr << "[Ticker] Tick #" << tick_count 
-                  << " SUCCESS (RPC took " << rpc_duration_ms << "ms)\n";
+        std::cerr << "[Ticker] Tick #" << tick_count << " SUCCESS (RPC took "
+                  << rpc_duration_ms << "ms)\n";
       }
-      
+
       if (g_signal_registry) {
         for (const auto &[path, value] : result.sensors) {
           g_signal_registry->write_signal(path, value);
@@ -330,25 +345,28 @@ static void ticker_thread_func(double tick_rate_hz) {
       }
     } else {
       if (tick_count < 2) {
-        std::cerr << "[Ticker] Tick #" << tick_count << " FAILED (maintaining schedule)\n";
+        std::cerr << "[Ticker] Tick #" << tick_count
+                  << " FAILED (maintaining schedule)\n";
       }
       // Continue with stale data but MAINTAIN THE TICK SCHEDULE.
-      // Don't let timeouts/failures shift our phase relative to other providers.
+      // Don't let timeouts/failures shift our phase relative to other
+      // providers.
     }
 
     tick_count++;
-    
-    // CRITICAL: Always advance next_tick by tick_duration, regardless of success/failure.
-    // This maintains consistent phase alignment across providers even when one times out.
+
+    // CRITICAL: Always advance next_tick by tick_duration, regardless of
+    // success/failure. This maintains consistent phase alignment across
+    // providers even when one times out.
     next_tick += tick_duration;
-    
-    // If we're significantly behind (e.g., first startup, or multi-second block),
-    // catch up gradually rather than immediately resetting phase.
+
+    // If we're significantly behind (e.g., first startup, or multi-second
+    // block), catch up gradually rather than immediately resetting phase.
     const auto now = std::chrono::steady_clock::now();
     while (next_tick <= now && g_ticker_running.load()) {
       next_tick += tick_duration;
     }
-    
+
     std::this_thread::sleep_until(next_tick);
   }
 }
@@ -363,7 +381,8 @@ void initialize_physics(
   g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
   configure_simulation_inputs(provider_config);
 
-  g_signal_registry_owned = std::make_unique<sim_coordination::SignalRegistry>();
+  g_signal_registry_owned =
+      std::make_unique<sim_coordination::SignalRegistry>();
   g_signal_registry = g_signal_registry_owned.get();
 
   // Non-physics reads delegate to current device state.
@@ -415,10 +434,11 @@ void start_physics() {
     return;
   }
 
-  std::cerr << "[DeviceManager] start_physics: spawning ticker thread (@" 
+  std::cerr << "[DeviceManager] start_physics: spawning ticker thread (@"
             << g_tick_rate_hz << " Hz)\n";
   g_ticker_running = true;
-  g_ticker_thread = std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
+  g_ticker_thread =
+      std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
   std::cerr << "[DeviceManager] start_physics: ticker thread started\n";
 }
 
@@ -445,7 +465,8 @@ std::vector<Device> list_devices(bool include_health) {
   std::vector<Device> out;
 
   if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
-    auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
+    auto registered =
+        anolis_provider_sim::DeviceFactory::get_registered_devices();
     for (const auto &entry : registered) {
       if (fault_injection::is_device_unavailable(entry.id)) {
         continue;

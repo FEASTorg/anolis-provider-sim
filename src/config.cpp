@@ -17,9 +17,8 @@ SimulationMode parse_simulation_mode(const std::string &mode_str) {
   } else if (mode_str == "sim") {
     return SimulationMode::Sim;
   } else {
-    throw std::runtime_error(
-        "Invalid simulation.mode: '" + mode_str +
-        "'. Valid values: non_interacting, inert, sim");
+    throw std::runtime_error("Invalid simulation.mode: '" + mode_str +
+                             "'. Valid values: non_interacting, inert, sim");
   }
 }
 
@@ -209,8 +208,8 @@ ProviderConfig load_config(const std::string &path) {
       throw std::runtime_error("[CONFIG] 'provider' section must be a map");
     }
     if (!yaml["provider"]["name"]) {
-      throw std::runtime_error(
-          "[CONFIG] 'provider.name' is required when 'provider' section is present");
+      throw std::runtime_error("[CONFIG] 'provider.name' is required when "
+                               "'provider' section is present");
     }
     std::string provider_name;
     try {
@@ -221,9 +220,8 @@ ProviderConfig load_config(const std::string &path) {
     }
     const std::regex valid_pattern("^[A-Za-z0-9_.-]{1,64}$");
     if (!std::regex_match(provider_name, valid_pattern)) {
-      throw std::runtime_error(
-          "[CONFIG] Invalid provider.name: must match "
-          "^[A-Za-z0-9_.-]{1,64}$");
+      throw std::runtime_error("[CONFIG] Invalid provider.name: must match "
+                               "^[A-Za-z0-9_.-]{1,64}$");
     }
     config.provider_name = provider_name;
   }
@@ -354,7 +352,8 @@ ProviderConfig load_config(const std::string &path) {
     break;
   }
 
-  const bool has_ambient_temp = static_cast<bool>(yaml["simulation"]["ambient_temp_c"]);
+  const bool has_ambient_temp =
+      static_cast<bool>(yaml["simulation"]["ambient_temp_c"]);
   const bool has_ambient_path =
       static_cast<bool>(yaml["simulation"]["ambient_signal_path"]);
 
@@ -366,8 +365,8 @@ ProviderConfig load_config(const std::string &path) {
 
   if (config.simulation_mode == SimulationMode::Sim) {
     if (has_ambient_path && !has_ambient_temp) {
-      throw std::runtime_error(
-          "[CONFIG] simulation.ambient_signal_path requires simulation.ambient_temp_c");
+      throw std::runtime_error("[CONFIG] simulation.ambient_signal_path "
+                               "requires simulation.ambient_temp_c");
     }
 
     if (has_ambient_temp) {
@@ -382,7 +381,8 @@ ProviderConfig load_config(const std::string &path) {
     if (has_ambient_path) {
       std::string ambient_path;
       try {
-        ambient_path = yaml["simulation"]["ambient_signal_path"].as<std::string>();
+        ambient_path =
+            yaml["simulation"]["ambient_signal_path"].as<std::string>();
       } catch (const YAML::Exception &) {
         throw std::runtime_error(
             "[CONFIG] simulation.ambient_signal_path must be a string");

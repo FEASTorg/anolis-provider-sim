@@ -20,7 +20,8 @@ namespace sim_coordination {
  *
  * Architecture:
  *   Physics Engine -> write_signal() -> Registry Cache
- *   Device State -> device_reader_() -> Registry -> read_signal() -> Physics Engine
+ *   Device State -> device_reader_() -> Registry -> read_signal() -> Physics
+ * Engine
  *
  * Thread Safety:
  *   All operations are protected by internal mutex. Safe for concurrent access

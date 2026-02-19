@@ -295,8 +295,8 @@ read_signals(const std::string &device_id,
            kSigGpioInput3,    kSigGpioInput4};
   }
 
-  auto maybe_physics_bool = [&](const std::string &signal_id)
-      -> std::optional<bool> {
+  auto maybe_physics_bool =
+      [&](const std::string &signal_id) -> std::optional<bool> {
     if (!g_signal_registry) {
       return std::nullopt;
     }

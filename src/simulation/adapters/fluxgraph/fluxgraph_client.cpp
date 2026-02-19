@@ -60,7 +60,8 @@ FluxGraphClient::FluxGraphClient(const std::string &server_address) {
       grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
   stub_ = fluxgraph::rpc::FluxGraph::NewStub(channel_);
 
-  const auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(5);
+  const auto deadline =
+      std::chrono::system_clock::now() + std::chrono::seconds(5);
   if (!channel_->WaitForConnected(deadline)) {
     throw std::runtime_error("Failed to connect to FluxGraph server at " +
                              server_address);
@@ -105,9 +106,10 @@ void FluxGraphClient::load_config_content(const std::string &yaml_content) {
     }
   }
   if (!rpc_ok) {
-    throw std::runtime_error("LoadConfig RPC failed: code=" +
-                             std::to_string(static_cast<int>(status.error_code())) +
-                             " message=" + status.error_message());
+    throw std::runtime_error(
+        "LoadConfig RPC failed: code=" +
+        std::to_string(static_cast<int>(status.error_code())) +
+        " message=" + status.error_message());
   }
   if (!res.success()) {
     throw std::runtime_error("LoadConfig failed: " + res.error_message());
@@ -124,8 +126,9 @@ void FluxGraphClient::load_config_content(const std::string &yaml_content) {
   }
 }
 
-void FluxGraphClient::register_provider(const std::string &provider_id,
-                                        const std::vector<std::string> &device_ids) {
+void FluxGraphClient::register_provider(
+    const std::string &provider_id,
+    const std::vector<std::string> &device_ids) {
   check_connection();
 
   fluxgraph::rpc::ProviderRegistration req;
@@ -150,9 +153,10 @@ void FluxGraphClient::register_provider(const std::string &provider_id,
     }
   }
   if (!rpc_ok) {
-    throw std::runtime_error("RegisterProvider RPC failed: code=" +
-                             std::to_string(static_cast<int>(status.error_code())) +
-                             " message=" + status.error_message());
+    throw std::runtime_error(
+        "RegisterProvider RPC failed: code=" +
+        std::to_string(static_cast<int>(status.error_code())) +
+        " message=" + status.error_message());
   }
   if (!res.success()) {
     throw std::runtime_error("RegisterProvider failed: " + res.error_message());
@@ -164,9 +168,9 @@ void FluxGraphClient::register_provider(const std::string &provider_id,
   registered_ = true;
 }
 
-bool FluxGraphClient::update_signals(const std::map<std::string, double> &signals,
-                                     const std::string &default_unit,
-                                     std::chrono::milliseconds timeout) {
+bool FluxGraphClient::update_signals(
+    const std::map<std::string, double> &signals,
+    const std::string &default_unit, std::chrono::milliseconds timeout) {
   if (!registered_) {
     throw std::runtime_error("FluxGraph provider session not registered");
   }
@@ -228,9 +232,10 @@ bool FluxGraphClient::update_signals(const std::map<std::string, double> &signal
     break;
   }
 
-  throw std::runtime_error("UpdateSignals RPC failed: code=" +
-                           std::to_string(static_cast<int>(status.error_code())) +
-                           " message=" + status.error_message());
+  throw std::runtime_error(
+      "UpdateSignals RPC failed: code=" +
+      std::to_string(static_cast<int>(status.error_code())) +
+      " message=" + status.error_message());
 }
 
 std::optional<FluxGraphClient::SignalInfo>
@@ -288,7 +293,8 @@ FluxGraphClient::read_signal(const std::string &path) {
   return info;
 }
 
-std::optional<double> FluxGraphClient::read_signal_value(const std::string &path) {
+std::optional<double>
+FluxGraphClient::read_signal_value(const std::string &path) {
   auto info = read_signal(path);
   if (!info) {
     return std::nullopt;
@@ -320,9 +326,10 @@ void FluxGraphClient::reset() {
     }
   }
   if (!rpc_ok) {
-    throw std::runtime_error("Reset RPC failed: code=" +
-                             std::to_string(static_cast<int>(status.error_code())) +
-                             " message=" + status.error_message());
+    throw std::runtime_error(
+        "Reset RPC failed: code=" +
+        std::to_string(static_cast<int>(status.error_code())) +
+        " message=" + status.error_message());
   }
   if (!res.success()) {
     throw std::runtime_error("Reset failed: " + res.error_message());
@@ -391,13 +398,15 @@ bool FluxGraphClient::is_connected() const {
 }
 
 void FluxGraphClient::check_connection() {
-  const auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(2);
+  const auto deadline =
+      std::chrono::system_clock::now() + std::chrono::seconds(2);
   if (!channel_->WaitForConnected(deadline)) {
     throw std::runtime_error("FluxGraph server connection is not ready");
   }
 }
 
-Command FluxGraphClient::convert_command(const fluxgraph::rpc::Command &pb_cmd) {
+Command
+FluxGraphClient::convert_command(const fluxgraph::rpc::Command &pb_cmd) {
   Command cmd;
   cmd.device_name = pb_cmd.device();
   cmd.function_name = pb_cmd.function();

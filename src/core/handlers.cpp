@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-#include "devices/common/device_factory.hpp"
-#include "devices/common/device_manager.hpp"
 #include "core/health.hpp"
 #include "core/transport/framed_stdio.hpp"
+#include "devices/common/device_factory.hpp"
+#include "devices/common/device_manager.hpp"
 
 namespace handlers {
 
@@ -202,7 +202,7 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
   // - Run self-tests and calibration
   // - Wait for hardware warm-up periods
   // For sim, we just report immediate readiness
-  
+
   std::cerr << "[WaitReady] Processing wait_ready() request\n";
 
   auto *out = resp.mutable_wait_ready();

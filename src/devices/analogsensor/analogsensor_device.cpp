@@ -270,8 +270,8 @@ read_signals(const std::string &device_id,
            kSigSensorQuality};
   }
 
-  auto maybe_physics_value = [&](const std::string &signal_id)
-      -> std::optional<double> {
+  auto maybe_physics_value =
+      [&](const std::string &signal_id) -> std::optional<double> {
     if (!g_signal_registry) {
       return std::nullopt;
     }

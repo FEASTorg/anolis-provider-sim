@@ -25,13 +25,14 @@ void FluxGraphAdapter::load_config(const std::string &config_path) {
     throw std::runtime_error("Failed to open physics config: " + config_path);
   }
   std::string fluxgraph_yaml((std::istreambuf_iterator<char>(file)),
-                              std::istreambuf_iterator<char>());
+                             std::istreambuf_iterator<char>());
   client_->load_config_content(fluxgraph_yaml);
 
   output_paths_.clear();
   std::set<std::string> dedup;
-  
-  // Parse YAML to extract edge targets (FluxGraph format uses "edges" not "signal_graph")
+
+  // Parse YAML to extract edge targets (FluxGraph format uses "edges" not
+  // "signal_graph")
   YAML::Node root = YAML::LoadFile(config_path);
   if (root["edges"] && root["edges"].IsSequence()) {
     for (const auto &edge : root["edges"]) {
@@ -56,14 +57,13 @@ void FluxGraphAdapter::register_provider(
 }
 
 bool FluxGraphAdapter::update_signals(
-    const std::map<std::string, double> &actuators,
-    const std::string &unit,
+    const std::map<std::string, double> &actuators, const std::string &unit,
     std::chrono::milliseconds timeout) {
   return client_->update_signals(actuators, unit, timeout);
 }
 
-std::map<std::string, double> FluxGraphAdapter::read_signals(
-    const std::vector<std::string> &signal_paths) {
+std::map<std::string, double>
+FluxGraphAdapter::read_signals(const std::vector<std::string> &signal_paths) {
   std::map<std::string, double> sensors;
 
   std::vector<std::string> paths_to_read = signal_paths;

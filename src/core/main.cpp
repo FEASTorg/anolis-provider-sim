@@ -15,15 +15,15 @@
 #endif
 
 #include "config.hpp"
+#include "core/handlers.hpp"
+#include "core/transport/framed_stdio.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
+#include "protocol.pb.h"
 #include "simulation/engines/local_engine.hpp"
 #include "simulation/engines/null_engine.hpp"
 #include "simulation/engines/remote_engine.hpp"
-#include "core/handlers.hpp"
-#include "protocol.pb.h"
 #include "simulation/simulation_engine.hpp"
-#include "core/transport/framed_stdio.hpp"
 
 #ifdef HAVE_FLUXGRAPH
 #include "simulation/adapters/fluxgraph/fluxgraph_adapter.hpp"
@@ -143,13 +143,19 @@ int main(int argc, char **argv) {
 
     // Start physics automatically for non-interacting mode only.
     // For sim mode, wait_ready() will start physics after all providers
-    // have registered to prevent phase misalignment in multi-provider scenarios.
-    if (config.simulation_mode == anolis_provider_sim::SimulationMode::NonInteracting) {
+    // have registered to prevent phase misalignment in multi-provider
+    // scenarios.
+    if (config.simulation_mode ==
+        anolis_provider_sim::SimulationMode::NonInteracting) {
       log_err("mode=non-interacting: auto-starting physics ticker");
       sim_devices::start_physics();
     } else {
-      std::string mode_str = (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim) ? "sim" : "inert";
-      log_err("mode=" + mode_str + ": deferring physics ticker until wait_ready()");
+      std::string mode_str =
+          (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim)
+              ? "sim"
+              : "inert";
+      log_err("mode=" + mode_str +
+              ": deferring physics ticker until wait_ready()");
     }
 
   } catch (const std::exception &e) {

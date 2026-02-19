@@ -37,10 +37,10 @@ public:
   void register_provider(const std::string &provider_id,
                          const std::vector<std::string> &device_ids);
 
-  bool update_signals(const std::map<std::string, double> &signals,
-                      const std::string &default_unit = "dimensionless",
-                      std::chrono::milliseconds timeout =
-                          std::chrono::milliseconds{0});
+  bool update_signals(
+      const std::map<std::string, double> &signals,
+      const std::string &default_unit = "dimensionless",
+      std::chrono::milliseconds timeout = std::chrono::milliseconds{0});
 
   struct SignalInfo {
     double value = 0.0;

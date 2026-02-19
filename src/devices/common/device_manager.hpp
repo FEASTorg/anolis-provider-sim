@@ -7,10 +7,10 @@
 #include <vector>
 
 #include "config.hpp"
-#include "simulation/simulation_engine.hpp"
 #include "devices/common/device_common.hpp"
-#include "protocol.pb.h"
 #include "devices/common/signal_registry.hpp"
+#include "protocol.pb.h"
+#include "simulation/simulation_engine.hpp"
 
 namespace sim_devices {
 
@@ -25,7 +25,8 @@ void initialize_physics(
     const anolis_provider_sim::ProviderConfig &provider_config);
 void start_physics();
 void stop_physics();
-void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine);
+void set_simulation_engine(
+    std::unique_ptr<sim_engine::SimulationEngine> engine);
 
 // ---- Signal Registry (for physics-device coordination) ----
 

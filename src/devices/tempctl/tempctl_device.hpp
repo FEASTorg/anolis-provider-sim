@@ -32,7 +32,8 @@ void init(const std::string &device_id, const Config &config = Config{});
 void update_physics(const std::string &device_id, double dt);
 
 // Update control logic (closed-loop bang-bang control)
-// Reads current temperature from signal registry, updates relay states based on mode/setpoint
+// Reads current temperature from signal registry, updates relay states based on
+// mode/setpoint
 void update_control(const std::string &device_id);
 
 // Get device info for a specific instance

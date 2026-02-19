@@ -15,9 +15,9 @@ public:
 
   virtual void connect(const std::string &address) = 0;
   virtual void load_config(const std::string &config_path) = 0;
-  virtual void register_provider(const std::string &provider_name,
-                                 const std::vector<std::string> &device_ids) =
-      0;
+  virtual void
+  register_provider(const std::string &provider_name,
+                    const std::vector<std::string> &device_ids) = 0;
 
   virtual bool update_signals(const std::map<std::string, double> &actuators,
                               const std::string &unit,
