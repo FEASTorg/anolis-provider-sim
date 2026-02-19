@@ -8,7 +8,6 @@
 #>
 
 param(
-    [switch]$Examples,
     [switch]$Src,
     [switch]$Tests
 )
@@ -19,19 +18,18 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 
 $Dirs = @{
-    Examples = Join-Path $RepoRoot "examples"
-    Src      = Join-Path $RepoRoot "src"
-    Tests    = Join-Path $RepoRoot "tests"
+    Src   = Join-Path $RepoRoot "src"
+    Tests = Join-Path $RepoRoot "tests"
 }
 
 # Determine targets (default: all)
-$Targets = if (-not ($Examples -or $Src -or $Tests)) {
+$Targets = if (-not ($Src -or $Tests)) {
     $Dirs.Values
-} else {
+}
+else {
     @(
-        if ($Examples) { $Dirs.Examples }
-        if ($Src)      { $Dirs.Src }
-        if ($Tests)    { $Dirs.Tests }
+        if ($Src) { $Dirs.Src }
+        if ($Tests) { $Dirs.Tests }
     )
 }
 
@@ -39,7 +37,7 @@ $Total = 0
 
 foreach ($dir in $Targets) {
     if (Test-Path $dir) {
-        $Files = Get-ChildItem $dir -Recurse -Include *.cpp,*.hpp -File
+        $Files = Get-ChildItem $dir -Recurse -Include *.cpp, *.hpp -File
         if ($Files) {
             Write-Host "Formatting $($Files.Count) file(s) in $dir"
             $Files | ForEach-Object { clang-format -i $_.FullName }
