@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # Build-time feature switches (must be before project() for vcpkg)
 option(ENABLE_TSAN "Enable ThreadSanitizer for data race detection" OFF)
-option(ENABLE_FLUXGRAPH "Enable FluxGraph adapter for sim mode" ON)
+option(ENABLE_FLUXGRAPH "Enable FluxGraph adapter for sim mode" OFF)
 
 # Configure vcpkg features based on build options
 if(ENABLE_FLUXGRAPH)
