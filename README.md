@@ -52,7 +52,7 @@ Provider-sim includes a configurable physics engine for realistic multi-device s
 - Demonstrates multi-instance signal routing
 - See [docs/demo-reactor.md](docs/demos/demo-reactor.md)
 
-### Architecture
+### Architecture Overview
 
 Provider-sim is organized into explicit layers:
 
@@ -326,7 +326,7 @@ python scripts/run_scenarios.py
 
 All tests use the stdio+uint32_le transport and validate correct ADPP v1 behavior.
 
-## Architecture
+## Architecture Details
 
 Provider-sim implements ADPP v1 using stdio+uint32_le transport. Key components:
 
