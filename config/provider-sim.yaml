@@ -1,5 +1,4 @@
 # Provider-Sim Configuration (Default)
-# Phase 22: Migrated to explicit simulation mode
 
 devices:
   - id: tempctl0

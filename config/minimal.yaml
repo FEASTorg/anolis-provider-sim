@@ -4,9 +4,9 @@
 devices:
   - id: tempctl0
     type: tempctl
-simulation:
-  mode: inert  # No automatic updates for deterministic testing    initial_temp: 20.0
+    initial_temp: 20.0
 
 simulation:
+  mode: inert
+  tick_rate_hz: 5.0
   noise_enabled: false
-  update_rate_hz: 5

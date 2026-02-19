@@ -1,0 +1,16 @@
+provider:
+  name: extruder-provider
+
+devices:
+  - id: tempctl1
+    type: tempctl
+    initial_temp: 22.0
+  - id: motorctl0
+    type: motorctl
+    max_speed: 1500.0
+
+simulation:
+  mode: sim
+  tick_rate_hz: 10.0
+  physics_config: multi-provider-extrusion.yaml
+  ambient_temp_c: 22.0

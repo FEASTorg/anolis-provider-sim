@@ -1,6 +1,0 @@
-simulation:
-  mode: physics
-  tick_rate_hz: 10.0
-devices:
-  - id: tempctl0
-    type: tempctl
