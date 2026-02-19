@@ -22,6 +22,7 @@ class ISignalSource {
 Thread-safe cache implementing `ISignalSource`. Coordinates between physics ticker and device request handlers.
 
 **Key members:**
+
 - `signal_cache_` - Cached signal values (`map<string, double>`)
 - `physics_driven_signals_` - Signals managed by physics (`set<string>`)
 - `device_reader_` - Callback to read actual device state (for actuators)
@@ -32,7 +33,8 @@ Thread-safe cache implementing `ISignalSource`. Coordinates between physics tick
 Physics engine depends only on `ISignalSource*`. Zero knowledge of ADPP protocol.
 
 **Signal flow:**
-1. Read actuator states via `signal_source_->read_signal()` 
+
+1. Read actuator states via `signal_source_->read_signal()`
 2. Evaluate signal graph (transforms, routing)
 3. Update physics models
 4. Write sensor values via `signal_source_->write_signal()`
@@ -54,6 +56,7 @@ return internal_state[signal_id];
 ## Thread Safety
 
 **Lock policy:**
+
 - Physics ticker: Acquire registry mutex → read actuators → compute → write sensors → release
 - Device handlers: Acquire registry mutex → read values → release
 - No lock held during physics model evaluation (only during registry I/O)
@@ -66,12 +69,12 @@ Declarative in physics config:
 
 ```yaml
 signal_graph:
-  - source: device_a/actuator    # Read from device
-    target: model_b/input         # Write to model
+  - source: device_a/actuator # Read from device
+    target: model_b/input # Write to model
     transform: { type: linear, scale: 100.0 }
-  
-  - source: model_b/output        # Read from model
-    target: device_c/sensor       # Write to device (registry cache)
+
+  - source: model_b/output # Read from model
+    target: device_c/sensor # Write to device (registry cache)
     transform: { type: first_order_lag, tau_s: 2.0 }
 ```
 

@@ -14,6 +14,7 @@ Environmental chamber simulation demonstrating basic physics integration.
 ## Physics Model
 
 **chamber_air** (thermal_mass):
+
 - Thermal mass: 8000 J/K (medium chamber)
 - Heat transfer: 20 W/K (insulated walls)
 - Initial temp: 22°C

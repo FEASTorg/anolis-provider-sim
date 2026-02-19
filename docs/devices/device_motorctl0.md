@@ -8,7 +8,7 @@
 
 - Microcontroller with PWM generation
 - Dual H-bridge motor drivers for bidirectional control (two DC motors)
-- Current sensing for speed estimation  
+- Current sensing for speed estimation
 - Communication interface for device protocol
 - No position feedback or persistent storage
 

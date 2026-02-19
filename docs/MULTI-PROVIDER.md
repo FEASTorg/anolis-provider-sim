@@ -23,7 +23,7 @@ Each provider config must include:
 
 ```yaml
 provider:
-  name: chamber-provider  # [A-Za-z0-9_.-], length 1-64
+  name: chamber-provider # [A-Za-z0-9_.-], length 1-64
 ```
 
 If `provider` block is present, `provider.name` is required and validated.

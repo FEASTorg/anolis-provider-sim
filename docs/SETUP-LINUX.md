@@ -316,4 +316,3 @@ python3 tests/test_adpp_integration.py --test precondition_check
 ✓ Unknown requests → `CODE_UNIMPLEMENTED`  
 ✓ Clean EOF handling  
 ✓ No stdout logging (stderr only)
-

@@ -16,11 +16,13 @@ Complex thermal system demonstrating multi-instance routing and thermal coupling
 ## Physics Models
 
 **core_thermal** (thermal_mass):
+
 - Thermal mass: 12000 J/K (reaction mixture)
 - Heat transfer: 35 W/K
 - Initial: 80°C
 
 **jacket_thermal** (thermal_mass):
+
 - Thermal mass: 4000 J/K (cooling water)
 - Heat transfer: 25 W/K
 - Initial: 40°C
@@ -57,6 +59,7 @@ cd anolis-provider-sim
 ## Multi-Instance Validation
 
 Demonstrates that devices of same type (2x tempctl) have independent signal routing:
+
 - Changing `reactor_core` relay doesn't directly affect `reactor_jacket` signals
 - Each device receives physics-computed values for its specific instance
 - Signal graph edges target specific device IDs, not device types

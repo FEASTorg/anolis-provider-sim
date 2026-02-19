@@ -14,7 +14,7 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 | `motorctl0`     | Motor Control        | `motor1_speed`, `motor2_speed`, `motor1_duty`, `motor2_duty`                       | `set_motor_duty`                                |
 | `relayio0`      | Relay/IO Module      | `relay_ch1_state`, `relay_ch2_state`, `gpio_input_1`, `gpio_input_2`               | `set_relay_ch1`, `set_relay_ch2`                |
 | `analogsensor0` | Analog Sensor Module | `voltage_ch1`, `voltage_ch2`, `sensor_quality`                                     | `calibrate_channel`, `inject_noise`             |
-| `chaos_control` | Fault Injection | _(none)_ | See [Fault Injection API](#fault-injection-api) |
+| `chaos_control` | Fault Injection      | _(none)_                                                                           | See [Fault Injection API](#fault-injection-api) |
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
@@ -38,17 +38,19 @@ Provider-sim includes a configurable physics engine for realistic multi-device s
 ### Demo Scenarios
 
 **Thermal Chamber** (`demo-chamber.yaml`):
+
 - Single temperature controller with dual heating elements
 - Realistic thermal model with lag and noise
 - Overheat protection rule (auto-shutdown at 140°C)
-- See [docs/demo-chamber.md](docs/demo-chamber.md)
+- See [docs/demo-chamber.md](docs/demos/demo-chamber.md)
 
 **Multi-Zone Reactor** (`demo-reactor.yaml`):
+
 - 2x tempctl + 1x motorctl with thermal coupling
 - Core and jacket thermal zones with bidirectional heat transfer
 - 3 coordinated safety rules
 - Demonstrates multi-instance signal routing
-- See [docs/demo-reactor.md](docs/demo-reactor.md)
+- See [docs/demo-reactor.md](docs/demos/demo-reactor.md)
 
 ### Architecture
 
@@ -60,6 +62,7 @@ Provider-sim is organized into explicit layers:
 - **`src/chaos/`**: runtime fault injection and control device
 
 Physics execution uses the SignalRegistry pattern to coordinate between:
+
 - **Physics ticker**: reads actuators, evaluates graph, writes sensors
 - **Device handlers**: check registry for physics-driven signals
 
@@ -86,7 +89,7 @@ Provider-sim includes several example configurations:
 
 ### Configuration Schema
 
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for complete schema documentation and hardware provider guidance.
+See [docs/CONFIGURATION.md](docs/configuration.md) for complete schema documentation and hardware provider guidance.
 
 ### Quick Example
 
@@ -223,6 +226,7 @@ Comprehensive working examples for each simulation mode are available inthe [`ex
 - **[sim_mode](examples/sim_mode/)** - FluxGraph external simulation (advanced coupling)
 
 Each example includes:
+
 - Complete YAML configurations
 - Python test scripts with expected output
 - README with usage instructions
@@ -253,6 +257,7 @@ cmake --build . --config Release
 ### Build Options
 
 **`ENABLE_FLUXGRAPH`** (default: `ON`)
+
 - Controls FluxGraph adapter for external simulation support
 - When `ON`: Enables `sim` mode with FluxGraph protocol adapter
 - When `OFF`: Standalone build supporting only `inert` and `non_interacting` modes
@@ -266,7 +271,7 @@ cmake --build . --config Release
 
 ### Linux
 
-See [docs/SETUP-LINUX.md](docs/SETUP-LINUX.md)
+See [docs/SETUP-LINUX.md](docs/setup-linux.md)
 
 ## Running
 
@@ -344,7 +349,7 @@ Provider-sim demonstrates compliance with the **Anolis Provider Safe Initializat
 | **motorctl0**     | Duty cycle = 0 (both motors)         | No motion; PWM outputs disabled                    |
 | **relayio0**      | Both relays OPEN (de-energized)      | Fail-safe state; external equipment unaffected     |
 | **analogsensor0** | No output control (read-only device) | Sensor readings available; no actuation capability |
-| **chaos_control** | No faults injected on startup | Clean slate for fault injection testing |
+| **chaos_control** | No faults injected on startup        | Clean slate for fault injection testing            |
 
 ### Implementation Details
 

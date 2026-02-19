@@ -214,7 +214,7 @@ physics:
           args: { relay_id: 1, enabled: false }
 ```
 
-See [demo-chamber.md](demo-chamber.md) and [demo-reactor.md](demo-reactor.md) for complete examples.
+See [demo-chamber.md](demos/demo-chamber.md) and [demo-reactor.md](demos/demo-reactor.md) for complete examples.
 
 ## Example Configurations
 
