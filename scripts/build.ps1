@@ -31,6 +31,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Cross-edition OS detection:
+# - Windows PowerShell 5.1 (PSEdition=Desktop) only runs on Windows.
+# - PowerShell 7+ (PSEdition=Core) provides $IsWindows/$IsMacOS/$IsLinux.
+if ($PSVersionTable.PSEdition -eq "Desktop") {
+    $onWindows = $true
+    $onMacOS = $false
+    $onLinux = $false
+} else {
+    $onWindows = [bool]$IsWindows
+    $onMacOS = [bool]$IsMacOS
+    $onLinux = [bool]$IsLinux
+}
+
 # Support GNU-style long options (e.g. --clean, --build-dir build).
 # Collect CMake arguments (-D flags) separately to pass through.
 $cmakeArgs = @()
@@ -99,7 +112,7 @@ if (-not $BuildDir) {
     $BuildDir = Join-Path $repoRoot ($(if ($TSan) { "build-tsan" } else { "build" }))
 }
 
-if ($TSan -and $IsWindows) {
+if ($TSan -and $onWindows) {
     Write-Host "[ERROR] -TSan is not supported on Windows/MSVC." -ForegroundColor Red
     Write-Host "Use Linux/macOS for TSAN builds." -ForegroundColor Yellow
     exit 1
@@ -136,9 +149,9 @@ if (-not (Test-Path $toolchainFile)) {
 }
 
 $triplet = "x64-linux"
-if ($IsWindows) {
+if ($onWindows) {
     $triplet = "x64-windows"
-} elseif ($IsMacOS) {
+} elseif ($onMacOS) {
     $triplet = "x64-osx"
 }
 if ($TSan) {
@@ -148,7 +161,7 @@ if ($TSan) {
 $generatorArgs = @()
 if ($Generator) {
     $generatorArgs = @("-G", $Generator)
-} elseif ($IsWindows) {
+} elseif ($onWindows) {
     # IMPORTANT: prefer Visual Studio generator on Windows so vcpkg x64-windows
     # dependencies match the compiler ABI (MSVC). Falling back to Ninja can pick
     # MinGW g++, which causes link failures with x64-windows packages.

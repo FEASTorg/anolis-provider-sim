@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FluxGraph Integration Test (Phase 25).
+FluxGraph Integration Test.
 
 Tests provider-sim integration with FluxGraph gRPC server:
 - Server connection and config translation
@@ -17,6 +17,7 @@ This test validates:
 """
 
 import argparse
+import socket
 import struct
 import subprocess
 import sys
@@ -105,8 +106,23 @@ def find_fluxgraph_server():
             return str(path)
 
     print("ERROR: FluxGraph server not found", file=sys.stderr)
-    print("Build it with: cd ../fluxgraph && ./scripts/build.ps1 -Server", file=sys.stderr)
+    print("Build it with:", file=sys.stderr)
+    print("  Windows: cd ../fluxgraph && .\\scripts\\build.ps1 -Server", file=sys.stderr)
+    print("  Linux/macOS: cd ../fluxgraph && ./scripts/build.sh --server", file=sys.stderr)
     return None
+
+
+def find_free_port(start: int = 50051, max_tries: int = 10) -> int:
+    """Find an available port for the FluxGraph server."""
+    for port in range(start, start + max_tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"No free ports in range [{start}, {start + max_tries - 1}]")
 
 
 class ProviderClient:
@@ -167,24 +183,58 @@ def test_fluxgraph_integration(duration: int, port: int):
         print("\nSKIPPED: FluxGraph server not available")
         return 0
 
-    # Start FluxGraph server
-    print(f"\n[1/4] Starting FluxGraph server on port {port}...")
-    server_proc = subprocess.Popen(
-        [server_exe, "--port", str(port), "--dt", "0.1"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    time.sleep(2)  # Give server time to start
+    # Try to start server with retry on port conflicts
+    server_proc = None
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            print(f"\n[1/4] Starting FluxGraph server on port {port}...")
+            server_proc = subprocess.Popen(
+                [server_exe, "--port", str(port), "--dt", "0.1"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            time.sleep(2)  # Give server time to start
 
-    if server_proc.poll() is not None:
-        stdout, stderr = server_proc.communicate()
-        print(f"ERROR: Server failed to start")
-        print(stderr.decode('utf-8', errors='replace'))
+            if server_proc.poll() is not None:
+                stdout, stderr = server_proc.communicate()
+                stderr_text = stderr.decode('utf-8', errors='replace')
+                
+                # Check if it's a port conflict (cross-platform)
+                # Windows: "10048" (WSAEADDRINUSE)
+                # Linux/macOS: "Address already in use" or "EADDRINUSE"
+                port_conflict = (
+                    "10048" in stderr_text or
+                    "address already in use" in stderr_text.lower() or
+                    "eaddrinuse" in stderr_text.lower()
+                )
+                
+                if port_conflict:
+                    print(f"  Port {port} in use, trying next port...")
+                    port += 1
+                    server_proc = None
+                    continue
+                else:
+                    print(f"ERROR: Server failed to start")
+                    print(stderr_text)
+                    return 1
+            
+            # Server started successfully
+            break
+            
+        except Exception as e:
+            if server_proc:
+                server_proc.kill()
+            raise
+    
+    if server_proc is None:
+        print(f"ERROR: Could not start server after {max_retries} attempts")
         return 1
 
+    provider = None  # Initialize for cleanup
     try:
         # Start provider with FluxGraph integration
-        config_path = repo_root / "config" / "test-flux-integration.yaml"
+        config_path = repo_root / "config" / "provider-chamber.yaml"
         if not config_path.exists():
             print(f"ERROR: Test config not found: {config_path}")
             return 1
@@ -207,14 +257,14 @@ def test_fluxgraph_integration(duration: int, port: int):
             print(f"ERROR: Hello failed with status {resp.status.code}")
             return 1
 
-        print(f"  ✓ Hello successful (provider: {resp.hello.provider_name})")
+        print(f"  [OK] Hello successful (provider: {resp.hello.provider_name})")
 
         # Run for specified duration
         print(f"\n[4/4] Running simulation for {duration} seconds...")
         time.sleep(duration)
 
         print("\n" + "=" * 60)
-        print("✓ FluxGraph integration test PASSED")
+        print("[PASS] FluxGraph integration test PASSED")
         print("=" * 60)
 
         return 0
@@ -222,13 +272,15 @@ def test_fluxgraph_integration(duration: int, port: int):
     finally:
         # Cleanup
         print("\nCleaning up...")
-        provider.close()
-        server_proc.terminate()
-        try:
-            server_proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            server_proc.kill()
-            server_proc.wait()
+        if provider is not None:
+            provider.close()
+        if server_proc is not None:
+            server_proc.terminate()
+            try:
+                server_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                server_proc.kill()
+                server_proc.wait()
 
 
 def main():
@@ -242,13 +294,17 @@ def main():
     parser.add_argument(
         "-p", "--port",
         type=int,
-        default=50051,
-        help="FluxGraph server port (default: 50051)"
+        default=0,
+        help="FluxGraph server port (default: auto-detect free port)"
     )
     args = parser.parse_args()
 
+    # Find free port if not specified
+    # Use 50061+ to avoid conflicts with multi-provider test (50051+)
+    port = args.port if args.port > 0 else find_free_port(50061, 10)
+
     try:
-        return test_fluxgraph_integration(args.duration, args.port)
+        return test_fluxgraph_integration(args.duration, port)
     except KeyboardInterrupt:
         print("\nInterrupted by user")
         return 130

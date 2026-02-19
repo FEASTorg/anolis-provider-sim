@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Smoke test for anolis-provider-sim Phase 1.
+Simple smoke test for anolis-provider-sim.
 Validates Hello handshake over stdio+uint32_le framing.
 """
 

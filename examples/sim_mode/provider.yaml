@@ -8,6 +8,7 @@ simulation:
   mode: sim
   tick_rate_hz: 10.0
   physics_config: physics.yaml
+  ambient_temp_c: 25.0
   
   # Server address provided via CLI:
   # --sim-server localhost:50051

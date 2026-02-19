@@ -5,7 +5,7 @@
 #   ./scripts/test.sh [options]
 #
 # Options:
-#   --suite <name>         Test suite: all|smoke|adpp|multi|fault (default: all)
+#   --suite <name>         Test suite: all|smoke|adpp|multi|fluxgraph|fault (default: all)
 #   --test <name>          Alias for --suite
 #   --build-dir <path>     Build directory (default: build)
 #   --tsan                 Use build-tsan as build directory
@@ -148,10 +148,10 @@ run_case() {
 }
 
 case "$SUITE" in
-all | smoke | adpp | multi | fault) ;;
+all | smoke | adpp | multi | fluxgraph | fault) ;;
 *)
     echo "[ERROR] Invalid suite: $SUITE"
-    echo "Valid values: all, smoke, adpp, multi, fault"
+    echo "Valid values: all, smoke, adpp, multi, fluxgraph, fault"
     exit 2
     ;;
 esac
@@ -172,6 +172,11 @@ fi
 
 if [[ "$SUITE" == "all" || "$SUITE" == "multi" ]]; then
     run_case "multi-instance test" tests/test_multi_instance.py --config config/multi-tempctl.yaml
+    run_case "multi-provider scenario" tests/test_multi_provider_scenario.py
+fi
+
+if [[ "$SUITE" == "all" || "$SUITE" == "fluxgraph" ]]; then
+    run_case "FluxGraph integration test" tests/test_fluxgraph_integration.py
 fi
 
 if [[ "$SUITE" == "all" || "$SUITE" == "fault" ]]; then

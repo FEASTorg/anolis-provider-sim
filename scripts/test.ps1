@@ -5,7 +5,7 @@
 #   .\scripts\test.ps1 [options]
 #
 # Options:
-#   -Suite <name>          Test suite: all|smoke|adpp|multi|fault (default: all)
+#   -Suite <name>          Test suite: all|smoke|adpp|multi|fluxgraph|fault (default: all)
 #   -BuildDir <path>       Build directory (default: build)
 #   -TSan                  Use build-tsan as build directory
 #   -Exe <path>            Path to anolis-provider-sim executable
@@ -15,7 +15,7 @@
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet("all", "smoke", "adpp", "multi", "fault")]
+    [ValidateSet("all", "smoke", "adpp", "multi", "fluxgraph", "fault")]
     [string]$Suite = "all",
     [string]$BuildDir,
     [switch]$TSan,
@@ -71,8 +71,8 @@ for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
     }
 }
 
-if ($Suite -notin @("all", "smoke", "adpp", "multi", "fault")) {
-    throw "Invalid suite '$Suite'. Valid values: all, smoke, adpp, multi, fault"
+if ($Suite -notin @("all", "smoke", "adpp", "multi", "fluxgraph", "fault")) {
+    throw "Invalid suite '$Suite'. Valid values: all, smoke, adpp, multi, fluxgraph, fault"
 }
 
 if ($Help) {
@@ -169,6 +169,10 @@ try {
     }
     if ($Suite -eq "all" -or $Suite -eq "multi") {
         Invoke-TestScript -Name "multi-instance test" -ScriptArgs @("tests/test_multi_instance.py", "--config", "config/multi-tempctl.yaml")
+        Invoke-TestScript -Name "multi-provider scenario" -ScriptArgs @("tests/test_multi_provider_scenario.py")
+    }
+    if ($Suite -eq "all" -or $Suite -eq "fluxgraph") {
+        Invoke-TestScript -Name "FluxGraph integration test" -ScriptArgs @("tests/test_fluxgraph_integration.py")
     }
     if ($Suite -eq "all" -or $Suite -eq "fault") {
         Invoke-TestScript -Name "fault injection tests" -ScriptArgs @("tests/test_fault_injection.py", "--test", "all")

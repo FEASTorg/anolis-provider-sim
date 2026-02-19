@@ -61,8 +61,8 @@ Write-Host "  Output dir: $outputDir"
 
 if ($LASTEXITCODE -eq 0) {
     $outputFile = Join-Path $outputDir "protocol_pb2.py"
-    Write-Host "✓ Generated: $outputFile" -ForegroundColor Green
+    Write-Host "[OK] Generated: $outputFile" -ForegroundColor Green
 } else {
-    Write-Host "✗ protoc failed with exit code $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "[FAIL] protoc failed with exit code $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
