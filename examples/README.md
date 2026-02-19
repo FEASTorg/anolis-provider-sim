@@ -45,9 +45,3 @@ If examples fail:
 2. Check that protocol_pb2.py exists in `build/` directory
 3. Ensure Python can find protobuf module: `pip list | grep protobuf`
 4. For sim mode, verify FluxGraph server is accessible
-
-## Documentation
-
-- [Mode Selection Guide](../docs/MODE_SELECTION.md) - Which mode to use when
-- [Configuration Reference](../docs/CONFIGURATION.md) - YAML configuration syntax
-- [Phase 26 Architecture](../working/archive/phase_26_completion.md) - Implementation details

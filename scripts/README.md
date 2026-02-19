@@ -209,7 +209,7 @@ Generates `build/protocol_pb2.py` from the ADPP protocol specification.
 
 ### FluxGraph Integration Test (`tests/test_fluxgraph_integration.py`)
 
-- Phase 25 FluxGraph gRPC integration (NEW)
+- FluxGraph gRPC integration (NEW)
 - Requires FluxGraph server to be built
 - Validates server connection, config translation, and simulation
 - **Runtime: ~10-30 seconds**
@@ -245,6 +245,20 @@ Generates `build/protocol_pb2.py` from the ADPP protocol specification.
 python tests/test_fluxgraph_integration.py -d 10  # 10 second test
 python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 ```
+
+### Run Multi-Provider Scenario
+
+```powershell
+python scripts/test_multi_provider_scenario.py
+# or
+pwsh .\scripts\test_multi_provider.ps1
+```
+
+The scenario:
+
+- Starts one FluxGraph server.
+- Starts two provider instances (`config/provider-chamber.yaml` and `config/provider-extruder.yaml`).
+- Verifies cross-provider coupling (`tempctl1/tc2_temp` increase after chamber warmup).
 
 ### Manual Testing
 
@@ -284,7 +298,7 @@ python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 .\scripts\test.ps1 -Suite all
 ```
 
-### Phase 25 FluxGraph Development
+### FluxGraph Development
 
 ```powershell
 # Terminal 1: Build and start FluxGraph server

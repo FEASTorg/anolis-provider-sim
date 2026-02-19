@@ -28,12 +28,6 @@ Provider-sim includes a configurable physics engine for realistic multi-device s
 - **`non_interacting`** - Local physics engine with first-order device models
 - **`sim`** - External simulation via FluxGraph adapter (requires `ENABLE_FLUXGRAPH=ON`)
 
-**Deprecated (Phase 26-27, removed Phase 28):**
-- `mode: physics` → use `mode: sim` (warning emitted)
-- `--flux-server` → use `--sim-server` (warning emitted)
-
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for migration guide.
-
 ### Key Features
 
 - **8 transform primitives** - FirstOrderLag, Noise, Saturation, Linear, Deadband, RateLimiter, Delay, MovingAverage

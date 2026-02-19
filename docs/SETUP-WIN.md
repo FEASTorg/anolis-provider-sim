@@ -310,10 +310,3 @@ Ensure `VCPKG_ROOT` is set and you're using the toolchain file:
 echo $env:VCPKG_ROOT  # Should show path
 cmake .. -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
 ```
-
-### Resources
-
-- **Architecture**: `working/planning.md` - Design principles and roadmap
-- **Protocol spec**: `external/anolis/spec/device-provider/` - ADPP reference
-- **Development notes**: `working/` - Phase completions and validation guides
-- **Contributing**: See `external/anolis/docs/CONTRIBUTING.md` for CI/build pitfalls

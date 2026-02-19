@@ -18,12 +18,24 @@ Provider-sim uses YAML configuration files to define which devices to instantiat
 ### Top-Level Structure
 
 ```yaml
+provider: # Optional: Provider identity metadata
+  name: chamber-provider
+
 devices: # Required: List of devices to instantiate
   - ...
 
-simulation: # Optional: Simulation-specific parameters
+simulation: # Required: Simulation-specific parameters
   ...
 ```
+
+### Provider Identity (Optional)
+
+`provider.name` is optional, but when present it is validated and used by remote simulation registration (FluxGraph mode).
+
+Rules:
+
+- Pattern: `^[A-Za-z0-9_.-]{1,64}$`
+- If `provider` block is present, `provider.name` is required.
 
 ### Device Specification
 
@@ -52,50 +64,26 @@ Configures simulation behavior:
 
 ```yaml
 simulation:
-  mode: sim                        # Required: inert | non_interacting | sim
-  tick_rate_hz: 10.0              # Required: Update rate (0.1-1000 Hz)
-  physics_config: physics.yaml    # Required when mode=sim
+  mode: sim # Required: inert | non_interacting | sim
+  tick_rate_hz: 10.0 # Required: Update rate (0.1-1000 Hz)
+  physics_config: physics.yaml # Required when mode=sim
+  ambient_temp_c: 22.0 # Optional: constant ambient input for sim mode
+  ambient_signal_path: environment/ambient_temp # Optional: override ambient path
 ```
 
 **Modes:**
+
 - **`inert`** - Devices return static values, no automatic updates
 - **`non_interacting`** - Each device has internal physics, no cross-device flow
 - **`sim`** - External simulation engine with signal routing
-- **`physics`** - Deprecated alias for `sim` (Phase 26-27 compatibility)
 
 **Path resolution:** `physics_config` paths are relative to provider config directory.
 
-### Migration Guide (Phase 26)
-
-**Configuration Changes:**
-
-```yaml
-# OLD (Phase ≤25)
-simulation:
-  mode: physics
-  physics_config: config.yaml
-
-# NEW (Phase 26+)
-simulation:
-  mode: sim
-  physics_config: config.yaml
-```
-
-**Command-Line Changes:**
-
-```bash
-# OLD
-./anolis-provider-sim --flux-server localhost:50051
-
-# NEW
-./anolis-provider-sim --sim-server localhost:50051
-```
-
-**Backward Compatibility:**
-- Phase 26-27: `mode: physics` and `--flux-server` accepted with deprecation warnings
-- Phase 28+: Legacy names removed, must use `mode: sim` and `--sim-server`
+When `ambient_temp_c` is set in `sim` mode, provider-sim injects that constant at
+`ambient_signal_path` (default `environment/ambient_temp`) each tick.
 
 **Build Options:**
+
 - `ENABLE_FLUXGRAPH=ON` (default): Full support for all modes
 - `ENABLE_FLUXGRAPH=OFF`: Standalone build, `sim` mode disabled (only `inert` and `non_interacting` available)
 
@@ -107,11 +95,11 @@ When `simulation.mode = sim`, a separate physics config file defines models, sig
 
 ```yaml
 physics:
-  models:        # Physics models (thermal, mechanical, etc.)
+  models: # Physics models (thermal, mechanical, etc.)
     - ...
-  signal_graph:  # Signal routing with transforms
+  signal_graph: # Signal routing with transforms
     - ...
-  rules:         # Automated actions based on conditions
+  rules: # Automated actions based on conditions
     - ...
 ```
 
@@ -119,15 +107,16 @@ physics:
 
 ```yaml
 models:
-  - id: chamber_thermal              # Unique model ID
-    type: thermal_mass               # Model type
+  - id: chamber_thermal # Unique model ID
+    type: thermal_mass # Model type
     params:
-      thermal_mass: 5000.0          # Model-specific parameters
+      thermal_mass: 5000.0 # Model-specific parameters
       heat_transfer_coeff: 15.0
       initial_temp: 25.0
 ```
 
 **Available models:**
+
 - **`thermal_mass`** - Lumped-capacitance thermal model
   - Params: `thermal_mass` (J/K), `heat_transfer_coeff` (W/K), `initial_temp` (°C)
 
@@ -137,9 +126,9 @@ Defines signal routing with optional transforms:
 
 ```yaml
 signal_graph:
-  - source: device_id/signal_id     # Source path
-    target: model_id/input_name     # Target path
-    transform:                      # Optional transform
+  - source: device_id/signal_id # Source path
+    target: model_id/input_name # Target path
+    transform: # Optional transform
       type: linear
       scale: 100.0
       offset: 0.0
@@ -149,16 +138,16 @@ signal_graph:
 
 **Transform types:**
 
-| Type | Parameters | Description |
-|------|------------|-------------|
-| `first_order_lag` | `tau_s` (>0), `initial_value` (opt) | Low-pass filter |
-| `noise` | `amplitude` (>0), `seed` (int) | Gaussian noise |
-| `saturation` | `min`, `max` | Clamp to range |
-| `linear` | `scale`, `offset` (opt), `clamp_min/max` (opt) | Affine transform |
-| `deadband` | `threshold` (≥0) | Suppress small changes |
-| `rate_limiter` | `max_rate_per_sec` (>0) | Limit rate of change |
-| `delay` | `delay_sec` (≥0), `buffer_size` (opt) | Time delay |
-| `moving_average` | `window_size` (int, >0) | Sliding average |
+| Type              | Parameters                                     | Description            |
+| ----------------- | ---------------------------------------------- | ---------------------- |
+| `first_order_lag` | `tau_s` (>0), `initial_value` (opt)            | Low-pass filter        |
+| `noise`           | `amplitude` (>0), `seed` (int)                 | Gaussian noise         |
+| `saturation`      | `min`, `max`                                   | Clamp to range         |
+| `linear`          | `scale`, `offset` (opt), `clamp_min/max` (opt) | Affine transform       |
+| `deadband`        | `threshold` (≥0)                               | Suppress small changes |
+| `rate_limiter`    | `max_rate_per_sec` (>0)                        | Limit rate of change   |
+| `delay`           | `delay_sec` (≥0), `buffer_size` (opt)          | Time delay             |
+| `moving_average`  | `window_size` (int, >0)                        | Sliding average        |
 
 ### Rules
 
@@ -210,7 +199,7 @@ physics:
     - source: chamber/relay1_state
       target: chamber_air/heating_power
       transform: { type: linear, scale: 750.0 }
-    
+
     - source: chamber_air/temperature
       target: chamber/tc1_temp
       transform: { type: first_order_lag, tau_s: 3.0 }
@@ -473,20 +462,3 @@ curl http://localhost:8080/v0/devices
 # Run full test suite
 ./scripts/test.sh --suite all
 ```
-
-## Future: ADPP Configure Message
-
-This configuration system (Phase 16) provides a foundation for a future ADPP protocol extension:
-
-**Current (Phase 16)**: Config file approach
-
-- Provider reads its own config
-- No runtime validation of expected devices
-
-**Future (Phase 17+)**: Optional ADPP Configure message
-
-- Runtime sends expected device list to provider
-- Provider reports per-device success/failure
-- Enables runtime validation and hot-reload
-
-Hardware providers should implement the config file pattern now, with awareness that Configure message support may be added later. The patterns are compatible.

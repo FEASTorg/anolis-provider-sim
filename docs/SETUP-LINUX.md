@@ -312,10 +312,8 @@ python3 tests/test_adpp_integration.py --test precondition_check
 
 - **Architecture**: `working/planning.md` - Design principles and roadmap
 - **Protocol spec**: `external/anolis/spec/device-provider/` - ADPP reference
-- **Development notes**: `working/` - Phase completions and validation guides
 
 ✓ Unknown requests → `CODE_UNIMPLEMENTED`  
 ✓ Clean EOF handling  
 ✓ No stdout logging (stderr only)
 
-**Next**: Phase 2 adds simulated devices + full ADPP handlers.
