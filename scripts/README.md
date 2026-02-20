@@ -16,7 +16,11 @@ All scripts have Windows (`.ps1`) and Linux/macOS (`.sh`) variants for cross-pla
 
 Options:
   -Clean                  Remove build directory before configuring
-  -Config <type>          Release (default), Debug, or RelWithDebInfo
+  -BuildDebug             Build Debug (default: Release)
+  -Release                Build Release
+  -TSan                   Build with ThreadSanitizer (Linux/macOS only)
+  -WithFluxGraph          Enable FluxGraph support (default: OFF)
+  -FluxGraphDir <path>    FluxGraph repo path (used only with -WithFluxGraph)
 ```
 
 **Examples:**
@@ -26,10 +30,10 @@ Options:
 .\scripts\build.ps1
 
 # Clean debug build
-.\scripts\build.ps1 -Clean -Config Debug
+.\scripts\build.ps1 -Clean -BuildDebug
 
-# Clean release build
-.\scripts\build.ps1 -Clean
+# FluxGraph-enabled build
+.\scripts\build.ps1 -WithFluxGraph
 ```
 
 ### Linux/macOS
@@ -39,8 +43,11 @@ Options:
 
 Options:
   --clean                 Remove build directory before configuring
-  --config <type>         Release (default), Debug, or RelWithDebInfo
+  --debug                 Build Debug (default: Release)
+  --release               Build Release
   --tsan                  Build with ThreadSanitizer
+  --with-fluxgraph        Enable FluxGraph support (default: OFF)
+  --fluxgraph-dir <path>  FluxGraph repo path (used only with --with-fluxgraph)
 ```
 
 **Examples:**
@@ -50,10 +57,13 @@ Options:
 ./scripts/build.sh
 
 # Clean debug build
-./scripts/build.sh --clean --config Debug
+./scripts/build.sh --clean --debug
 
 # ThreadSanitizer build for race condition detection
 ./scripts/build.sh --tsan
+
+# FluxGraph-enabled build
+./scripts/build.sh --with-fluxgraph
 ```
 
 ---
@@ -66,7 +76,7 @@ Options:
 .\scripts\test.ps1 [options]
 
 Options:
-  -Suite <name>          Test suite: all|smoke|adpp|multi|fault (default: all)
+  -Suite <name>          Test suite: all|smoke|adpp|multi|fault|fluxgraph (default: all)
   -BuildDir <path>       Build directory (default: build)
   -Python <command>      Python command (default: python)
 ```
@@ -88,6 +98,9 @@ Options:
 
 # Run fault injection tests
 .\scripts\test.ps1 -Suite fault
+
+# Run FluxGraph integration suite
+.\scripts\test.ps1 -Suite fluxgraph
 ```
 
 ### Linux/macOS
@@ -96,7 +109,7 @@ Options:
 ./scripts/test.sh [options]
 
 Options:
-  --suite <name>         Test suite: all|smoke|adpp|multi|fault
+  --suite <name>         Test suite: all|smoke|adpp|multi|fault|fluxgraph
   --build-dir <path>     Build directory
   --tsan                 Use build-tsan directory
   --python <command>     Python command
@@ -113,7 +126,12 @@ Options:
 
 # Run tests with ThreadSanitizer build
 ./scripts/test.sh --tsan
+
+# Run FluxGraph integration suite
+./scripts/test.sh --suite fluxgraph
 ```
+
+`all` runs baseline non-FluxGraph tests. `fluxgraph` is explicit and requires a build configured with FluxGraph support.
 
 ---
 

@@ -256,15 +256,20 @@ cmake --build . --config Release
 
 ### Build Options
 
-**`ENABLE_FLUXGRAPH`** (default: `ON`)
+**`ENABLE_FLUXGRAPH`** (default: `OFF`)
 
 - Controls FluxGraph adapter for external simulation support
 - When `ON`: Enables `sim` mode with FluxGraph protocol adapter
 - When `OFF`: Standalone build supporting only `inert` and `non_interacting` modes
 
 ```bash
-# Standalone build (no FluxGraph dependencies)
-.\scripts\build.ps1 -Clean -Release -BuildDir build-standalone -DENABLE_FLUXGRAPH=OFF
+# Standalone build (no FluxGraph dependencies, default)
+./scripts/build.sh --clean
+# PowerShell: .\scripts\build.ps1 -Clean
+
+# FluxGraph-enabled build (sim mode support)
+./scripts/build.sh --with-fluxgraph
+# PowerShell: .\scripts\build.ps1 -WithFluxGraph
 
 # sim mode will fail with: "mode=sim requires FluxGraph support. Rebuild with -DENABLE_FLUXGRAPH=ON"
 ```
@@ -292,6 +297,10 @@ Provider-sim includes comprehensive test coverage:
 # Recommended wrappers
 ./scripts/test.sh --suite all
 # PowerShell: .\scripts\test.ps1 -Suite all
+
+# FluxGraph-only integration suite (requires FluxGraph-enabled build)
+./scripts/test.sh --suite fluxgraph
+# PowerShell: .\scripts\test.ps1 -Suite fluxgraph
 ```
 
 **Basic Protocol Tests:**

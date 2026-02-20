@@ -84,8 +84,8 @@ When `ambient_temp_c` is set in `sim` mode, provider-sim injects that constant a
 
 **Build Options:**
 
-- `ENABLE_FLUXGRAPH=ON` (default): Full support for all modes
-- `ENABLE_FLUXGRAPH=OFF`: Standalone build, `sim` mode disabled (only `inert` and `non_interacting` available)
+- `ENABLE_FLUXGRAPH=OFF` (default): Standalone build, `sim` mode disabled (only `inert` and `non_interacting` available)
+- `ENABLE_FLUXGRAPH=ON`: Full support for all modes, including `sim`
 
 ## Physics Configuration
 
@@ -461,4 +461,7 @@ curl http://localhost:8080/v0/devices
 
 # Run full test suite
 ./scripts/test.sh --suite all
+
+# Run FluxGraph integration suite (requires FluxGraph-enabled build)
+./scripts/test.sh --suite fluxgraph
 ```

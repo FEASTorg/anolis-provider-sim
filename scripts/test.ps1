@@ -5,7 +5,7 @@
 #   .\scripts\test.ps1 [options]
 #
 # Options:
-#   -Suite <name>          Test suite: all|smoke|adpp|multi|fluxgraph|fault (default: all)
+#   -Suite <name>          Test suite: all|smoke|adpp|multi|fault|fluxgraph (default: all)
 #   -BuildDir <path>       Build directory (default: build)
 #   -TSan                  Use build-tsan as build directory
 #   -Exe <path>            Path to anolis-provider-sim executable
@@ -15,7 +15,7 @@
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet("all", "smoke", "adpp", "multi", "fluxgraph", "fault")]
+    [ValidateSet("all", "smoke", "adpp", "multi", "fault", "fluxgraph")]
     [string]$Suite = "all",
     [string]$BuildDir,
     [switch]$TSan,
@@ -71,8 +71,8 @@ for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
     }
 }
 
-if ($Suite -notin @("all", "smoke", "adpp", "multi", "fluxgraph", "fault")) {
-    throw "Invalid suite '$Suite'. Valid values: all, smoke, adpp, multi, fluxgraph, fault"
+if ($Suite -notin @("all", "smoke", "adpp", "multi", "fault", "fluxgraph")) {
+    throw "Invalid suite '$Suite'. Valid values: all, smoke, adpp, multi, fault, fluxgraph"
 }
 
 if ($Help) {
@@ -155,9 +155,25 @@ function Invoke-TestScript {
     }
 }
 
+function Assert-FluxGraphEnabledBuild {
+    $cachePath = Join-Path $BuildDir "CMakeCache.txt"
+    if (-not (Test-Path $cachePath)) {
+        throw "FluxGraph suite requires configured build at '$BuildDir'. Missing: $cachePath. Rebuild with .\scripts\build.ps1 -WithFluxGraph"
+    }
+
+    $cacheRaw = Get-Content $cachePath -Raw
+    if ($cacheRaw -notmatch "(?m)^ENABLE_FLUXGRAPH:BOOL=ON$") {
+        throw "FluxGraph suite requested but build has ENABLE_FLUXGRAPH=OFF. Rebuild with .\scripts\build.ps1 -WithFluxGraph"
+    }
+}
+
 $exePath = Resolve-Executable
 $env:ANOLIS_PROVIDER_SIM_EXE = $exePath
 Write-Host "[INFO] Using executable: $env:ANOLIS_PROVIDER_SIM_EXE"
+
+if ($Suite -eq "fluxgraph") {
+    Assert-FluxGraphEnabledBuild
+}
 
 Push-Location $repoRoot
 try {
@@ -169,10 +185,10 @@ try {
     }
     if ($Suite -eq "all" -or $Suite -eq "multi") {
         Invoke-TestScript -Name "multi-instance test" -ScriptArgs @("tests/test_multi_instance.py", "--config", "config/multi-tempctl.yaml")
-        Invoke-TestScript -Name "multi-provider scenario" -ScriptArgs @("tests/test_multi_provider_scenario.py")
     }
-    if ($Suite -eq "all" -or $Suite -eq "fluxgraph") {
+    if ($Suite -eq "fluxgraph") {
         Invoke-TestScript -Name "FluxGraph integration test" -ScriptArgs @("tests/test_fluxgraph_integration.py")
+        Invoke-TestScript -Name "multi-provider scenario" -ScriptArgs @("tests/test_multi_provider_scenario.py")
     }
     if ($Suite -eq "all" -or $Suite -eq "fault") {
         Invoke-TestScript -Name "fault injection tests" -ScriptArgs @("tests/test_fault_injection.py", "--test", "all")

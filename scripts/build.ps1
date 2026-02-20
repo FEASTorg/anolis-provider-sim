@@ -12,6 +12,9 @@
 #   -BuildDir <path>       Override build directory
 #   -Generator <name>      CMake generator (default: VS on Windows, Ninja elsewhere)
 #   -Jobs <N>              Parallel build jobs
+#   -WithFluxGraph         Enable FluxGraph support (default: OFF)
+#   -WithoutFluxGraph      Disable FluxGraph support
+#   -FluxGraphDir <path>   FluxGraph repo path (used only with -WithFluxGraph)
 #   -DNAME=VALUE           Pass CMake definitions (e.g., -DENABLE_FLUXGRAPH=OFF)
 #   -Help                  Show this help
 
@@ -24,6 +27,9 @@ param(
     [string]$BuildDir,
     [string]$Generator,
     [int]$Jobs,
+    [switch]$WithFluxGraph,
+    [switch]$WithoutFluxGraph,
+    [string]$FluxGraphDir,
     [switch]$Help,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs
@@ -38,7 +44,8 @@ if ($PSVersionTable.PSEdition -eq "Desktop") {
     $onWindows = $true
     $onMacOS = $false
     $onLinux = $false
-} else {
+}
+else {
     $onWindows = [bool]$IsWindows
     $onMacOS = [bool]$IsMacOS
     $onLinux = [bool]$IsLinux
@@ -76,6 +83,15 @@ for ($i = 0; $i -lt $ExtraArgs.Count; $i++) {
             continue
         }
         '^--jobs=(.+)$' { $Jobs = [int]$Matches[1]; continue }
+        '^--with-fluxgraph$' { $WithFluxGraph = $true; continue }
+        '^--without-fluxgraph$' { $WithoutFluxGraph = $true; continue }
+        '^--fluxgraph-dir$' {
+            if ($i + 1 -ge $ExtraArgs.Count) { throw "--fluxgraph-dir requires a value" }
+            $i++
+            $FluxGraphDir = $ExtraArgs[$i]
+            continue
+        }
+        '^--fluxgraph-dir=(.+)$' { $FluxGraphDir = $Matches[1]; continue }
         '^-D' {
             # CMake definition flag - pass through
             $cmakeArgs += $arg
@@ -99,6 +115,11 @@ if ($PSBoundParameters.ContainsKey("Debug")) {
 
 if ($BuildDebug -and $Release) {
     Write-Host "[ERROR] Use only one of -BuildDebug/--debug or -Release." -ForegroundColor Red
+    exit 2
+}
+
+if ($WithFluxGraph -and $WithoutFluxGraph) {
+    Write-Host "[ERROR] Use only one of -WithFluxGraph/--with-fluxgraph or -WithoutFluxGraph/--without-fluxgraph." -ForegroundColor Red
     exit 2
 }
 
@@ -151,7 +172,8 @@ if (-not (Test-Path $toolchainFile)) {
 $triplet = "x64-linux"
 if ($onWindows) {
     $triplet = "x64-windows"
-} elseif ($onMacOS) {
+}
+elseif ($onMacOS) {
     $triplet = "x64-osx"
 }
 if ($TSan) {
@@ -161,7 +183,8 @@ if ($TSan) {
 $generatorArgs = @()
 if ($Generator) {
     $generatorArgs = @("-G", $Generator)
-} elseif ($onWindows) {
+}
+elseif ($onWindows) {
     # IMPORTANT: prefer Visual Studio generator on Windows so vcpkg x64-windows
     # dependencies match the compiler ABI (MSVC). Falling back to Ninja can pick
     # MinGW g++, which causes link failures with x64-windows packages.
@@ -179,10 +202,12 @@ if ($Generator) {
             "-A", "x64",
             "-DCMAKE_GENERATOR_INSTANCE=$vsInstance"
         )
-    } else {
+    }
+    else {
         $generatorArgs = @("-G", "Visual Studio 17 2022", "-A", "x64")
     }
-} elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
+}
+elseif (Get-Command ninja -ErrorAction SilentlyContinue) {
     $generatorArgs = @("-G", "Ninja")
 }
 
@@ -206,6 +231,16 @@ if ($cmakeArgs) {
     $configArgs += $cmakeArgs
 }
 
+$fluxGraphEnabled = $WithFluxGraph -and -not $WithoutFluxGraph
+$configArgs += "-DENABLE_FLUXGRAPH=$(if ($fluxGraphEnabled) { 'ON' } else { 'OFF' })"
+
+if ($fluxGraphEnabled -and $FluxGraphDir) {
+    $configArgs += "-DFLUXGRAPH_DIR=$FluxGraphDir"
+}
+elseif ((-not $fluxGraphEnabled) -and $FluxGraphDir) {
+    Write-Host "[WARN] -FluxGraphDir ignored because FluxGraph is disabled." -ForegroundColor Yellow
+}
+
 $buildArgs = @("--build", $BuildDir, "--config", $buildType, "--parallel")
 if ($Jobs -gt 0) {
     $buildArgs += "$Jobs"
@@ -216,6 +251,10 @@ Write-Host "[INFO] Build dir: $BuildDir"
 Write-Host "[INFO] Build type: $buildType"
 Write-Host "[INFO] Triplet: $triplet"
 Write-Host "[INFO] TSAN: $TSan"
+Write-Host "[INFO] FluxGraph: $(if ($fluxGraphEnabled) { 'ON' } else { 'OFF' })"
+if ($fluxGraphEnabled -and $FluxGraphDir) {
+    Write-Host "[INFO] FluxGraph dir: $FluxGraphDir"
+}
 
 & cmake @generatorArgs @configArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
