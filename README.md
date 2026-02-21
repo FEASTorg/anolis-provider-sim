@@ -18,6 +18,8 @@ Provider-sim provides a **dry-run machine** with 5 simulated devices covering a 
 
 Physical basis documentation for each device is available in [docs/](docs/).
 
+Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
+
 ## Physics Simulation
 
 Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the **Signal Registry pattern** for clean separation between simulation and protocol layers.
