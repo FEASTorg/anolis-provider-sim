@@ -45,6 +45,15 @@ Rules:
 2. CI-only deviations must be explicit and documented.
 3. Feature-specific extension presets are allowed when documented.
 
+Contributor quick check:
+
+```bash
+cmake --list-presets
+ctest --list-presets
+```
+
+On Windows local development, use `dev-windows-*` presets.
+
 ## Cross-Repo Coupling Policy
 
 - `anolis-protocol` is consumed as pinned submodule.

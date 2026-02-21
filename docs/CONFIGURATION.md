@@ -454,14 +454,14 @@ Validate configuration changes:
 
 ```bash
 # Test configuration loads correctly
-./build/anolis-provider-sim --config config/provider-sim.yaml
+./build/dev-release/anolis-provider-sim --config config/provider-sim.yaml
 
 # Verify devices via runtime
 curl http://localhost:8080/v0/devices
 
 # Run full test suite
-./scripts/test.sh --suite all
+bash ./scripts/test.sh --preset dev-release --suite all
 
 # Run FluxGraph integration suite (requires FluxGraph-enabled build)
-./scripts/test.sh --suite fluxgraph
+bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 ```

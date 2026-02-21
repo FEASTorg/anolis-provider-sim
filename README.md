@@ -221,7 +221,7 @@ requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/clear_faults", json={"args
 
 ## Examples
 
-Comprehensive working examples for each simulation mode are available inthe [`examples/`](examples/) directory:
+Comprehensive working examples for each simulation mode are available in the [`examples/`](examples/) directory:
 
 - **[inert_mode](examples/inert_mode/)** - Protocol testing without physics (fast, deterministic)
 - **[non_interacting_mode](examples/non_interacting_mode/)** - Built-in first-order physics (standalone)
@@ -239,8 +239,15 @@ See [examples/README.md](examples/README.md) for the full index and quick start 
 
 ```bash
 # Recommended wrappers
-./scripts/build.sh
-# PowerShell: .\scripts\build.ps1
+bash ./scripts/build.sh --preset dev-release
+# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release
+```
+
+List available presets:
+
+```bash
+cmake --list-presets
+ctest --list-presets
 ```
 
 ### Windows (MSVC + vcpkg)
@@ -266,12 +273,12 @@ cmake --build . --config Release
 
 ```bash
 # Standalone build (no FluxGraph dependencies, default)
-./scripts/build.sh --clean
-# PowerShell: .\scripts\build.ps1 -Clean
+bash ./scripts/build.sh --preset dev-release --clean
+# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release -Clean
 
 # FluxGraph-enabled build (sim mode support)
-./scripts/build.sh --with-fluxgraph
-# PowerShell: .\scripts\build.ps1 -WithFluxGraph
+bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
+# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
 
 # sim mode will fail with: "mode=sim requires FluxGraph support. Rebuild with -DENABLE_FLUXGRAPH=ON"
 ```
@@ -284,7 +291,8 @@ See [docs/SETUP-LINUX.md](docs/setup-linux.md)
 
 ```bash
 # Requires --config argument
-./build/Release/anolis-provider-sim --config config/provider-sim.yaml
+bash ./scripts/run_local.sh --preset dev-release -- --config config/provider-sim.yaml
+# PowerShell: .\scripts\run_local.ps1 -Preset dev-windows-release -- --config config/provider-sim.yaml
 ```
 
 Provider uses stdio+uint32_le transport for ADPP v1 communication with anolis-runtime.
@@ -297,12 +305,12 @@ Provider-sim includes comprehensive test coverage:
 
 ```bash
 # Recommended wrappers
-./scripts/test.sh --suite all
-# PowerShell: .\scripts\test.ps1 -Suite all
+bash ./scripts/test.sh --preset dev-release --suite all
+# PowerShell: .\scripts\test.ps1 -Preset dev-windows-release -Suite all
 
 # FluxGraph-only integration suite (requires FluxGraph-enabled build)
-./scripts/test.sh --suite fluxgraph
-# PowerShell: .\scripts\test.ps1 -Suite fluxgraph
+bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
+# PowerShell: .\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```
 
 **Basic Protocol Tests:**

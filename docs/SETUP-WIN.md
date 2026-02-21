@@ -249,7 +249,7 @@ For comprehensive device testing, see test scripts in `tests\`:
 Or use the wrapper script:
 
 ```powershell
-.\scripts\test.ps1 -Suite all
+.\scripts\test.ps1 -Preset dev-release -Suite all
 ```
 
 **Run ADPP integration tests** (6 tests):

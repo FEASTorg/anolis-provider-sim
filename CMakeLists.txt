@@ -15,6 +15,24 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Guard against unsupported ABI/toolchain combinations on Windows.
+# Default Windows vcpkg triplets are MSVC-based and cannot be mixed with
+# MinGW/GNU unless an explicit MinGW triplet is selected.
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(_provider_triplet "${VCPKG_TARGET_TRIPLET}")
+    if(NOT _provider_triplet OR _provider_triplet MATCHES "windows")
+        if(NOT _provider_triplet MATCHES "mingw")
+            message(FATAL_ERROR
+                "Unsupported Windows toolchain/triplet combination:\n"
+                "  compiler: ${CMAKE_CXX_COMPILER_ID}\n"
+                "  VCPKG_TARGET_TRIPLET: '${_provider_triplet}'\n"
+                "Use MSVC presets (`dev-windows-release`, `dev-windows-debug`, `ci-windows-release`),\n"
+                "or select an explicit MinGW triplet (e.g. x64-mingw-dynamic)."
+            )
+        endif()
+    endif()
+endif()
+
 if(ENABLE_TSAN)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         if(NOT WIN32)
@@ -55,10 +73,15 @@ if(NOT EXISTS "${ADPP_PROTO}")
     )
 endif()
 
-protobuf_generate_cpp(
-    ADPP_PROTO_SRCS
-    ADPP_PROTO_HDRS
-    ${ADPP_PROTO}
+add_library(adpp_proto OBJECT ${ADPP_PROTO})
+target_link_libraries(adpp_proto PUBLIC protobuf::libprotobuf)
+target_include_directories(adpp_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+protobuf_generate(
+    TARGET adpp_proto
+    LANGUAGE cpp
+    IMPORT_DIRS ${ADPP_PROTO_DIR}
+    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 set(SOURCES
@@ -155,7 +178,6 @@ endif()
 
 add_executable(anolis-provider-sim
     ${SOURCES}
-    ${ADPP_PROTO_SRCS}
 )
 
 if(ENABLE_FLUXGRAPH)
@@ -174,6 +196,7 @@ if(ENABLE_FLUXGRAPH)
 endif()
 
 target_link_libraries(anolis-provider-sim PRIVATE
+    adpp_proto
     protobuf::libprotobuf
     yaml-cpp::yaml-cpp
 )

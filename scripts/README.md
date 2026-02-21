@@ -5,6 +5,13 @@
 This directory contains build, test, and utility scripts for anolis-provider-sim.
 All scripts have Windows (`.ps1`) and Linux/macOS (`.sh`) variants for cross-platform consistency.
 
+Discover available presets:
+
+```bash
+cmake --list-presets
+ctest --list-presets
+```
+
 ---
 
 ## Build Scripts
@@ -15,55 +22,48 @@ All scripts have Windows (`.ps1`) and Linux/macOS (`.sh`) variants for cross-pla
 .\scripts\build.ps1 [options]
 
 Options:
-  -Clean                  Remove build directory before configuring
-  -BuildDebug             Build Debug (default: Release)
-  -Release                Build Release
-  -TSan                   Build with ThreadSanitizer (Linux/macOS only)
-  -WithFluxGraph          Enable FluxGraph support (default: OFF)
-  -FluxGraphDir <path>    FluxGraph repo path (used only with -WithFluxGraph)
+  -Preset <name>          Configure/build preset (default: dev-release on Linux/macOS, dev-windows-release on Windows)
+  -Clean                  Remove preset build directory before configuring
+  -Jobs <N>               Parallel build jobs
+  -- <args>               Extra arguments passed to `cmake --preset`
 ```
 
 **Examples:**
 
 ```powershell
 # Release build (default)
-.\scripts\build.ps1
+.\scripts\build.ps1 -Preset dev-windows-release
 
 # Clean debug build
-.\scripts\build.ps1 -Clean -BuildDebug
+.\scripts\build.ps1 -Preset dev-windows-debug -Clean
 
 # FluxGraph-enabled build
-.\scripts\build.ps1 -WithFluxGraph
+.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=D:\repos_feast\fluxgraph
 ```
 
 ### Linux/macOS
 
 ```bash
-./scripts/build.sh [options]
+bash ./scripts/build.sh [options]
 
 Options:
-  --clean                 Remove build directory before configuring
-  --debug                 Build Debug (default: Release)
-  --release               Build Release
-  --tsan                  Build with ThreadSanitizer
-  --with-fluxgraph        Enable FluxGraph support (default: OFF)
-  --fluxgraph-dir <path>  FluxGraph repo path (used only with --with-fluxgraph)
+  --preset <name>         Configure/build preset (default: dev-release)
+  --clean                 Remove preset build directory before configuring
+  -j, --jobs <N>          Parallel build jobs
+  -- <args>               Extra arguments passed to `cmake --preset`
 ```
 
 **Examples:**
 
 ```bash
 # Release build
-./scripts/build.sh
+bash ./scripts/build.sh
 
 # Clean debug build
-./scripts/build.sh --clean --debug
-
-# ThreadSanitizer build for race condition detection
-./scripts/build.sh --tsan
+bash ./scripts/build.sh --preset dev-debug --clean
 
 # FluxGraph-enabled build
-./scripts/build.sh --with-fluxgraph
+bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
 ```
 
 ---
@@ -76,22 +76,23 @@ Options:
 .\scripts\test.ps1 [options]
 
 Options:
+  -Preset <name>         Build preset to test (default: dev-release on Linux/macOS, dev-windows-release on Windows)
   -Suite <name>          Test suite: all|smoke|adpp|multi|fault|fluxgraph (default: all)
-  -BuildDir <path>       Build directory (default: build)
   -Python <command>      Python command (default: python)
+  -NoGenerate            Skip protobuf Python generation
 ```
 
 **Examples:**
 
 ```powershell
 # Run all tests
-.\scripts\test.ps1
+.\scripts\test.ps1 -Preset dev-windows-release
 
 # Run smoke test only
-.\scripts\test.ps1 -Suite smoke
+.\scripts\test.ps1 -Preset dev-windows-release -Suite smoke
 
 # Run ADPP integration tests
-.\scripts\test.ps1 -Suite adpp
+.\scripts\test.ps1 -Preset dev-windows-release -Suite adpp
 
 # Run multi-instance tests
 .\scripts\test.ps1 -Suite multi
@@ -100,38 +101,36 @@ Options:
 .\scripts\test.ps1 -Suite fault
 
 # Run FluxGraph integration suite
-.\scripts\test.ps1 -Suite fluxgraph
+.\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```
 
 ### Linux/macOS
 
 ```bash
-./scripts/test.sh [options]
+bash ./scripts/test.sh [options]
 
 Options:
+  --preset <name>        Build preset to test (default: dev-release)
   --suite <name>         Test suite: all|smoke|adpp|multi|fault|fluxgraph
-  --build-dir <path>     Build directory
-  --tsan                 Use build-tsan directory
   --python <command>     Python command
+  --no-generate          Skip protobuf Python generation
 ```
 
 **Examples:**
 
 ```bash
 # Run all tests
-./scripts/test.sh
+bash ./scripts/test.sh
 
 # Run smoke test only
-./scripts/test.sh --suite smoke
-
-# Run tests with ThreadSanitizer build
-./scripts/test.sh --tsan
+bash ./scripts/test.sh --preset ci-linux-release --suite smoke
 
 # Run FluxGraph integration suite
-./scripts/test.sh --suite fluxgraph
+bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 ```
 
 `all` runs baseline non-FluxGraph tests. `fluxgraph` is explicit and requires a build configured with FluxGraph support.
+On Windows, use `dev-windows-*` presets for local work; `dev-*` presets are Ninja-based and intended for Linux/macOS.
 
 ---
 
@@ -145,8 +144,8 @@ Start the provider locally for manual testing or integration with Anolis Runtime
 .\scripts\run_local.ps1 [options] [-- <provider-args>]
 
 Options:
-  -BuildDir <path>       Build directory (default: build)
-  -Config <type>         Release (default), Debug, or RelWithDebInfo
+  -Preset <name>         Build preset (default: dev-release on Linux/macOS, dev-windows-release on Windows)
+  -BuildDir <path>       Build directory override (default: build\<preset>)
   -- <args>              Arguments to pass to provider executable
 ```
 
@@ -154,10 +153,10 @@ Options:
 
 ```powershell
 # Run with minimal config (no physics)
-.\scripts\run_local.ps1 -- --config config/minimal.yaml
+.\scripts\run_local.ps1 -Preset dev-windows-release -- --config config/minimal.yaml
 
 # Run with sim mode
-.\scripts\run_local.ps1 -- --config config/test-physics.yaml
+.\scripts\run_local.ps1 -Preset dev-windows-release -- --config config/test-physics.yaml
 
 # Run with FluxGraph integration
 .\scripts\run_local.ps1 -- --config config/test-flux-integration.yaml --sim-server localhost:50051
@@ -166,13 +165,13 @@ Options:
 ### Linux/macOS
 
 ```bash
-./scripts/run_local.sh [options]
+bash ./scripts/run_local.sh [options] [-- <provider-args>]
 
 Options:
-  --build-dir <path>     Build directory (auto-detects build-tsan if present)
+  --preset <name>        Build preset (default: dev-release)
+  --build-dir <path>     Build directory override (default: build/<preset>)
+  -- <args>              Arguments to pass to provider executable
 ```
-
-**Note:** Linux/macOS version doesn't yet support passing arguments - edit script or run executable directly.
 
 ---
 
@@ -185,16 +184,16 @@ Required before running Python tests.
 **Windows:**
 
 ```powershell
-.\scripts\generate_proto_python.ps1
+.\scripts\generate_proto_python.ps1 -OutputDir .\build\dev-windows-release
 ```
 
 **Linux/macOS:**
 
 ```bash
-./scripts/generate_proto_python.sh
+bash ./scripts/generate_proto_python.sh ./build/ci-linux-release
 ```
 
-Generates `build/protocol_pb2.py` from the ADPP protocol specification.
+Generates `protocol_pb2.py` in the target build directory from ADPP protocol specification.
 
 ---
 
@@ -242,7 +241,7 @@ Generates `build/protocol_pb2.py` from the ADPP protocol specification.
 
    ```powershell
    cd ..\fluxgraph
-   .\scripts\build.ps1 -Server
+   .\scripts\build.ps1 -Preset ci-linux-release-server
    ```
 
 2. **Build anolis-provider-sim:**
@@ -321,7 +320,7 @@ The scenario:
 ```powershell
 # Terminal 1: Build and start FluxGraph server
 cd ..\fluxgraph
-.\scripts\build.ps1 -Server -Clean
+.\scripts\build.ps1 -Preset ci-linux-release-server -CleanFirst
 .\scripts\run_server.ps1
 
 # Terminal 2: Build provider-sim and run integration test
@@ -335,10 +334,10 @@ python tests/test_fluxgraph_integration.py -d 30
 
 ```powershell
 # Build debug version
-.\scripts\build.ps1 -Config Debug
+.\scripts\build.ps1 -Preset dev-debug
 
 # Run with debugger
-.\build\Debug\anolis-provider-sim.exe --config config/minimal.yaml
+.\build\dev-debug\anolis-provider-sim.exe --config config/minimal.yaml
 ```
 
 ---
@@ -380,7 +379,7 @@ $env:ANOLIS_PROVIDER_SIM_EXE = "D:\path\to\anolis-provider-sim.exe"
 ```powershell
 # Build FluxGraph server
 cd ..\fluxgraph
-.\scripts\build.ps1 -Server
+.\scripts\build.ps1 -Preset ci-linux-release-server
 
 # Or set environment variable
 $env:FLUXGRAPH_SERVER_EXE = "D:\path\to\fluxgraph-server.exe"

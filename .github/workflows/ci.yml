@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: provider-sim-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
+
+jobs:
+  linux-release:
+    name: Linux Release (FluxGraph OFF)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ python3 python3-pip
+
+      - name: Setup Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+
+      - name: Setup vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout "$VCPKG_COMMIT"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: bash ./scripts/build.sh --preset ci-linux-release
+
+      - name: Test
+        run: bash ./scripts/test.sh --preset ci-linux-release --suite all
+
+  windows-release:
+    name: Windows Release (FluxGraph OFF)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Setup vcpkg
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$env:USERPROFILE\vcpkg"
+          git -C "$env:USERPROFILE\vcpkg" checkout "$env:VCPKG_COMMIT"
+          & "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
+          "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build
+        shell: pwsh
+        run: .\scripts\build.ps1 -Preset ci-windows-release
+
+      - name: Test
+        shell: pwsh
+        run: .\scripts\test.ps1 -Preset ci-windows-release -Suite all
+
+  linux-fluxgraph-advisory:
+    name: Linux Release (FluxGraph ON, Advisory)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+
+    steps:
+      - name: Checkout provider-sim
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout FluxGraph
+        uses: actions/checkout@v4
+        with:
+          repository: FEASTorg/fluxgraph
+          path: fluxgraph
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ python3 python3-pip
+
+      - name: Setup Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+
+      - name: Setup vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout "$VCPKG_COMMIT"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Build FluxGraph server
+        working-directory: fluxgraph
+        run: |
+          cmake --preset ci-linux-release-server
+          cmake --build --preset ci-linux-release-server --parallel
+
+      - name: Build provider-sim (FluxGraph ON)
+        run: |
+          bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR="$GITHUB_WORKSPACE/fluxgraph"
+
+      - name: Test FluxGraph suites
+        run: |
+          SERVER_BIN="$(find "$GITHUB_WORKSPACE/fluxgraph/build-server" -type f -name fluxgraph-server | head -n 1)"
+          if [ -z "$SERVER_BIN" ]; then
+            echo "ERROR: fluxgraph-server binary not found under $GITHUB_WORKSPACE/fluxgraph/build-server" >&2
+            exit 1
+          fi
+
+          export FLUXGRAPH_SERVER_EXE="$SERVER_BIN"
+          bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph

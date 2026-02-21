@@ -286,7 +286,7 @@ For comprehensive device testing, see test scripts in `tests/`:
 Or use the wrapper script:
 
 ```bash
-./scripts/test.sh --suite all
+bash ./scripts/test.sh --preset dev-release --suite all
 ```
 
 **Run ADPP integration tests** (6 tests):
