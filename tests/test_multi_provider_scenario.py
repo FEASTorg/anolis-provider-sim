@@ -234,7 +234,7 @@ class ProviderClient:
         frame = struct.pack("<I", len(payload)) + payload
         assert self.proc.stdin is not None
         assert self.proc.stdout is not None
-        
+
         self.proc.stdin.write(frame)
         self.proc.stdin.flush()
 
@@ -437,7 +437,9 @@ def run_scenario(port: int) -> int:
         "tempctl0", FN_SET_SETPOINT, {"value": make_double_value(50.0)}
     )
 
-    print(f"[Multi-Provider Scenario] Warmup: chamber to 50C for {CHAMBER_WARMUP_SEC:.0f}s")
+    print(
+        f"[Multi-Provider Scenario] Warmup: chamber to 50C for {CHAMBER_WARMUP_SEC:.0f}s"
+    )
     time.sleep(CHAMBER_WARMUP_SEC)
 
     chamber_temp = chamber.read_signal("tempctl0", "tc1_temp")

@@ -23,7 +23,6 @@ import subprocess
 import sys
 import time
 import os
-import signal
 from pathlib import Path
 
 # Add build directory to path for protocol_pb2 import
@@ -89,7 +88,10 @@ def find_fluxgraph_server():
     fluxgraph_root = repo_root.parent / "fluxgraph"
     if not fluxgraph_root.exists():
         print(f"ERROR: FluxGraph repo not found at: {fluxgraph_root}", file=sys.stderr)
-        print("Set FLUXGRAPH_SERVER_EXE environment variable to server path", file=sys.stderr)
+        print(
+            "Set FLUXGRAPH_SERVER_EXE environment variable to server path",
+            file=sys.stderr,
+        )
         return None
 
     candidates = [
@@ -107,8 +109,12 @@ def find_fluxgraph_server():
 
     print("ERROR: FluxGraph server not found", file=sys.stderr)
     print("Build it with:", file=sys.stderr)
-    print("  Windows: cd ../fluxgraph && .\\scripts\\build.ps1 -Server", file=sys.stderr)
-    print("  Linux/macOS: cd ../fluxgraph && ./scripts/build.sh --server", file=sys.stderr)
+    print(
+        "  Windows: cd ../fluxgraph && .\\scripts\\build.ps1 -Server", file=sys.stderr
+    )
+    print(
+        "  Linux/macOS: cd ../fluxgraph && ./scripts/build.sh --server", file=sys.stderr
+    )
     return None
 
 
@@ -131,7 +137,7 @@ class ProviderClient:
     def __init__(self, config_path: str, flux_server: str):
         """Start provider process with FluxGraph integration."""
         provider_exe = find_provider_executable()
-        
+
         self.proc = subprocess.Popen(
             [provider_exe, "--config", str(config_path), "--sim-server", flux_server],
             stdin=subprocess.PIPE,
@@ -151,7 +157,7 @@ class ProviderClient:
         frame_header = self.proc.stdout.read(4)
         if len(frame_header) < 4:
             raise RuntimeError("Failed to read response frame header")
-        
+
         resp_len = struct.unpack("<I", frame_header)[0]
         resp_data = self.proc.stdout.read(resp_len)
         if len(resp_data) < resp_len:
@@ -198,35 +204,35 @@ def test_fluxgraph_integration(duration: int, port: int):
 
             if server_proc.poll() is not None:
                 stdout, stderr = server_proc.communicate()
-                stderr_text = stderr.decode('utf-8', errors='replace')
-                
+                stderr_text = stderr.decode("utf-8", errors="replace")
+
                 # Check if it's a port conflict (cross-platform)
                 # Windows: "10048" (WSAEADDRINUSE)
                 # Linux/macOS: "Address already in use" or "EADDRINUSE"
                 port_conflict = (
-                    "10048" in stderr_text or
-                    "address already in use" in stderr_text.lower() or
-                    "eaddrinuse" in stderr_text.lower()
+                    "10048" in stderr_text
+                    or "address already in use" in stderr_text.lower()
+                    or "eaddrinuse" in stderr_text.lower()
                 )
-                
+
                 if port_conflict:
                     print(f"  Port {port} in use, trying next port...")
                     port += 1
                     server_proc = None
                     continue
                 else:
-                    print(f"ERROR: Server failed to start")
+                    print("ERROR: Server failed to start")
                     print(stderr_text)
                     return 1
-            
+
             # Server started successfully
             break
-            
-        except Exception as e:
+
+        except Exception:
             if server_proc:
                 server_proc.kill()
             raise
-    
+
     if server_proc is None:
         print(f"ERROR: Could not start server after {max_retries} attempts")
         return 1
@@ -239,14 +245,14 @@ def test_fluxgraph_integration(duration: int, port: int):
             print(f"ERROR: Test config not found: {config_path}")
             return 1
 
-        print(f"\n[2/4] Starting provider with FluxGraph integration...")
+        print("\n[2/4] Starting provider with FluxGraph integration...")
         print(f"  Config: {config_path}")
         print(f"  Server: localhost:{port}")
 
         provider = ProviderClient(config_path, f"localhost:{port}")
 
         # Simple hello test
-        print(f"\n[3/4] Testing ADPP communication...")
+        print("\n[3/4] Testing ADPP communication...")
         req = Request(request_id=1)
         req.hello.protocol_version = "v1"
         req.hello.client_name = "fluxgraph-integration-test"
@@ -286,16 +292,18 @@ def test_fluxgraph_integration(duration: int, port: int):
 def main():
     parser = argparse.ArgumentParser(description="FluxGraph integration test")
     parser.add_argument(
-        "-d", "--duration",
+        "-d",
+        "--duration",
         type=int,
         default=10,
-        help="Test duration in seconds (default: 10)"
+        help="Test duration in seconds (default: 10)",
     )
     parser.add_argument(
-        "-p", "--port",
+        "-p",
+        "--port",
         type=int,
         default=0,
-        help="FluxGraph server port (default: auto-detect free port)"
+        help="FluxGraph server port (default: auto-detect free port)",
     )
     args = parser.parse_args()
 
@@ -311,6 +319,7 @@ def main():
     except Exception as e:
         print(f"\nERROR: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 
