@@ -4,8 +4,8 @@
 set -e
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-proto_file="$repo_root/external/anolis/spec/device-provider/protocol.proto"
-proto_path="$repo_root/external/anolis/spec/device-provider"
+proto_file="$repo_root/external/anolis-protocol/spec/device-provider/protocol.proto"
+proto_path="$repo_root/external/anolis-protocol/spec/device-provider"
 output_dir="${ANOLIS_PROVIDER_SIM_BUILD_DIR:-$repo_root/build}"
 if [[ "$output_dir" != /* ]]; then
     output_dir="$repo_root/$output_dir"

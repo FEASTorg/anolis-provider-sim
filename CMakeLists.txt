@@ -39,9 +39,21 @@ endif()
 find_package(Protobuf REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
-set(ADPP_PROTO
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/anolis/spec/device-provider/protocol.proto
-)
+if(NOT DEFINED ANOLIS_PROTOCOL_DIR)
+    set(ANOLIS_PROTOCOL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/anolis-protocol" CACHE PATH "Path to anolis-protocol repository")
+endif()
+get_filename_component(ANOLIS_PROTOCOL_DIR_ABS "${ANOLIS_PROTOCOL_DIR}" REALPATH)
+set(ADPP_PROTO_DIR "${ANOLIS_PROTOCOL_DIR_ABS}/spec/device-provider")
+set(ADPP_PROTO "${ADPP_PROTO_DIR}/protocol.proto")
+
+if(NOT EXISTS "${ADPP_PROTO}")
+    message(FATAL_ERROR
+        "ADPP proto not found at: ${ADPP_PROTO}\n"
+        "Expected anolis-protocol submodule at: ${ANOLIS_PROTOCOL_DIR_ABS}\n"
+        "Run: git submodule update --init --recursive\n"
+        "Or set custom path: cmake -DANOLIS_PROTOCOL_DIR=/path/to/anolis-protocol ..."
+    )
+endif()
 
 protobuf_generate_cpp(
     ADPP_PROTO_SRCS

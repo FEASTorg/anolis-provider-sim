@@ -4,8 +4,8 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$protoFile = Join-Path $repoRoot "external\anolis\spec\device-provider\protocol.proto"
-$protoPath = Join-Path $repoRoot "external\anolis\spec\device-provider"
+$protoFile = Join-Path $repoRoot "external\anolis-protocol\spec\device-provider\protocol.proto"
+$protoPath = Join-Path $repoRoot "external\anolis-protocol\spec\device-provider"
 $outputDir = if ($env:ANOLIS_PROVIDER_SIM_BUILD_DIR) {
     if ([System.IO.Path]::IsPathRooted($env:ANOLIS_PROVIDER_SIM_BUILD_DIR)) {
         $env:ANOLIS_PROVIDER_SIM_BUILD_DIR

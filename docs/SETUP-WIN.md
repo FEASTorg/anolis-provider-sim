@@ -67,7 +67,7 @@ Navigate to where you want the project:
 cd D:\repos  # Or your preferred location
 git clone https://github.com/FEASTorg/anolis-provider-sim.git
 cd anolis-provider-sim
-git submodule update --init --recursive  # Get anolis spec
+git submodule update --init --recursive  # Get anolis-protocol spec
 ```
 
 Create build directory and configure:
@@ -117,7 +117,7 @@ From the project root:
 ```powershell
 cd D:\repos\anolis-provider-sim  # Adjust to your path
 $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\tools\protobuf;$env:PATH"
-protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto
+protoc --python_out=build --proto_path=external/anolis-protocol/spec/device-provider external/anolis-protocol/spec/device-provider/protocol.proto
 ```
 
 **Verify**: Check that `protocol_pb2.py` exists in the build directory.

@@ -88,7 +88,7 @@ Navigate to where you want the project:
 cd ~/repos  # Or your preferred location
 git clone https://github.com/FEASTorg/anolis-provider-sim.git
 cd anolis-provider-sim
-git submodule update --init --recursive  # Get anolis spec
+git submodule update --init --recursive  # Get anolis-protocol spec
 ```
 
 Create build directory and configure:
@@ -138,7 +138,7 @@ From the project root:
 ```bash
 cd ~/repos/anolis-provider-sim  # Adjust to your path
 export PATH="$VCPKG_ROOT/installed/x64-linux/tools/protobuf:$PATH"
-protoc --python_out=build --proto_path=external/anolis/spec/device-provider external/anolis/spec/device-provider/protocol.proto
+protoc --python_out=build --proto_path=external/anolis-protocol/spec/device-provider external/anolis-protocol/spec/device-provider/protocol.proto
 ```
 
 **Verify**: Check that `protocol_pb2.py` exists in the build directory.
@@ -311,7 +311,7 @@ python3 tests/test_adpp_integration.py --test precondition_check
 ### Resources
 
 - **Architecture**: `working/planning.md` - Design principles and roadmap
-- **Protocol spec**: `external/anolis/spec/device-provider/` - ADPP reference
+- **Protocol spec**: `external/anolis-protocol/spec/device-provider/` - ADPP reference
 
 ✓ Unknown requests → `CODE_UNIMPLEMENTED`  
 ✓ Clean EOF handling  
