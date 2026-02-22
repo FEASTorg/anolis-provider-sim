@@ -161,7 +161,6 @@ if(ENABLE_FLUXGRAPH)
              --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
              ${FLUXGRAPH_PROTO}
         DEPENDS ${FLUXGRAPH_PROTO}
-        BYPRODUCTS ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS}
         COMMENT "Generating FluxGraph gRPC code"
         VERBATIM
     )
