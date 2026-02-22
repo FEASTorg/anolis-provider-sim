@@ -6,4 +6,4 @@ fluxgraph:
   repository: FEASTorg/fluxgraph
   ref: main
   updated_utc: 2026-02-22
-  rationale: "DEV PHASE: track latest FluxGraph main branch in advisory lane"
+  rationale: "DEV PHASE: track latest FluxGraph main branch in required FluxGraph lane"

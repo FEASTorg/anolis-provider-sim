@@ -25,13 +25,9 @@ This document defines provider-sim policy for dependencies, CI lane tiers, prese
 - **Required**:
   - Linux release (`fluxgraph OFF`)
   - Windows release (`fluxgraph OFF`)
-- **Advisory**:
   - Linux release (`fluxgraph ON`)
 - **Nightly/optional**:
   - heavy sanitizer/stress lanes
-
-Promotion rule:
-- Advisory lane can be promoted to required after 10 consecutive green default-branch runs and explicit promotion PR.
 
 ## Dual-Run Policy
 
@@ -66,4 +62,4 @@ On Windows local development, use `dev-windows-*` presets.
 - `anolis-protocol` is consumed as pinned submodule.
 - FluxGraph integration remains explicit opt-in (`ENABLE_FLUXGRAPH`, `FLUXGRAPH_DIR`).
 - No hidden network dependency resolution in normal configure paths.
-- FluxGraph advisory CI consumes a pinned commit from `.ci/dependency-pins.yml` (never floating branch heads).
+- FluxGraph CI lane consumes a pinned commit from `.ci/dependency-pins.yml` (never floating branch heads).

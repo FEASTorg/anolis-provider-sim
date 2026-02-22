@@ -118,10 +118,9 @@ jobs:
         shell: pwsh
         run: ctest --preset ci-windows-release -L provider
 
-  linux-fluxgraph-advisory:
-    name: Linux Release (FluxGraph ON, Advisory)
+  linux-fluxgraph:
+    name: Linux Release (FluxGraph ON)
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - name: Checkout provider-sim
         uses: actions/checkout@v4
