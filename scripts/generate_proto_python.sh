@@ -51,4 +51,4 @@ echo "  Output dir: $output_dir"
 $protoc_cmd --python_out="$output_dir" --proto_path="$proto_path" protocol.proto
 
 output_file="$output_dir/protocol_pb2.py"
-echo "✓ Generated: $output_file"
+echo "[PASS] Generated: $output_file"

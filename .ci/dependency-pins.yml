@@ -1,8 +1,9 @@
 # Cross-repo compatibility pins consumed by provider compatibility lanes.
-# Update only via reviewed PRs.
+# DEV PHASE: refs are intentionally floating (`main`) for faster iteration.
+# Lock to immutable SHAs before release hardening.
 
 fluxgraph:
   repository: FEASTorg/fluxgraph
-  ref: f267e671ede1ad9b553488a570b5631fb49b3ef9
-  updated_utc: 2026-02-21
-  rationale: "Pinned reference for advisory FluxGraph integration lane"
+  ref: main
+  updated_utc: 2026-02-22
+  rationale: "DEV PHASE: track latest FluxGraph main branch in advisory lane"

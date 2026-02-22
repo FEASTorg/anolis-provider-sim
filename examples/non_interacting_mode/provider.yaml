@@ -13,5 +13,5 @@ simulation:
   tick_rate_hz: 10.0  # 10 Hz ticker (dt = 0.1s)
   
   # Built-in first-order physics:
-  # - Temperature: τ = 6s
-  # - Motor: τ = 2s
+  # - Temperature: tau = 6s
+  # - Motor: tau = 2s

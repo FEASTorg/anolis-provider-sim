@@ -168,7 +168,7 @@ def test_multi_instance_independence(exe_path, config_path):
 
         assert "tempctl0" in device_ids, "Missing tempctl0"
         assert "tempctl1" in device_ids, "Missing tempctl1"
-        print("  ✓ Both tempctl0 and tempctl1 found\n")
+        print("  [PASS] Both tempctl0 and tempctl1 found\n")
 
         # Test 2: Read initial state
         print("Test 2: Read initial state...")
@@ -212,13 +212,13 @@ def test_multi_instance_independence(exe_path, config_path):
 
         temp0 = float(values0_temp[0].value.double_value) if values0_temp else 0.0
         temp1 = float(values1_temp[0].value.double_value) if values1_temp else 0.0
-        print(f"  tempctl0 tc1: {temp0}°C (config: 25.0°C)")
-        print(f"  tempctl1 tc1: {temp1}°C (config: 30.0°C)")
+        print(f"  tempctl0 tc1: {temp0} degC (config: 25.0 degC)")
+        print(f"  tempctl1 tc1: {temp1} degC (config: 30.0 degC)")
 
         # Verify temperatures match config (allow small tolerance)
         assert abs(temp0 - 25.0) < 0.1, f"tempctl0 temperature {temp0} != 25.0"
         assert abs(temp1 - 30.0) < 0.1, f"tempctl1 temperature {temp1} != 30.0"
-        print("  ✓ Initial temperatures match config!")
+        print("  [PASS] Initial temperatures match config!")
         print()
 
         # Test 3: Set different modes on each device
@@ -242,7 +242,7 @@ def test_multi_instance_independence(exe_path, config_path):
         )
         if not (hasattr(resp, "call_result") or hasattr(resp, "call")):
             raise AssertionError(f"Call failed: {resp}")
-        print("  ✓ Functions called successfully\n")
+        print("  [PASS] Functions called successfully\n")
 
         # Test 4: Verify states are independent
         print("Test 4: Verify independent state...")
@@ -276,13 +276,13 @@ def test_multi_instance_independence(exe_path, config_path):
         assert mode0 == "closed", f"Expected tempctl0 mode='closed', got '{mode0}'"
         assert mode1 == "open", f"Expected tempctl1 mode='open', got '{mode1}'"
 
-        print("  ✓ States are independent!\n")
+        print("  [PASS] States are independent!\n")
 
         print("=== All tests PASSED ===")
         return True
 
     except Exception as e:
-        print(f"\n✗ Test FAILED: {e}")
+        print(f"\n[FAIL] Test FAILED: {e}")
         return False
     finally:
         client.close()
