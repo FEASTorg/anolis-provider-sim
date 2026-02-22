@@ -1,5 +1,7 @@
 # anolis-provider-sim
 
+[![CI](https://github.com/FEASTorg/anolis-provider-sim/actions/workflows/ci.yml/badge.svg)](https://github.com/FEASTorg/anolis-provider-sim/actions/workflows/ci.yml)
+
 Simulation device provider for anolis runtime, implementing the Anolis Device Provider Protocol (ADPP) v1.
 
 ## Overview
