@@ -1,0 +1,8 @@
+# Cross-repo compatibility pins consumed by provider compatibility lanes.
+# Update only via reviewed PRs.
+
+fluxgraph:
+  repository: FEASTorg/fluxgraph
+  ref: f267e671ede1ad9b553488a570b5631fb49b3ef9
+  updated_utc: 2026-02-21
+  rationale: "Pinned reference for advisory FluxGraph integration lane"

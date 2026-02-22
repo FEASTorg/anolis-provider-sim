@@ -9,11 +9,13 @@ if(ENABLE_FLUXGRAPH)
     list(APPEND VCPKG_MANIFEST_FEATURES "fluxgraph")
 endif()
 
-project(anolis_provider_sim LANGUAGES CXX)
+project(anolis_provider_sim VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+include(CTest)
 
 # Guard against unsupported ABI/toolchain combinations on Windows.
 # Default Windows vcpkg triplets are MSVC-based and cannot be mixed with
@@ -152,14 +154,16 @@ if(ENABLE_FLUXGRAPH)
 
     add_custom_command(
         OUTPUT ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS}
-        COMMAND protobuf::protoc
+        COMMAND $<TARGET_FILE:protobuf::protoc>
         ARGS --grpc_out=${FLUXGRAPH_PROTO_OUT}
              --cpp_out=${FLUXGRAPH_PROTO_OUT}
              -I${FLUXGRAPH_PROTO_DIR}
              --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
              ${FLUXGRAPH_PROTO}
         DEPENDS ${FLUXGRAPH_PROTO}
+        BYPRODUCTS ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS}
         COMMENT "Generating FluxGraph gRPC code"
+        VERBATIM
     )
 
     add_custom_target(fluxgraph_proto_gen DEPENDS ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS})
@@ -170,7 +174,6 @@ if(ENABLE_FLUXGRAPH)
         ${FLUXGRAPH_GEN_SRCS}
     )
 
-    add_compile_definitions(HAVE_FLUXGRAPH)
     message(STATUS "FluxGraph adapter: ENABLED")
 else()
     message(STATUS "FluxGraph adapter: DISABLED (inert + non_interacting only)")
@@ -202,6 +205,7 @@ target_link_libraries(anolis-provider-sim PRIVATE
 )
 
 if(ENABLE_FLUXGRAPH)
+    target_compile_definitions(anolis-provider-sim PRIVATE HAVE_FLUXGRAPH)
     target_link_libraries(anolis-provider-sim PRIVATE
         gRPC::grpc++
     )
@@ -209,4 +213,93 @@ endif()
 
 if (WIN32)
     target_compile_definitions(anolis-provider-sim PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+    if(WIN32)
+        set(_python_gen_cmd
+            powershell.exe -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_SOURCE_DIR}/scripts/generate_proto_python.ps1
+            -OutputDir ${CMAKE_BINARY_DIR}
+        )
+    else()
+        set(_python_gen_cmd
+            bash ${CMAKE_SOURCE_DIR}/scripts/generate_proto_python.sh ${CMAKE_BINARY_DIR}
+        )
+    endif()
+
+    add_test(NAME provider.generate_proto_python COMMAND ${_python_gen_cmd})
+    set_tests_properties(provider.generate_proto_python PROPERTIES
+        LABELS "provider;integration"
+        FIXTURES_SETUP proto_python
+    )
+
+    set(_provider_test_env
+        "ANOLIS_PROVIDER_SIM_EXE=$<TARGET_FILE:anolis-provider-sim>"
+        "ANOLIS_PROVIDER_SIM_BUILD_DIR=${CMAKE_BINARY_DIR}"
+    )
+
+    add_test(
+        NAME provider.smoke
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_hello.py
+    )
+    set_tests_properties(provider.smoke PROPERTIES
+        LABELS "provider;integration;smoke"
+        FIXTURES_REQUIRED proto_python
+        ENVIRONMENT "${_provider_test_env}"
+    )
+
+    add_test(
+        NAME provider.adpp
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_adpp_integration.py --test all
+    )
+    set_tests_properties(provider.adpp PROPERTIES
+        LABELS "provider;integration;adpp"
+        FIXTURES_REQUIRED proto_python
+        ENVIRONMENT "${_provider_test_env}"
+    )
+
+    add_test(
+        NAME provider.multi
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_multi_instance.py --config ${CMAKE_SOURCE_DIR}/config/multi-tempctl.yaml
+    )
+    set_tests_properties(provider.multi PROPERTIES
+        LABELS "provider;integration;multi"
+        FIXTURES_REQUIRED proto_python
+        ENVIRONMENT "${_provider_test_env}"
+    )
+
+    add_test(
+        NAME provider.fault
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_fault_injection.py --test all
+    )
+    set_tests_properties(provider.fault PROPERTIES
+        LABELS "provider;integration;fault"
+        FIXTURES_REQUIRED proto_python
+        ENVIRONMENT "${_provider_test_env}"
+    )
+
+    if(ENABLE_FLUXGRAPH)
+        add_test(
+            NAME provider.fluxgraph.integration
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_fluxgraph_integration.py
+        )
+        set_tests_properties(provider.fluxgraph.integration PROPERTIES
+            LABELS "integration;fluxgraph"
+            FIXTURES_REQUIRED proto_python
+            ENVIRONMENT "${_provider_test_env}"
+        )
+
+        add_test(
+            NAME provider.fluxgraph.multi_provider
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_multi_provider_scenario.py
+        )
+        set_tests_properties(provider.fluxgraph.multi_provider PROPERTIES
+            LABELS "integration;fluxgraph"
+            FIXTURES_REQUIRED proto_python
+            ENVIRONMENT "${_provider_test_env}"
+        )
+    endif()
 endif()

@@ -16,15 +16,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Get-DefaultPreset {
-    if ($env:OS -eq "Windows_NT") {
-        return "dev-windows-release"
-    }
-    return "dev-release"
-}
-
 if (-not $Preset) {
-    $Preset = Get-DefaultPreset
+    if ($env:OS -eq "Windows_NT") {
+        $Preset = "dev-windows-release"
+    }
+    else {
+        $Preset = "dev-release"
+    }
 }
 if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug", "dev-release-fluxgraph")) {
     throw "Preset '$Preset' uses Ninja and may select MinGW on Windows. Use 'dev-windows-release', 'dev-windows-debug', 'dev-windows-release-fluxgraph', or 'ci-windows-release'."

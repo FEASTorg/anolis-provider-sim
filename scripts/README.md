@@ -76,10 +76,9 @@ bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=.
 .\scripts\test.ps1 [options]
 
 Options:
-  -Preset <name>         Build preset to test (default: dev-release on Linux/macOS, dev-windows-release on Windows)
+  -Preset <name>         Test preset (default: dev-release on Linux/macOS, dev-windows-release on Windows)
   -Suite <name>          Test suite: all|smoke|adpp|multi|fault|fluxgraph (default: all)
-  -Python <command>      Python command (default: python)
-  -NoGenerate            Skip protobuf Python generation
+  -VerboseOutput         Pass -VV to ctest
 ```
 
 **Examples:**
@@ -110,10 +109,9 @@ Options:
 bash ./scripts/test.sh [options]
 
 Options:
-  --preset <name>        Build preset to test (default: dev-release)
+  --preset <name>        Test preset (default: dev-release)
   --suite <name>         Test suite: all|smoke|adpp|multi|fault|fluxgraph
-  --python <command>     Python command
-  --no-generate          Skip protobuf Python generation
+  -v, --verbose          Pass -VV to ctest
 ```
 
 **Examples:**
@@ -129,8 +127,9 @@ bash ./scripts/test.sh --preset ci-linux-release --suite smoke
 bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 ```
 
-`all` runs baseline non-FluxGraph tests. `fluxgraph` is explicit and requires a build configured with FluxGraph support.
+`all` maps to CTest label `provider`; suite selections map to their label (`smoke`, `adpp`, `multi`, `fault`, `fluxgraph`).
 On Windows, use `dev-windows-*` presets for local work; `dev-*` presets are Ninja-based and intended for Linux/macOS.
+Integration tests are CTest-registered from CMake (`ctest --preset <preset> -L provider`).
 
 ---
 
@@ -179,7 +178,8 @@ Options:
 
 ### Generate Python Protobuf Bindings
 
-Required before running Python tests.
+Required only for direct Python test invocation (`python tests/...`).
+If running via CTest (`scripts/test.*`), generation is handled by the CTest fixture.
 
 **Windows:**
 
@@ -323,11 +323,11 @@ cd ..\fluxgraph
 .\scripts\build.ps1 -Preset ci-linux-release-server -CleanFirst
 .\scripts\run_server.ps1
 
-# Terminal 2: Build provider-sim and run integration test
+# Terminal 2: Build provider-sim and run FluxGraph CTest suite
 cd ..\anolis-provider-sim
-.\scripts\build.ps1 -Clean
-.\scripts\generate_proto_python.ps1
-python tests/test_fluxgraph_integration.py -d 30
+.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -Clean
+$env:FLUXGRAPH_SERVER_EXE = "..\\fluxgraph\\build-server\\server\\Release\\fluxgraph-server.exe"
+.\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```
 
 ### Debug Build Investigation

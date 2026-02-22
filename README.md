@@ -250,19 +250,6 @@ cmake --list-presets
 ctest --list-presets
 ```
 
-### Windows (MSVC + vcpkg)
-
-```powershell
-# Install dependencies
-vcpkg install protobuf yaml-cpp
-
-# Build
-mkdir build
-cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
-cmake --build . --config Release
-```
-
 ### Build Options
 
 **`ENABLE_FLUXGRAPH`** (default: `OFF`)
@@ -299,9 +286,21 @@ Provider uses stdio+uint32_le transport for ADPP v1 communication with anolis-ru
 
 ## Testing
 
+### CTest (preferred)
+
+Provider baseline suites are CTest-registered:
+
+```bash
+# Linux/macOS
+ctest --preset dev-release -L provider
+
+# Windows (PowerShell)
+ctest --preset dev-windows-release -L provider
+```
+
 ### Test Scripts
 
-Provider-sim includes comprehensive test coverage:
+`scripts/test.*` remain supported as convenience wrappers around the same suites:
 
 ```bash
 # Recommended wrappers
@@ -334,13 +333,6 @@ python tests/test_fault_injection.py --test call_latency
 python tests/test_fault_injection.py --test call_failure
 python tests/test_fault_injection.py --test clear_faults
 python tests/test_fault_injection.py --test multiple_devices
-```
-
-**Integration Tests:**
-
-```bash
-# From anolis repo root (requires anolis-runtime)
-python scripts/run_scenarios.py
 ```
 
 All tests use the stdio+uint32_le transport and validate correct ADPP v1 behavior.
