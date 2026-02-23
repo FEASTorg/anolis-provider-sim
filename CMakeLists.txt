@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 # Build-time feature switches (must be before project() for vcpkg)
 option(ENABLE_TSAN "Enable ThreadSanitizer for data race detection" OFF)
 option(ENABLE_FLUXGRAPH "Enable FluxGraph adapter for sim mode" OFF)
+option(ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS "Treat first-party compiler warnings as errors" OFF)
 
 # Configure vcpkg features based on build options
 if(ENABLE_FLUXGRAPH)
@@ -16,6 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(CTest)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Warnings.cmake)
 
 # Guard against unsupported ABI/toolchain combinations on Windows.
 # Default Windows vcpkg triplets are MSVC-based and cannot be mixed with
@@ -77,7 +79,7 @@ endif()
 
 add_library(adpp_proto OBJECT ${ADPP_PROTO})
 target_link_libraries(adpp_proto PUBLIC protobuf::libprotobuf)
-target_include_directories(adpp_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(adpp_proto SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 protobuf_generate(
     TARGET adpp_proto
@@ -152,6 +154,13 @@ if(ENABLE_FLUXGRAPH)
         "${FLUXGRAPH_PROTO_OUT}/fluxgraph.grpc.pb.h"
     )
 
+    # Generated protobuf/grpc translation units are not first-party sources.
+    if(MSVC)
+        set_source_files_properties(${FLUXGRAPH_GEN_SRCS} PROPERTIES COMPILE_OPTIONS "/W0")
+    else()
+        set_source_files_properties(${FLUXGRAPH_GEN_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+    endif()
+
     add_custom_command(
         OUTPUT ${FLUXGRAPH_GEN_SRCS} ${FLUXGRAPH_GEN_HDRS}
         COMMAND $<TARGET_FILE:protobuf::protoc>
@@ -187,7 +196,6 @@ if(ENABLE_FLUXGRAPH)
 endif()
 
 target_include_directories(anolis-provider-sim PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
@@ -202,6 +210,8 @@ target_link_libraries(anolis-provider-sim PRIVATE
     protobuf::libprotobuf
     yaml-cpp::yaml-cpp
 )
+
+anolis_provider_sim_apply_warnings(anolis-provider-sim)
 
 if(ENABLE_FLUXGRAPH)
     target_compile_definitions(anolis-provider-sim PRIVATE HAVE_FLUXGRAPH)
