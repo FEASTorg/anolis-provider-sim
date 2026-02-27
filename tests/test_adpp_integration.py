@@ -1,213 +1,71 @@
 #!/usr/bin/env python3
 """
-ADPP Integration Tests for anolis-provider-sim.
+ADPP integration tests for anolis-provider-sim.
 
-Tests core ADPP v1 protocol operations and device simulation behaviors:
+Covers:
 - ListDevices, DescribeDevice, ReadSignals, CallFunction RPCs
-- Device state machines (tempctl PID control, motorctl speed control)
-- Physics simulation convergence
-- Precondition enforcement and error handling
+- tempctl closed-loop convergence
+- motorctl duty/speed behavior
+- relay control and precondition enforcement
 """
 
+from __future__ import annotations
+
 import argparse
-import struct
-import subprocess
 import sys
 import time
-import os
-from pathlib import Path
 
-# Add build directory to path for protocol_pb2 import
-script_dir = Path(__file__).parent
-repo_root = script_dir.parent
-build_dir_env = os.environ.get("ANOLIS_PROVIDER_SIM_BUILD_DIR")
-build_dir = Path(build_dir_env) if build_dir_env else (repo_root / "build")
-if not build_dir.is_absolute():
-    build_dir = repo_root / build_dir
-sys.path.insert(0, str(build_dir))
-
-try:
-    from protocol_pb2 import Request, Response, Value, ValueType
-except ImportError:
-    print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
-    print(
-        "Run: ./scripts/generate_python_proto.sh (Linux/macOS) or pwsh ./scripts/generate_python_proto.ps1 (Windows)",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+from support.assertions import (
+    assert_ok,
+    list_devices_entries,
+    require_signal,
+    status_text,
+)
+from support.env import repo_root, resolve_config_path, resolve_provider_executable
+from support.framed_client import (
+    AdppClient,
+    make_bool_value,
+    make_double_value,
+    make_int64_value,
+    make_string_value,
+)
+from support.proto_bootstrap import load_protocol_module
 
 
-class ProviderClient:
-    """Simple synchronous client for ADPP stdio transport."""
-
-    def __init__(self, exe_path, config_path):
-        self.proc = subprocess.Popen(
-            [str(exe_path), "--config", str(config_path)],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=sys.stderr,
-        )
-        self.request_id = 0
-
-    def send_request(self, req):
-        """Send a request and return the response."""
-        payload = req.SerializeToString()
-        frame = struct.pack("<I", len(payload)) + payload
-        self.proc.stdin.write(frame)
-        self.proc.stdin.flush()
-
-        hdr = self.proc.stdout.read(4)
-        if len(hdr) != 4:
-            raise RuntimeError("Failed to read response header")
-
-        (length,) = struct.unpack("<I", hdr)
-        data = self.proc.stdout.read(length)
-        if len(data) != length:
-            raise RuntimeError(f"Expected {length} bytes, got {len(data)}")
-
-        resp = Response()
-        resp.ParseFromString(data)
-        return resp
-
-    def list_devices(self):
-        """Call ListDevices."""
-        self.request_id += 1
-        req = Request(request_id=self.request_id)
-        req.list_devices.include_health = False
-        return self.send_request(req)
-
-    def describe_device(self, device_id):
-        """Call DescribeDevice."""
-        self.request_id += 1
-        req = Request(request_id=self.request_id)
-        req.describe_device.device_id = device_id
-        return self.send_request(req)
-
-    def read_signals(self, device_id, signal_ids=None):
-        """Call ReadSignals."""
-        self.request_id += 1
-        req = Request(request_id=self.request_id)
-        req.read_signals.device_id = device_id
-        if signal_ids:
-            req.read_signals.signal_ids.extend(signal_ids)
-        return self.send_request(req)
-
-    def call_function(self, device_id, function_id, args=None):
-        """Call a device function."""
-        self.request_id += 1
-        req = Request(request_id=self.request_id)
-        req.call.device_id = device_id
-        req.call.function_id = function_id
-        if args:
-            for k, v in args.items():
-                req.call.args[k].CopyFrom(v)
-        return self.send_request(req)
-
-    def close(self):
-        """Close the provider process."""
-        self.proc.stdin.close()
-        self.proc.wait(timeout=1)
-
-
-def find_executable():
-    """Find the provider executable."""
-    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
-    if env_path:
-        candidate = Path(env_path)
-        if candidate.exists():
-            return candidate
-        raise FileNotFoundError(
-            f"ANOLIS_PROVIDER_SIM_EXE points to missing file: {candidate}"
-        )
-
-    candidates = [
-        Path("build/Release/anolis-provider-sim.exe"),  # Windows
-        Path("build/anolis-provider-sim"),  # Linux
-        Path("build/Debug/anolis-provider-sim.exe"),  # Windows Debug
-        Path("build-tsan/anolis-provider-sim"),  # Linux TSAN
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
-    raise FileNotFoundError("Could not find anolis-provider-sim executable")
-
-
-def make_string_value(s):
-    """Helper to create a string Value."""
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_STRING
-    v.string_value = s
-    return v
-
-
-def make_double_value(d):
-    """Helper to create a double Value."""
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_DOUBLE
-    v.double_value = d
-    return v
-
-
-def make_int64_value(i):
-    """Helper to create an int64 Value."""
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_INT64
-    v.int64_value = i
-    return v
-
-
-def make_bool_value(b):
-    """Helper to create a bool Value."""
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_BOOL
-    v.bool_value = b
-    return v
-
-
-def test_list_devices(client):
-    """Test 1: Verify ListDevices returns expected devices from config."""
+def test_list_devices(client: AdppClient) -> bool:
+    """Verify ListDevices returns expected default config devices."""
     print("\n=== Test 1: ListDevices ===")
-    resp = client.list_devices()
+    resp = client.list_devices(include_health=False)
+    assert_ok(resp, "list_devices")
 
-    assert resp.status.code == 1, f"Expected CODE_OK, got {resp.status.code}"
+    devices = list_devices_entries(resp)
+    assert len(devices) == 5, f"Expected 5 devices, got {len(devices)}"
 
-    # provider-sim.yaml has 4 devices + chaos_control = 5 total
-    assert len(resp.list_devices.devices) == 5, (
-        f"Expected 5 devices, got {len(resp.list_devices.devices)}"
-    )
-
-    device_ids = [d.device_id for d in resp.list_devices.devices]
-
-    # Verify all expected devices are present
-    expected_devices = [
+    device_ids = [entry.device_id for entry in devices]
+    expected = [
         "tempctl0",
         "motorctl0",
         "relayio0",
         "analogsensor0",
         "chaos_control",
     ]
-    for device_id in expected_devices:
-        assert device_id in device_ids, f"Missing {device_id}"
+    for device_id in expected:
+        assert device_id in device_ids, f"Missing device: {device_id}"
 
-    print(f"OK: Found {len(resp.list_devices.devices)} devices: {device_ids}")
+    print(f"OK: Found {len(devices)} devices: {device_ids}")
     return True
 
 
-def test_describe_tempctl(client):
-    """Test 2: Verify tempctl0 capabilities."""
+def test_describe_tempctl(client: AdppClient) -> bool:
+    """Verify tempctl0 capabilities."""
     print("\n=== Test 2: DescribeDevice (tempctl0) ===")
     resp = client.describe_device("tempctl0")
-
-    assert resp.status.code == 1, f"Expected CODE_OK, got {resp.status.code}"
+    assert_ok(resp, "describe_device tempctl0")
 
     caps = resp.describe_device.capabilities
-    signal_ids = [s.signal_id for s in caps.signals]
-    function_ids = [f.function_id for f in caps.functions]
+    signal_ids = [entry.signal_id for entry in caps.signals]
+    function_ids = [entry.function_id for entry in caps.functions]
 
-    print(f"  Signals ({len(signal_ids)}): {signal_ids}")
-    print(f"  Functions ({len(function_ids)}): {function_ids}")
-
-    # Verify expected signals
     assert "tc1_temp" in signal_ids
     assert "tc2_temp" in signal_ids
     assert "relay1_state" in signal_ids
@@ -215,187 +73,156 @@ def test_describe_tempctl(client):
     assert "control_mode" in signal_ids
     assert "setpoint" in signal_ids
 
-    # Verify expected functions
     assert 1 in function_ids  # set_mode
     assert 2 in function_ids  # set_setpoint
     assert 3 in function_ids  # set_relay
 
-    print("OK: All expected signals and functions present")
+    print(f"  Signals ({len(signal_ids)}): {signal_ids}")
+    print(f"  Functions ({len(function_ids)}): {function_ids}")
+    print("OK: tempctl0 capabilities validated")
     return True
 
 
-def test_temp_convergence(client):
-    """Test 3: Temperature convergence in closed-loop mode."""
+def test_temp_convergence(client: AdppClient, protocol) -> bool:
+    """Verify temperature increases in closed-loop mode toward setpoint."""
     print("\n=== Test 3: Temperature Convergence ===")
 
-    # Set mode to closed
-    resp = client.call_function("tempctl0", 1, {"mode": make_string_value("closed")})
-    assert resp.status.code == 1, "Failed to set mode to closed"
-    print("  Mode set to 'closed'")
+    resp = client.call_function(
+        "tempctl0",
+        1,
+        {"mode": make_string_value(protocol, "closed")},
+    )
+    assert_ok(resp, "set_mode closed")
 
-    # Set setpoint to 80C
-    resp = client.call_function("tempctl0", 2, {"value": make_double_value(80.0)})
-    assert resp.status.code == 1, "Failed to set setpoint"
-    print("  Setpoint set to 80degC")
+    resp = client.call_function(
+        "tempctl0",
+        2,
+        {"value": make_double_value(protocol, 80.0)},
+    )
+    assert_ok(resp, "set_setpoint 80")
 
-    # Read temperatures over time
-    print("  Reading temperatures...")
-    temps = []
-    for i in range(10):
+    temps: list[tuple[float, float]] = []
+    for idx in range(10):
         resp = client.read_signals("tempctl0", ["tc1_temp", "tc2_temp"])
-        assert resp.status.code == 1
+        assert_ok(resp, f"read_signals temperature sample {idx + 1}")
 
-        tc1 = next(
-            (
-                v.value.double_value
-                for v in resp.read_signals.values
-                if v.signal_id == "tc1_temp"
-            ),
-            None,
-        )
-        tc2 = next(
-            (
-                v.value.double_value
-                for v in resp.read_signals.values
-                if v.signal_id == "tc2_temp"
-            ),
-            None,
-        )
-
+        tc1 = float(require_signal(resp, "tc1_temp").value.double_value)
+        tc2 = float(require_signal(resp, "tc2_temp").value.double_value)
         temps.append((tc1, tc2))
-        print(f"    Read {i + 1}: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC")
+
+        print(f"  Read {idx + 1}: TC1={tc1:.1f} C, TC2={tc2:.1f} C")
         time.sleep(1.5)
 
-    # Verify convergence: last temp should be higher than first
     assert temps[-1][0] > temps[0][0], "TC1 temperature did not increase"
     assert temps[-1][1] > temps[0][1], "TC2 temperature did not increase"
 
-    print(f"OK: Temperatures converging: {temps[0][0]:.1f} -> {temps[-1][0]:.1f}degC")
+    print(f"OK: Temperatures increased: TC1 {temps[0][0]:.1f} -> {temps[-1][0]:.1f} C")
     return True
 
 
-def test_motor_control(client):
-    """Test 4: Motor duty/speed control."""
+def test_motor_control(client: AdppClient, protocol) -> bool:
+    """Verify motor duty call updates motor speed dynamics."""
     print("\n=== Test 4: Motor Control ===")
 
-    # Set motor 1 duty to 50%
     resp = client.call_function(
         "motorctl0",
         10,
-        {"motor_index": make_int64_value(1), "duty": make_double_value(0.5)},
+        {
+            "motor_index": make_int64_value(protocol, 1),
+            "duty": make_double_value(protocol, 0.5),
+        },
     )
-    assert resp.status.code == 1, "Failed to set motor duty"
-    print("  Motor 1 duty set to 0.5 (50%)")
+    assert_ok(resp, "set_motor_duty motor1")
 
-    # Read speeds over time
-    print("  Reading motor speeds...")
-    speeds = []
-    for i in range(6):
+    speeds: list[float] = []
+    for idx in range(6):
         resp = client.read_signals("motorctl0", ["motor1_speed"])
-        assert resp.status.code == 1
-
-        speed = next(
-            (
-                v.value.double_value
-                for v in resp.read_signals.values
-                if v.signal_id == "motor1_speed"
-            ),
-            0.0,
-        )
+        assert_ok(resp, f"read motor speed sample {idx + 1}")
+        speed = float(require_signal(resp, "motor1_speed").value.double_value)
         speeds.append(speed)
-        print(f"    Read {i + 1}: Motor1={speed:.0f} RPM")
+
+        print(f"  Read {idx + 1}: Motor1={speed:.0f} RPM")
         time.sleep(1.0)
 
-    # Verify speed increases
     assert speeds[-1] > speeds[0], "Motor speed did not increase"
-    assert speeds[-1] > 1000, (
-        f"Motor speed too low: {speeds[-1]:.0f} RPM (expected ~1600 RPM)"
-    )
+    assert speeds[-1] > 1000, f"Motor speed too low: {speeds[-1]:.0f} RPM"
 
     print(f"OK: Motor speed ramping up: {speeds[0]:.0f} -> {speeds[-1]:.0f} RPM")
     return True
 
 
-def test_relay_control(client):
-    """Test 5: Relay control in open-loop mode."""
+def test_relay_control(client: AdppClient, protocol) -> bool:
+    """Verify relay control in open-loop mode."""
     print("\n=== Test 5: Relay Control (Open Loop) ===")
 
-    # Ensure open mode
-    resp = client.call_function("tempctl0", 1, {"mode": make_string_value("open")})
-    assert resp.status.code == 1
-    print("  Mode set to 'open'")
-
-    # Set relay states
     resp = client.call_function(
         "tempctl0",
-        3,
-        {"relay_index": make_int64_value(1), "state": make_bool_value(True)},
+        1,
+        {"mode": make_string_value(protocol, "open")},
     )
-    assert resp.status.code == 1
-    print("  Relay 1 set to ON")
+    assert_ok(resp, "set_mode open")
 
     resp = client.call_function(
         "tempctl0",
         3,
-        {"relay_index": make_int64_value(2), "state": make_bool_value(False)},
+        {
+            "relay_index": make_int64_value(protocol, 1),
+            "state": make_bool_value(protocol, True),
+        },
     )
-    assert resp.status.code == 1
-    print("  Relay 2 set to OFF")
+    assert_ok(resp, "set_relay relay1 on")
 
-    # Read relay states
+    resp = client.call_function(
+        "tempctl0",
+        3,
+        {
+            "relay_index": make_int64_value(protocol, 2),
+            "state": make_bool_value(protocol, False),
+        },
+    )
+    assert_ok(resp, "set_relay relay2 off")
+
     resp = client.read_signals("tempctl0", ["relay1_state", "relay2_state"])
-    assert resp.status.code == 1
+    assert_ok(resp, "read relay states")
 
-    relay1 = next(
-        (
-            v.value.bool_value
-            for v in resp.read_signals.values
-            if v.signal_id == "relay1_state"
-        ),
-        None,
-    )
-    relay2 = next(
-        (
-            v.value.bool_value
-            for v in resp.read_signals.values
-            if v.signal_id == "relay2_state"
-        ),
-        None,
-    )
+    relay1 = require_signal(resp, "relay1_state").value.bool_value
+    relay2 = require_signal(resp, "relay2_state").value.bool_value
 
-    assert relay1, "Relay 1 state mismatch"
-    assert not relay2, "Relay 2 state mismatch"
+    assert relay1 is True, "Relay 1 state mismatch"
+    assert relay2 is False, "Relay 2 state mismatch"
 
-    print(f"OK: Relay states correct: R1={relay1}, R2={relay2}")
+    print(f"OK: Relay states correct: relay1={relay1}, relay2={relay2}")
     return True
 
 
-def test_precondition_check(client):
-    """Test 6: Precondition enforcement (relay control blocked in closed mode)."""
+def test_precondition_check(client: AdppClient, protocol) -> bool:
+    """Verify relay control is blocked in closed-loop mode."""
     print("\n=== Test 6: Precondition Enforcement ===")
 
-    # Set mode to closed
-    resp = client.call_function("tempctl0", 1, {"mode": make_string_value("closed")})
-    assert resp.status.code == 1
-    print("  Mode set to 'closed'")
+    resp = client.call_function(
+        "tempctl0",
+        1,
+        {"mode": make_string_value(protocol, "closed")},
+    )
+    assert_ok(resp, "set_mode closed")
 
-    # Try to set relay (should fail)
     resp = client.call_function(
         "tempctl0",
         3,
-        {"relay_index": make_int64_value(1), "state": make_bool_value(True)},
+        {
+            "relay_index": make_int64_value(protocol, 1),
+            "state": make_bool_value(protocol, True),
+        },
     )
 
-    # Expect FAILED_PRECONDITION (code = 12)
     assert resp.status.code == 12, (
-        f"Expected CODE_FAILED_PRECONDITION (12), got {resp.status.code}"
+        f"Expected CODE_FAILED_PRECONDITION (12), got {status_text(resp)}"
     )
-    print(f"  OK: set_relay blocked: {resp.status.message}")
-
+    print(f"OK: set_relay blocked as expected: {status_text(resp)}")
     return True
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="ADPP integration tests for anolis-provider-sim"
     )
@@ -415,55 +242,68 @@ def main():
     )
     args = parser.parse_args()
 
-    exe_path = find_executable()
-    print(f"Testing: {exe_path}")
+    protocol, _ = load_protocol_module()
+    root = repo_root()
+    exe_path = resolve_provider_executable(root)
+    config_path = resolve_config_path("config/provider-sim.yaml", root)
 
-    # Use provider-sim.yaml config
-    config_path = repo_root / "config" / "provider-sim.yaml"
     if not config_path.exists():
         print(f"ERROR: Config file not found: {config_path}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
-    client = ProviderClient(exe_path, config_path)
-
+    client = AdppClient(protocol, exe_path, config_path)
     try:
+        hello_resp = client.hello(
+            client_name="adpp-integration-test",
+            client_version="0.0.1",
+        )
+        assert_ok(hello_resp, "hello")
+
         tests = {
-            "list_devices": test_list_devices,
-            "describe_tempctl": test_describe_tempctl,
-            "temp_convergence": test_temp_convergence,
-            "motor_control": test_motor_control,
-            "relay_control": test_relay_control,
-            "precondition_check": test_precondition_check,
+            "list_devices": lambda c: test_list_devices(c),
+            "describe_tempctl": lambda c: test_describe_tempctl(c),
+            "temp_convergence": lambda c: test_temp_convergence(c, protocol),
+            "motor_control": lambda c: test_motor_control(c, protocol),
+            "relay_control": lambda c: test_relay_control(c, protocol),
+            "precondition_check": lambda c: test_precondition_check(c, protocol),
         }
 
         if args.test == "all":
             print("Running all ADPP integration tests...")
-            results = []
-            for name, test_func in tests.items():
+            results: list[tuple[str, bool]] = []
+
+            for name, test_fn in tests.items():
                 try:
-                    test_func(client)
+                    test_fn(client)
                     results.append((name, True))
-                except Exception as e:
-                    print(f"FAIL: {name} FAILED: {e}", file=sys.stderr)
+                except Exception as exc:
+                    print(f"FAIL: {name} FAILED: {exc}", file=sys.stderr)
                     results.append((name, False))
 
             print("\n" + "=" * 50)
             print("Test Summary:")
             for name, passed in results:
-                status = "PASS" if passed else "FAIL"
-                print(f"  {status}: {name}")
+                print(f"  {'PASS' if passed else 'FAIL'}: {name}")
 
-            all_passed = all(r[1] for r in results)
+            all_passed = all(passed for _, passed in results)
             if all_passed:
                 print("\nAll ADPP integration tests passed!")
                 return 0
-            else:
-                print("\nSome tests failed")
-                return 1
-        else:
-            tests[args.test](client)
-            print(f"\nOK: Test '{args.test}' passed!")
-            return 0
+
+            print("\nSome tests failed", file=sys.stderr)
+            print("Provider stderr tail:", file=sys.stderr)
+            print(client.output_tail(120) or "(empty)", file=sys.stderr)
+            return 1
+
+        tests[args.test](client)
+        print(f"\nOK: Test '{args.test}' passed!")
+        return 0
+
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        print("Provider stderr tail:", file=sys.stderr)
+        print(client.output_tail(120) or "(empty)", file=sys.stderr)
+        return 1
 
     finally:
         client.close()

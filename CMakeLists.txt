@@ -243,6 +243,7 @@ if(BUILD_TESTING)
     set_tests_properties(provider.generate_proto_python PROPERTIES
         LABELS "provider;integration"
         FIXTURES_SETUP proto_python
+        TIMEOUT 120
     )
 
     set(_provider_test_env
@@ -257,6 +258,7 @@ if(BUILD_TESTING)
     set_tests_properties(provider.smoke PROPERTIES
         LABELS "provider;integration;smoke"
         FIXTURES_REQUIRED proto_python
+        TIMEOUT 60
         ENVIRONMENT "${_provider_test_env}"
     )
 
@@ -267,6 +269,7 @@ if(BUILD_TESTING)
     set_tests_properties(provider.adpp PROPERTIES
         LABELS "provider;integration;adpp"
         FIXTURES_REQUIRED proto_python
+        TIMEOUT 300
         ENVIRONMENT "${_provider_test_env}"
     )
 
@@ -277,6 +280,7 @@ if(BUILD_TESTING)
     set_tests_properties(provider.multi PROPERTIES
         LABELS "provider;integration;multi"
         FIXTURES_REQUIRED proto_python
+        TIMEOUT 180
         ENVIRONMENT "${_provider_test_env}"
     )
 
@@ -287,6 +291,7 @@ if(BUILD_TESTING)
     set_tests_properties(provider.fault PROPERTIES
         LABELS "provider;integration;fault"
         FIXTURES_REQUIRED proto_python
+        TIMEOUT 300
         ENVIRONMENT "${_provider_test_env}"
     )
 
@@ -298,6 +303,7 @@ if(BUILD_TESTING)
         set_tests_properties(provider.fluxgraph.integration PROPERTIES
             LABELS "integration;fluxgraph"
             FIXTURES_REQUIRED proto_python
+            TIMEOUT 300
             ENVIRONMENT "${_provider_test_env}"
         )
 
@@ -308,6 +314,7 @@ if(BUILD_TESTING)
         set_tests_properties(provider.fluxgraph.multi_provider PROPERTIES
             LABELS "integration;fluxgraph"
             FIXTURES_REQUIRED proto_python
+            TIMEOUT 900
             ENVIRONMENT "${_provider_test_env}"
         )
     endif()

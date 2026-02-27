@@ -214,8 +214,8 @@ Generates `protocol_pb2.py` in the target build directory from ADPP protocol spe
 
 ### Multi-Instance Test (`tests/test_multi_instance.py`)
 
-- Multiple provider instances running concurrently
-- Validates process isolation and independent state
+- Multiple same-type devices in one provider process
+- Validates per-device state independence (`tempctl0` vs `tempctl1`)
 - **Runtime: ~5 seconds**
 
 ### Fault Injection Tests (`tests/test_fault_injection.py`)
@@ -226,10 +226,13 @@ Generates `protocol_pb2.py` in the target build directory from ADPP protocol spe
 
 ### FluxGraph Integration Test (`tests/test_fluxgraph_integration.py`)
 
-- FluxGraph gRPC integration (NEW)
+- FluxGraph gRPC integration
 - Requires FluxGraph server to be built
-- Validates server connection, config translation, and simulation
-- **Runtime: ~10-30 seconds**
+- Validates hello/wait_ready flow and measurable simulation-state progression
+- **Runtime: ~15-60 seconds**
+
+Shared Python test harness modules live under `tests/support/`.
+See `tests/README.md` for test authoring and troubleshooting guidance.
 
 ---
 
@@ -266,9 +269,9 @@ python tests/test_fluxgraph_integration.py -d 30  # 30 second test
 ### Run Multi-Provider Scenario
 
 ```powershell
-python scripts/test_multi_provider_scenario.py
+python tests/test_multi_provider_scenario.py
 # or
-pwsh .\scripts\test_multi_provider.ps1
+pwsh .\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```
 
 The scenario:

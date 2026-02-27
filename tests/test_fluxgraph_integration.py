@@ -1,302 +1,153 @@
 #!/usr/bin/env python3
 """
-FluxGraph Integration Test.
+FluxGraph integration test for anolis-provider-sim.
 
-Tests provider-sim integration with FluxGraph gRPC server:
-- Server connection and config translation
-- Provider registration and session creation
-- Signal updates from FluxGraph simulation
-- Graceful shutdown and cleanup
-
-This test validates:
-1. Provider connects to FluxGraph server via gRPC
-2. Physics config translates correctly to FluxGraph format
-3. Thermal mass model runs in FluxGraph
-4. Signal values update in provider-sim
-5. Clean shutdown of both processes
+Validates:
+- FluxGraph server startup and connectivity
+- Provider hello + wait_ready flow in sim mode
+- Basic control action causes observable simulated temperature progression
 """
 
+from __future__ import annotations
+
 import argparse
-import socket
-import struct
-import subprocess
 import sys
 import time
-import os
-from pathlib import Path
 
-# Add build directory to path for protocol_pb2 import
-script_dir = Path(__file__).parent
-repo_root = script_dir.parent
-build_dir_env = os.environ.get("ANOLIS_PROVIDER_SIM_BUILD_DIR")
-build_dir = Path(build_dir_env) if build_dir_env else (repo_root / "build")
-if not build_dir.is_absolute():
-    build_dir = repo_root / build_dir
-sys.path.insert(0, str(build_dir))
-
-try:
-    from protocol_pb2 import Request, Response
-except ImportError:
-    print(f"ERROR: protocol_pb2 module not found in {build_dir}.", file=sys.stderr)
-    print(
-        "Run: ./scripts/generate_proto_python.sh (Linux/macOS) or pwsh ./scripts/generate_proto_python.ps1 (Windows)",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+from support.assertions import assert_ok
+from support.env import (
+    find_free_port,
+    repo_root,
+    resolve_config_path,
+    resolve_fluxgraph_server,
+    resolve_provider_executable,
+)
+from support.framed_client import AdppClient, make_double_value, make_string_value
+from support.process import ManagedTextProcess
+from support.proto_bootstrap import load_protocol_module
 
 
-def find_provider_executable():
-    """Find the provider executable in common build locations."""
-    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
-    if env_path:
-        env_candidate = Path(env_path)
-        if env_candidate.exists():
-            return str(env_candidate)
-        print(
-            f"ERROR: ANOLIS_PROVIDER_SIM_EXE points to missing file: {env_candidate}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    candidates = [
-        repo_root / "build/Release/anolis-provider-sim.exe",  # Windows MSVC
-        repo_root / "build/anolis-provider-sim",  # Linux/macOS
-        repo_root / "build/Debug/anolis-provider-sim.exe",  # Windows Debug
-    ]
-
-    for path in candidates:
-        if path.exists():
-            return str(path)
-
-    print("ERROR: Could not find anolis-provider-sim executable", file=sys.stderr)
-    print("Expected one of:", file=sys.stderr)
-    for c in candidates:
-        print(f"  {c}", file=sys.stderr)
-    sys.exit(1)
+def _read_temp(client: AdppClient, signal_id: str = "tc1_temp") -> float:
+    resp = client.read_signals("tempctl0", [signal_id])
+    assert_ok(resp, f"read_signals tempctl0/{signal_id}")
+    if not resp.read_signals.values:
+        raise RuntimeError(f"No values returned for signal {signal_id}")
+    return float(resp.read_signals.values[0].value.double_value)
 
 
-def find_fluxgraph_server():
-    """Find FluxGraph server executable."""
-    # Check environment variable
-    env_path = os.environ.get("FLUXGRAPH_SERVER_EXE")
-    if env_path:
-        env_candidate = Path(env_path)
-        if env_candidate.exists():
-            return str(env_candidate)
+def run_fluxgraph_integration(duration: int, port: int) -> int:
+    protocol, _ = load_protocol_module()
+    root = repo_root()
 
-    # Auto-detect relative to anolis-provider-sim
-    fluxgraph_root = repo_root.parent / "fluxgraph"
-    if not fluxgraph_root.exists():
-        print(f"ERROR: FluxGraph repo not found at: {fluxgraph_root}", file=sys.stderr)
-        print(
-            "Set FLUXGRAPH_SERVER_EXE environment variable to server path",
-            file=sys.stderr,
-        )
-        return None
+    provider_exe = resolve_provider_executable(root)
+    server_exe = resolve_fluxgraph_server(root)
+    config_path = resolve_config_path("config/provider-chamber.yaml", root)
 
-    candidates = [
-        fluxgraph_root / "build-release-server/server/Release/fluxgraph-server.exe",
-        fluxgraph_root / "build-server/server/Release/fluxgraph-server.exe",
-        fluxgraph_root / "build/server/Release/fluxgraph-server.exe",
-        fluxgraph_root / "build-release-server/server/fluxgraph-server",
-        fluxgraph_root / "build-server/server/fluxgraph-server",
-        fluxgraph_root / "build/server/fluxgraph-server",
-    ]
+    if not config_path.exists():
+        print(f"ERROR: Test config not found: {config_path}", file=sys.stderr)
+        return 1
 
-    for path in candidates:
-        if path.exists():
-            return str(path)
-
-    print("ERROR: FluxGraph server not found", file=sys.stderr)
-    print("Build it with:", file=sys.stderr)
-    print(
-        "  Windows: cd ../fluxgraph && .\\scripts\\build.ps1 -Server", file=sys.stderr
-    )
-    print(
-        "  Linux/macOS: cd ../fluxgraph && ./scripts/build.sh --server", file=sys.stderr
-    )
-    return None
-
-
-def find_free_port(start: int = 50051, max_tries: int = 10) -> int:
-    """Find an available port for the FluxGraph server."""
-    for port in range(start, start + max_tries):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                sock.bind(("127.0.0.1", port))
-                return port
-            except OSError:
-                continue
-    raise RuntimeError(f"No free ports in range [{start}, {start + max_tries - 1}]")
-
-
-class ProviderClient:
-    """Simple synchronous client for ADPP stdio transport."""
-
-    def __init__(self, config_path: str, flux_server: str):
-        """Start provider process with FluxGraph integration."""
-        provider_exe = find_provider_executable()
-
-        self.proc = subprocess.Popen(
-            [provider_exe, "--config", str(config_path), "--sim-server", flux_server],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        time.sleep(0.5)  # Give provider time to connect
-
-    def send(self, req: Request) -> Response:
-        """Send a request and receive response."""
-        serialized = req.SerializeToString()
-        frame_len = struct.pack("<I", len(serialized))
-        self.proc.stdin.write(frame_len + serialized)
-        self.proc.stdin.flush()
-
-        # Read response frame
-        frame_header = self.proc.stdout.read(4)
-        if len(frame_header) < 4:
-            raise RuntimeError("Failed to read response frame header")
-
-        resp_len = struct.unpack("<I", frame_header)[0]
-        resp_data = self.proc.stdout.read(resp_len)
-        if len(resp_data) < resp_len:
-            raise RuntimeError("Failed to read complete response")
-
-        resp = Response()
-        resp.ParseFromString(resp_data)
-        return resp
-
-    def close(self):
-        """Shutdown provider process."""
-        try:
-            self.proc.terminate()
-            self.proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-            self.proc.wait()
-
-
-def test_fluxgraph_integration(duration: int, port: int):
-    """Test provider with FluxGraph server."""
     print("=" * 60)
     print("FluxGraph Integration Test")
     print("=" * 60)
+    print(f"Provider: {provider_exe}")
+    print(f"FluxGraph server: {server_exe}")
+    print(f"Config: {config_path}")
+    print(f"Port: {port}")
 
-    # Find FluxGraph server
-    server_exe = find_fluxgraph_server()
-    if not server_exe:
-        print("\nSKIPPED: FluxGraph server not available")
-        return 0
+    server = ManagedTextProcess.start(
+        "fluxgraph-server",
+        [str(server_exe), "--port", str(port), "--dt", "0.1"],
+    )
 
-    # Try to start server with retry on port conflicts
-    server_proc = None
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            print(f"\n[1/4] Starting FluxGraph server on port {port}...")
-            server_proc = subprocess.Popen(
-                [server_exe, "--port", str(port), "--dt", "0.1"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            time.sleep(2)  # Give server time to start
-
-            if server_proc.poll() is not None:
-                stdout, stderr = server_proc.communicate()
-                stderr_text = stderr.decode("utf-8", errors="replace")
-
-                # Check if it's a port conflict (cross-platform)
-                # Windows: "10048" (WSAEADDRINUSE)
-                # Linux/macOS: "Address already in use" or "EADDRINUSE"
-                port_conflict = (
-                    "10048" in stderr_text
-                    or "address already in use" in stderr_text.lower()
-                    or "eaddrinuse" in stderr_text.lower()
-                )
-
-                if port_conflict:
-                    print(f"  Port {port} in use, trying next port...")
-                    port += 1
-                    server_proc = None
-                    continue
-                else:
-                    print("ERROR: Server failed to start")
-                    print(stderr_text)
-                    return 1
-
-            # Server started successfully
-            break
-
-        except Exception:
-            if server_proc:
-                server_proc.kill()
-            raise
-
-    if server_proc is None:
-        print(f"ERROR: Could not start server after {max_retries} attempts")
-        return 1
-
-    provider = None  # Initialize for cleanup
+    client: AdppClient | None = None
     try:
-        # Start provider with FluxGraph integration
-        config_path = repo_root / "config" / "provider-chamber.yaml"
-        if not config_path.exists():
-            print(f"ERROR: Test config not found: {config_path}")
-            return 1
+        if not server.wait_for_port("127.0.0.1", port, timeout=8.0):
+            raise RuntimeError(
+                f"FluxGraph server did not listen on 127.0.0.1:{port} within timeout\n"
+                f"{server.output_tail(120)}"
+            )
 
-        print("\n[2/4] Starting provider with FluxGraph integration...")
-        print(f"  Config: {config_path}")
-        print(f"  Server: localhost:{port}")
+        client = AdppClient(
+            protocol,
+            provider_exe,
+            config_path,
+            sim_server=f"localhost:{port}",
+        )
 
-        provider = ProviderClient(config_path, f"localhost:{port}")
+        hello_resp = client.hello(
+            client_name="fluxgraph-integration-test",
+            client_version="1.0.0",
+        )
+        assert_ok(hello_resp, "hello")
 
-        # Simple hello test
-        print("\n[3/4] Testing ADPP communication...")
-        req = Request(request_id=1)
-        req.hello.protocol_version = "v1"
-        req.hello.client_name = "fluxgraph-integration-test"
-        req.hello.client_version = "1.0.0"
+        ready_resp = client.wait_ready(max_wait_ms_hint=5000)
+        assert_ok(ready_resp, "wait_ready")
 
-        resp = provider.send(req)
-        if resp.status.code != 1:  # 1 = OK
-            print(f"ERROR: Hello failed with status {resp.status.code}")
-            return 1
+        initial_temp = _read_temp(client)
+        print(f"Initial chamber temperature: {initial_temp:.2f} C")
 
-        print(f"  [OK] Hello successful (provider: {resp.hello.provider_name})")
+        # Drive closed-loop heating and confirm measurable state progression.
+        resp = client.call_function(
+            "tempctl0",
+            1,
+            {"mode": make_string_value(protocol, "closed")},
+        )
+        assert_ok(resp, "set_mode closed")
 
-        # Run for specified duration
-        print(f"\n[4/4] Running simulation for {duration} seconds...")
-        time.sleep(duration)
+        resp = client.call_function(
+            "tempctl0",
+            2,
+            {"value": make_double_value(protocol, 80.0)},
+        )
+        assert_ok(resp, "set_setpoint 80")
+
+        deadline = time.time() + max(duration, 5)
+        max_temp = initial_temp
+        samples = 0
+        while time.time() < deadline:
+            current = _read_temp(client)
+            max_temp = max(max_temp, current)
+            samples += 1
+            if current >= initial_temp + 1.0:
+                print(
+                    f"Observed temperature rise to {current:.2f} C after {samples} samples"
+                )
+                break
+            time.sleep(0.5)
+        else:
+            raise RuntimeError(
+                "Simulation progression assertion failed: chamber temperature did not rise by >= 1.0 C "
+                f"within {max(duration, 5)}s (initial={initial_temp:.2f} C, max={max_temp:.2f} C)"
+            )
 
         print("\n" + "=" * 60)
         print("[PASS] FluxGraph integration test PASSED")
         print("=" * 60)
-
         return 0
 
+    except Exception as exc:
+        print(f"\nERROR: {exc}", file=sys.stderr)
+        print(server.output_tail(120), file=sys.stderr)
+        if client is not None:
+            print("[provider] stderr tail:", file=sys.stderr)
+            print(client.output_tail(120) or "(empty)", file=sys.stderr)
+        return 1
+
     finally:
-        # Cleanup
-        print("\nCleaning up...")
-        if provider is not None:
-            provider.close()
-        if server_proc is not None:
-            server_proc.terminate()
-            try:
-                server_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                server_proc.kill()
-                server_proc.wait()
+        if client is not None:
+            client.close()
+        server.close(timeout=5.0)
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description="FluxGraph integration test")
     parser.add_argument(
         "-d",
         "--duration",
         type=int,
-        default=10,
-        help="Test duration in seconds (default: 10)",
+        default=15,
+        help="Max seconds to wait for measurable state progression (default: 15)",
     )
     parser.add_argument(
         "-p",
@@ -307,21 +158,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # Find free port if not specified
-    # Use 50061+ to avoid conflicts with multi-provider test (50051+)
     port = args.port if args.port > 0 else find_free_port(50061, 10)
 
     try:
-        return test_fluxgraph_integration(args.duration, port)
+        return run_fluxgraph_integration(args.duration, port)
     except KeyboardInterrupt:
-        print("\nInterrupted by user")
+        print("Interrupted by user", file=sys.stderr)
         return 130
-    except Exception as e:
-        print(f"\nERROR: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc()
-        return 1
 
 
 if __name__ == "__main__":
