@@ -15,6 +15,7 @@ import struct
 import sys
 import time
 from pathlib import Path
+from typing import Any, cast
 
 # Add protocol_pb2 to path
 build_dir = Path(__file__).parent.parent.parent / "build"
@@ -25,11 +26,17 @@ if not build_dir.exists():
 sys.path.insert(0, str(build_dir))
 
 try:
-    from protocol_pb2 import Request, Response, Value, ValueType
+    import protocol_pb2 as _protocol
 except ImportError:
     print("ERROR: protocol_pb2.py not found in build directory")
     print("Solution: Rebuild with: .\\scripts\\build.ps1 -Release")
     sys.exit(1)
+
+protocol = cast(Any, _protocol)
+Request = protocol.Request
+Response = protocol.Response
+Value = protocol.Value
+ValueType = protocol.ValueType
 
 
 def find_fluxgraph_server():
@@ -110,7 +117,10 @@ def run_sim_example():
 
         # Check if provider is still running
         if provider.poll() is not None:
-            stderr_output = provider.stderr.read().decode()
+            stderr_pipe = provider.stderr
+            stderr_output = (
+                stderr_pipe.read().decode() if stderr_pipe is not None else ""
+            )
             print("[FAIL] Provider terminated unexpectedly:")
             print(stderr_output)
             return False
@@ -198,7 +208,8 @@ def run_sim_example():
     finally:
         # Cleanup
         try:
-            provider.stdin.close()
+            if provider.stdin is not None:
+                provider.stdin.close()
             provider.terminate()
             provider.wait(timeout=2)
         except Exception:

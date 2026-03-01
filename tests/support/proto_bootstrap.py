@@ -23,7 +23,7 @@ def load_protocol_module() -> tuple[ModuleType, Path]:
     add_build_dir_to_sys_path(build_dir)
 
     try:
-        import protocol_pb2 as protocol  # type: ignore
+        import protocol_pb2 as protocol
     except ImportError as exc:
         raise RuntimeError(
             f"protocol_pb2 module not found in {build_dir}.\n{_import_hint()}"

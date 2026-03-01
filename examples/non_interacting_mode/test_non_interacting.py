@@ -14,6 +14,7 @@ import struct
 import sys
 import time
 from pathlib import Path
+from typing import Any, cast
 
 # Add protocol_pb2 to path
 build_dir = Path(__file__).parent.parent.parent / "build"
@@ -24,11 +25,17 @@ if not build_dir.exists():
 sys.path.insert(0, str(build_dir))
 
 try:
-    from protocol_pb2 import Request, Response, Value, ValueType
+    import protocol_pb2 as _protocol
 except ImportError:
     print("ERROR: protocol_pb2.py not found in build directory")
     print("Solution: Rebuild with: .\\scripts\\build.ps1 -Release")
     sys.exit(1)
+
+protocol = cast(Any, _protocol)
+Request = protocol.Request
+Response = protocol.Response
+Value = protocol.Value
+ValueType = protocol.ValueType
 
 
 def run_non_interacting_example():
@@ -194,7 +201,8 @@ def run_non_interacting_example():
         traceback.print_exc()
         return False
     finally:
-        provider.stdin.close()
+        if provider.stdin is not None:
+            provider.stdin.close()
         provider.terminate()
         provider.wait(timeout=2)
 
