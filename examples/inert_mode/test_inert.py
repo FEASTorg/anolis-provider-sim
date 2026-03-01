@@ -41,14 +41,8 @@ ValueType = protocol.ValueType
 def run_inert_example():
     # Find provider executable
     provider_paths = [
-        Path(__file__).parent.parent.parent
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
-        Path(__file__).parent.parent.parent
-        / "build-standalone"
-        / "Release"
-        / "anolis-provider-sim.exe",
+        Path(__file__).parent.parent.parent / "build" / "Release" / "anolis-provider-sim.exe",
+        Path(__file__).parent.parent.parent / "build-standalone" / "Release" / "anolis-provider-sim.exe",
         Path(__file__).parent.parent.parent / "build" / "anolis-provider-sim.exe",
     ]
 

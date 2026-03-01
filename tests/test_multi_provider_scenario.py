@@ -51,9 +51,7 @@ def _read_signal(client: AdppClient, device_id: str, signal_id: str) -> float:
     assert_ok(resp, f"read_signals {device_id}/{signal_id}")
     values = resp.read_signals.values
     if len(values) != 1:
-        raise RuntimeError(
-            f"Expected one value for {device_id}/{signal_id}, got {len(values)}"
-        )
+        raise RuntimeError(f"Expected one value for {device_id}/{signal_id}, got {len(values)}")
 
     value = values[0].value
     vtype = client.protocol.ValueType
@@ -63,9 +61,7 @@ def _read_signal(client: AdppClient, device_id: str, signal_id: str) -> float:
         return float(value.int64_value)
     if value.type == vtype.VALUE_TYPE_BOOL:
         return 1.0 if value.bool_value else 0.0
-    raise RuntimeError(
-        f"Unsupported value type for {device_id}/{signal_id}: {value.type}"
-    )
+    raise RuntimeError(f"Unsupported value type for {device_id}/{signal_id}: {value.type}")
 
 
 def average_material_window(
@@ -145,26 +141,19 @@ def run_scenario(port: int) -> int:
     try:
         if not server.wait_for_port("127.0.0.1", port, timeout=8.0):
             raise RuntimeError(
-                f"FluxGraph server failed to accept connections on port {port}\n"
-                f"{server.output_tail(120)}"
+                f"FluxGraph server failed to accept connections on port {port}\n{server.output_tail(120)}"
             )
 
         sim_server = f"localhost:{port}"
         chamber = AdppClient(protocol, provider_exe, chamber_cfg, sim_server=sim_server)
-        extruder = AdppClient(
-            protocol, provider_exe, extruder_cfg, sim_server=sim_server
-        )
+        extruder = AdppClient(protocol, provider_exe, extruder_cfg, sim_server=sim_server)
 
         assert_ok(
-            chamber.hello(
-                client_name="multi-provider-scenario", client_version="1.0.0"
-            ),
+            chamber.hello(client_name="multi-provider-scenario", client_version="1.0.0"),
             "chamber hello",
         )
         assert_ok(
-            extruder.hello(
-                client_name="multi-provider-scenario", client_version="1.0.0"
-            ),
+            extruder.hello(client_name="multi-provider-scenario", client_version="1.0.0"),
             "extruder hello",
         )
 
@@ -222,16 +211,12 @@ def run_scenario(port: int) -> int:
             "chamber relay2 off",
         )
 
-        print(
-            f"[Multi-Provider Scenario] Warmup: hotend to 230C for {HOTEND_WARMUP_SEC:.0f}s"
-        )
+        print(f"[Multi-Provider Scenario] Warmup: hotend to 230C for {HOTEND_WARMUP_SEC:.0f}s")
         time.sleep(HOTEND_WARMUP_SEC)
 
         hotend_temp = _read_signal(extruder, "tempctl1", "tc1_temp")
         if abs(hotend_temp - 230.0) > 10.0:
-            raise RuntimeError(
-                f"Hotend failed warmup: tc1_temp={hotend_temp:.2f}C (expected within 10C of 230C)"
-            )
+            raise RuntimeError(f"Hotend failed warmup: tc1_temp={hotend_temp:.2f}C (expected within 10C of 230C)")
 
         baseline_avg, baseline_chamber_reads = average_material_window(
             extruder,
@@ -262,16 +247,12 @@ def run_scenario(port: int) -> int:
             "chamber set_setpoint 50",
         )
 
-        print(
-            f"[Multi-Provider Scenario] Warmup: chamber to 50C for {CHAMBER_WARMUP_SEC:.0f}s"
-        )
+        print(f"[Multi-Provider Scenario] Warmup: chamber to 50C for {CHAMBER_WARMUP_SEC:.0f}s")
         time.sleep(CHAMBER_WARMUP_SEC)
 
         chamber_temp = _read_signal(chamber, "tempctl0", "tc1_temp")
         if chamber_temp < 40.0:
-            raise RuntimeError(
-                f"Chamber did not warm as expected: tc1_temp={chamber_temp:.2f}C (expected >= 40C)"
-            )
+            raise RuntimeError(f"Chamber did not warm as expected: tc1_temp={chamber_temp:.2f}C (expected >= 40C)")
 
         coupled_avg, coupled_chamber_reads = average_material_window(
             extruder,
@@ -280,16 +261,13 @@ def run_scenario(port: int) -> int:
             SAMPLE_PERIOD_SEC,
         )
         print(
-            f"[Multi-Provider Scenario] Coupled material avg={coupled_avg:.2f}C "
-            f"(chamber reads={coupled_chamber_reads})"
+            f"[Multi-Provider Scenario] Coupled material avg={coupled_avg:.2f}C (chamber reads={coupled_chamber_reads})"
         )
 
         delta = coupled_avg - baseline_avg
         print(f"[Multi-Provider Scenario] Coupling delta={delta:.2f}C")
         if delta < 8.0:
-            raise RuntimeError(
-                f"Cross-provider coupling assertion failed: delta={delta:.2f}C (< 8.0C)"
-            )
+            raise RuntimeError(f"Cross-provider coupling assertion failed: delta={delta:.2f}C (< 8.0C)")
 
         print("[Multi-Provider Scenario] PASS: multi-provider coupling validated")
         return 0
@@ -314,9 +292,7 @@ def run_scenario(port: int) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run multi-provider FluxGraph scenario"
-    )
+    parser = argparse.ArgumentParser(description="Run multi-provider FluxGraph scenario")
     parser.add_argument(
         "--port",
         type=int,

@@ -34,12 +34,8 @@ def main() -> int:
         assert_ok(resp, "hello")
 
         assert resp.request_id == 1, f"request_id mismatch: {resp.request_id}"
-        assert resp.hello.protocol_version == "v1", (
-            f"protocol version mismatch: {resp.hello.protocol_version}"
-        )
-        assert resp.hello.provider_name == "anolis-provider-sim", (
-            f"provider name mismatch: {resp.hello.provider_name}"
-        )
+        assert resp.hello.protocol_version == "v1", f"protocol version mismatch: {resp.hello.protocol_version}"
+        assert resp.hello.provider_name == "anolis-provider-sim", f"provider name mismatch: {resp.hello.provider_name}"
 
         print("OK: Hello handshake successful", file=sys.stderr)
         return 0

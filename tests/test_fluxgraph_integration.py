@@ -64,8 +64,7 @@ def run_fluxgraph_integration(duration: int, port: int) -> int:
     try:
         if not server.wait_for_port("127.0.0.1", port, timeout=8.0):
             raise RuntimeError(
-                f"FluxGraph server did not listen on 127.0.0.1:{port} within timeout\n"
-                f"{server.output_tail(120)}"
+                f"FluxGraph server did not listen on 127.0.0.1:{port} within timeout\n{server.output_tail(120)}"
             )
 
         client = AdppClient(
@@ -110,9 +109,7 @@ def run_fluxgraph_integration(duration: int, port: int) -> int:
             max_temp = max(max_temp, current)
             samples += 1
             if current >= initial_temp + 1.0:
-                print(
-                    f"Observed temperature rise to {current:.2f} C after {samples} samples"
-                )
+                print(f"Observed temperature rise to {current:.2f} C after {samples} samples")
                 break
             time.sleep(0.5)
         else:

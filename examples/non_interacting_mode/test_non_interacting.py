@@ -41,14 +41,8 @@ ValueType = protocol.ValueType
 def run_non_interacting_example():
     # Find provider executable
     provider_paths = [
-        Path(__file__).parent.parent.parent
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
-        Path(__file__).parent.parent.parent
-        / "build-standalone"
-        / "Release"
-        / "anolis-provider-sim.exe",
+        Path(__file__).parent.parent.parent / "build" / "Release" / "anolis-provider-sim.exe",
+        Path(__file__).parent.parent.parent / "build-standalone" / "Release" / "anolis-provider-sim.exe",
         Path(__file__).parent.parent.parent / "build" / "anolis-provider-sim.exe",
     ]
 
@@ -127,9 +121,7 @@ def run_non_interacting_example():
 
         # Verify convergence
         if temps[-1] <= temps[0]:
-            print(
-                f"[FAIL] Temperature did not increase: {temps[0]:.1f} -> {temps[-1]:.1f}"
-            )
+            print(f"[FAIL] Temperature did not increase: {temps[0]:.1f} -> {temps[-1]:.1f}")
             return False
 
         if temps[-1] < 60.0:

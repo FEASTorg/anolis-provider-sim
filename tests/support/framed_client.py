@@ -69,8 +69,7 @@ class AdppClient:
     def send_request(self, request: Any) -> Any:
         if not self.is_running():
             raise RuntimeError(
-                f"Provider process exited before request send (code={self.process.poll()})\n"
-                f"{self.output_tail(100)}"
+                f"Provider process exited before request send (code={self.process.poll()})\n{self.output_tail(100)}"
             )
 
         payload = request.SerializeToString()
@@ -126,9 +125,7 @@ class AdppClient:
             request.read_signals.signal_ids.extend(signal_ids)
         return self.send_request(request)
 
-    def call_function(
-        self, device_id: str, function_id: int, args: dict[str, Any] | None = None
-    ) -> Any:
+    def call_function(self, device_id: str, function_id: int, args: dict[str, Any] | None = None) -> Any:
         request = self.protocol.Request(request_id=self._request_id())
         request.call.device_id = device_id
         request.call.function_id = function_id

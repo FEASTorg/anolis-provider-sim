@@ -44,9 +44,7 @@ def resolve_provider_executable(root: Path | None = None) -> Path:
             candidate = root / candidate
         if candidate.exists():
             return candidate.resolve()
-        raise FileNotFoundError(
-            f"ANOLIS_PROVIDER_SIM_EXE points to missing file: {candidate}"
-        )
+        raise FileNotFoundError(f"ANOLIS_PROVIDER_SIM_EXE points to missing file: {candidate}")
 
     candidates = [
         root / "build" / "Release" / "anolis-provider-sim.exe",
@@ -60,11 +58,7 @@ def resolve_provider_executable(root: Path | None = None) -> Path:
         root / "build" / "ci-linux-release" / "anolis-provider-sim",
         root / "build" / "ci-linux-release-strict" / "anolis-provider-sim",
         root / "build" / "ci-windows-release" / "Release" / "anolis-provider-sim.exe",
-        root
-        / "build"
-        / "ci-windows-release-strict"
-        / "Release"
-        / "anolis-provider-sim.exe",
+        root / "build" / "ci-windows-release-strict" / "Release" / "anolis-provider-sim.exe",
         root / "build" / "ci-linux-release-fluxgraph" / "anolis-provider-sim",
         root / "build" / "ci-linux-release-fluxgraph-strict" / "anolis-provider-sim",
     ]
@@ -73,9 +67,7 @@ def resolve_provider_executable(root: Path | None = None) -> Path:
             return candidate.resolve()
 
     candidate_text = "\n".join(f"  - {path}" for path in candidates)
-    raise FileNotFoundError(
-        "Could not find anolis-provider-sim executable. Checked:\n" + candidate_text
-    )
+    raise FileNotFoundError("Could not find anolis-provider-sim executable. Checked:\n" + candidate_text)
 
 
 def resolve_fluxgraph_server(root: Path | None = None) -> Path:
@@ -89,17 +81,11 @@ def resolve_fluxgraph_server(root: Path | None = None) -> Path:
             candidate = root / candidate
         if candidate.exists():
             return candidate.resolve()
-        raise FileNotFoundError(
-            f"FLUXGRAPH_SERVER_EXE points to missing file: {candidate}"
-        )
+        raise FileNotFoundError(f"FLUXGRAPH_SERVER_EXE points to missing file: {candidate}")
 
     fluxgraph_root = root.parent / "fluxgraph"
     candidates = [
-        fluxgraph_root
-        / "build-release-server"
-        / "server"
-        / "Release"
-        / "fluxgraph-server.exe",
+        fluxgraph_root / "build-release-server" / "server" / "Release" / "fluxgraph-server.exe",
         fluxgraph_root / "build-server" / "server" / "Release" / "fluxgraph-server.exe",
         fluxgraph_root / "build" / "server" / "Release" / "fluxgraph-server.exe",
         fluxgraph_root / "build-release-server" / "server" / "fluxgraph-server",
@@ -111,9 +97,7 @@ def resolve_fluxgraph_server(root: Path | None = None) -> Path:
             return candidate.resolve()
 
     candidate_text = "\n".join(f"  - {path}" for path in candidates)
-    raise FileNotFoundError(
-        "Could not find fluxgraph-server executable. Checked:\n" + candidate_text
-    )
+    raise FileNotFoundError("Could not find fluxgraph-server executable. Checked:\n" + candidate_text)
 
 
 def resolve_config_path(path: str | Path, root: Path | None = None) -> Path:

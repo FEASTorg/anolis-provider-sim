@@ -115,10 +115,7 @@ class ManagedTextProcess:
     def assert_running(self, context: str) -> None:
         if self.is_running():
             return
-        raise RuntimeError(
-            f"{self.name} exited early during {context} with code {self.poll()}\n"
-            f"{self.output_tail(80)}"
-        )
+        raise RuntimeError(f"{self.name} exited early during {context} with code {self.poll()}\n{self.output_tail(80)}")
 
     def output_tail(self, lines: int = 80) -> str:
         stdout_tail = self.stdout.tail(lines)

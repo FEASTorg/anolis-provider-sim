@@ -43,9 +43,7 @@ def find_fluxgraph_server():
     """Find FluxGraph server executable"""
     candidates = [
         Path("../../../fluxgraph/build-server/server/Release/fluxgraph-server.exe"),
-        Path(
-            "../../../fluxgraph/build-release-server/server/Release/fluxgraph-server.exe"
-        ),
+        Path("../../../fluxgraph/build-release-server/server/Release/fluxgraph-server.exe"),
         Path("../../../fluxgraph/build/server/Release/fluxgraph-server.exe"),
         Path("../../../fluxgraph/build-server/server/fluxgraph-server"),
         Path("../../../fluxgraph/build/server/fluxgraph-server"),
@@ -59,10 +57,7 @@ def find_fluxgraph_server():
 def find_provider():
     """Find provider executable"""
     candidates = [
-        Path(__file__).parent.parent.parent
-        / "build"
-        / "Release"
-        / "anolis-provider-sim.exe",
+        Path(__file__).parent.parent.parent / "build" / "Release" / "anolis-provider-sim.exe",
         Path(__file__).parent.parent.parent / "build" / "anolis-provider-sim.exe",
     ]
     for path in candidates:
@@ -84,9 +79,7 @@ def run_sim_example():
         print("\nThen run this test again.")
         return False
 
-    server = subprocess.Popen(
-        [server_exe, "--port", "50051"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    server = subprocess.Popen([server_exe, "--port", "50051"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     try:
         time.sleep(2.0)  # Let server start and bind port
@@ -118,9 +111,7 @@ def run_sim_example():
         # Check if provider is still running
         if provider.poll() is not None:
             stderr_pipe = provider.stderr
-            stderr_output = (
-                stderr_pipe.read().decode() if stderr_pipe is not None else ""
-            )
+            stderr_output = stderr_pipe.read().decode() if stderr_pipe is not None else ""
             print("[FAIL] Provider terminated unexpectedly:")
             print(stderr_output)
             return False
@@ -180,9 +171,7 @@ def run_sim_example():
             relay = values["relay1_state"].value.bool_value
 
             temps.append(tc1)
-            print(
-                f"  t={i * 1.5:.1f}s: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC, relay={'ON' if relay else 'OFF'}"
-            )
+            print(f"  t={i * 1.5:.1f}s: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC, relay={'ON' if relay else 'OFF'}")
 
         # Verify convergence
         if temps[-1] <= temps[0]:

@@ -215,17 +215,13 @@ def test_precondition_check(client: AdppClient, protocol) -> bool:
         },
     )
 
-    assert resp.status.code == 12, (
-        f"Expected CODE_FAILED_PRECONDITION (12), got {status_text(resp)}"
-    )
+    assert resp.status.code == 12, f"Expected CODE_FAILED_PRECONDITION (12), got {status_text(resp)}"
     print(f"OK: set_relay blocked as expected: {status_text(resp)}")
     return True
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="ADPP integration tests for anolis-provider-sim"
-    )
+    parser = argparse.ArgumentParser(description="ADPP integration tests for anolis-provider-sim")
     parser.add_argument(
         "--test",
         default="all",

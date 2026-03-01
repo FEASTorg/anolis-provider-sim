@@ -14,9 +14,7 @@ def status_text(resp: Any) -> str:
 def assert_status(resp: Any, expected_code: int, context: str) -> None:
     actual = resp.status.code
     if actual != expected_code:
-        raise AssertionError(
-            f"{context}: expected status {expected_code}, got {status_text(resp)}"
-        )
+        raise AssertionError(f"{context}: expected status {expected_code}, got {status_text(resp)}")
 
 
 def assert_ok(resp: Any, context: str) -> None:

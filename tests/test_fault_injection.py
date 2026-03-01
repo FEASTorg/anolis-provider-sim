@@ -97,22 +97,17 @@ def test_signal_fault(client: AdppClient, protocol) -> bool:
         f"Expected FAULT quality, got {protocol.SignalValue.Quality.Name(signal.quality)}"
     )
 
-    print(
-        f"  Faulted value={signal.value.double_value:.1f} C, initial={initial_value:.1f} C, quality={protocol.SignalValue.Quality.Name(signal.quality)}"
-    )
+    quality_name = protocol.SignalValue.Quality.Name(signal.quality)
+    print(f"  Faulted value={signal.value.double_value:.1f} C, initial={initial_value:.1f} C, quality={quality_name}")
 
     time.sleep(0.4)
 
     resp = client.read_signals("tempctl0", ["tc1_temp"])
     assert_ok(resp, "read recovered tc1_temp")
     recovered = require_signal(resp, "tc1_temp")
-    assert recovered.quality != expected_fault, (
-        "Quality should recover after expiration"
-    )
+    assert recovered.quality != expected_fault, "Quality should recover after expiration"
 
-    print(
-        f"OK: Signal quality recovered to {protocol.SignalValue.Quality.Name(recovered.quality)}"
-    )
+    print(f"OK: Signal quality recovered to {protocol.SignalValue.Quality.Name(recovered.quality)}")
     return True
 
 
@@ -149,9 +144,7 @@ def test_call_latency(client: AdppClient, protocol) -> bool:
     injected_ms = (time.time() - start) * 1000
 
     added_latency = injected_ms - baseline_ms
-    assert added_latency >= 180, (
-        f"Expected ~200ms added latency, got {added_latency:.1f}ms"
-    )
+    assert added_latency >= 180, f"Expected ~200ms added latency, got {added_latency:.1f}ms"
 
     resp = client.call_function("chaos_control", 5, {})
     assert_ok(resp, "clear_faults")
@@ -166,9 +159,7 @@ def test_call_latency(client: AdppClient, protocol) -> bool:
     cleared_ms = (time.time() - start) * 1000
     assert cleared_ms < baseline_ms + 50, "Latency should be removed after clear_faults"
 
-    print(
-        f"OK: baseline={baseline_ms:.1f}ms injected={injected_ms:.1f}ms cleared={cleared_ms:.1f}ms"
-    )
+    print(f"OK: baseline={baseline_ms:.1f}ms injected={injected_ms:.1f}ms cleared={cleared_ms:.1f}ms")
     return True
 
 
@@ -327,9 +318,7 @@ def _new_client(protocol, exe_path, config_path) -> AdppClient:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Fault injection tests for anolis-provider-sim"
-    )
+    parser = argparse.ArgumentParser(description="Fault injection tests for anolis-provider-sim")
     parser.add_argument(
         "--test",
         default="all",

@@ -13,9 +13,7 @@ from support.framed_client import AdppClient, make_string_value
 from support.proto_bootstrap import load_protocol_module
 
 
-def test_multi_instance_independence(
-    protocol, exe_path: Path, config_path: Path
-) -> bool:
+def test_multi_instance_independence(protocol, exe_path: Path, config_path: Path) -> bool:
     """Verify tempctl0 and tempctl1 maintain independent control state."""
     print("=== Test: Multi-Instance Device Independence ===")
     print(f"Provider: {exe_path}")
@@ -110,9 +108,7 @@ def test_multi_instance_independence(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Test multi-instance behavior for anolis-provider-sim"
-    )
+    parser = argparse.ArgumentParser(description="Test multi-instance behavior for anolis-provider-sim")
     parser.add_argument(
         "--exe",
         help="Path to anolis-provider-sim executable (optional; auto-detect if omitted)",
