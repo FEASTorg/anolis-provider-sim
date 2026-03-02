@@ -142,42 +142,18 @@ simulation:
 
 `physics_config` points to a FluxGraph graph file (for example `config/multi-provider-extrusion.yaml` or `examples/sim_mode/physics.yaml`).
 
-Provider-sim does not define this schema; FluxGraph owns it. In this repository the file shape is top-level:
+Provider-sim does not define or validate the FluxGraph graph schema. It only
+passes the file path/content through to FluxGraph and consumes resulting signal
+updates/commands.
 
-- `models`
-- `edges`
-- `rules`
-
-Example excerpt:
-
-```yaml
-models:
-  - id: chamber_thermal
-    type: thermal_mass
-    params:
-      temp_signal: chamber_thermal.temperature
-      power_signal: chamber_thermal.heat_input
-      ambient_signal: chamber_thermal.ambient_temp
-      thermal_mass: 300.0
-      heat_transfer_coeff: 3.0
-      initial_temp: 25.0
-
-edges:
-  - source: chamber/relay1_state
-    target: chamber_thermal.heat_input
-    transform:
-      type: linear
-      params:
-        scale: 1000.0
-        offset: 0.0
-
-rules: []
-```
-
-See:
+Use these files for concrete examples in this repo:
 
 - [examples/sim_mode/physics.yaml](../examples/sim_mode/physics.yaml)
 - [config/multi-provider-extrusion.yaml](../config/multi-provider-extrusion.yaml)
+
+Use FluxGraph docs as the authoritative schema source:
+
+- `https://github.com/FEASTorg/fluxgraph/blob/main/docs/schema-yaml.md`
 
 ## Runtime Integration
 

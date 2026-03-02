@@ -65,10 +65,11 @@ return internal_state[signal_id];
 
 ## Signal Routing
 
-Declarative in physics config:
+In `mode=sim`, routing is declarative in the FluxGraph graph file referenced by
+`simulation.physics_config` (provider config only carries the path).
 
 ```yaml
-signal_graph:
+edges:
   - source: device_a/actuator # Read from device
     target: model_b/input # Write to model
     transform: { type: linear, scale: 100.0 }
@@ -78,15 +79,20 @@ signal_graph:
     transform: { type: first_order_lag, tau_s: 2.0 }
 ```
 
-Physics engine processes edges in declaration order. Device reads from registry return physics-computed values.
+FluxGraph processes this schema; provider-sim does not define or validate it.
+See FluxGraph docs for authoritative schema details (`docs/schema-yaml.md` in
+the FluxGraph repository).
+
+Device reads from the registry return physics-computed values when the signal
+is marked physics-driven.
 
 ## Extension Points
 
-**Adding transforms:** Implement in `SimPhysics::apply_transform()`, add state struct, handle in ticker loop.
+**Adding graph transforms/models/rules:** update the FluxGraph graph and
+FluxGraph runtime as needed.
 
-**Adding models:** Implement `PhysicsModel` interface, register in `create_model()` factory.
-
-**Adding devices:** Include registry check in `read_signals()` implementation.
+**Adding devices:** include registry checks in device `read_signals()`
+implementations.
 
 ## Benefits
 

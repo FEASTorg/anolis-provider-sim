@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <filesystem>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -74,69 +73,37 @@ static void rebuild_physics_output_paths(
     const std::vector<std::string> &active_device_ids) {
   g_physics_output_paths.clear();
 
-  // Sim mode: query the engine directly - it already parsed FluxGraph config
-  if (provider_config.simulation_mode ==
+  if (provider_config.simulation_mode !=
       anolis_provider_sim::SimulationMode::Sim) {
-    if (g_simulation_engine) {
-      std::set<std::string> known_device_ids;
-      for (const auto &device_id : active_device_ids) {
-        known_device_ids.insert(device_id);
-      }
-
-      auto signal_paths = g_simulation_engine->list_signals();
-      for (const auto &path : signal_paths) {
-        // Filter to only signals owned by our devices
-        const auto slash = path.find('/');
-        if (slash != std::string::npos) {
-          std::string device_id = path.substr(0, slash);
-          if (known_device_ids.count(device_id) > 0) {
-            g_physics_output_paths.push_back(path);
-            if (g_signal_registry) {
-              g_signal_registry->mark_physics_driven(path);
-            }
-          }
-        }
-      }
-    }
     return;
   }
 
-  // Non-interacting mode: parse legacy format physics config
-  if (!provider_config.physics_config_path) {
+  // Sim mode: query the engine directly - FluxGraph owns graph parsing.
+  if (!g_simulation_engine) {
     return;
   }
-
-  std::filesystem::path config_dir =
-      std::filesystem::path(provider_config.config_file_path).parent_path();
-  std::filesystem::path physics_path =
-      config_dir / *provider_config.physics_config_path;
-
-  auto physics_cfg =
-      anolis_provider_sim::load_physics_config(physics_path.string());
 
   std::set<std::string> known_device_ids;
-  std::set<std::string> seen_paths;
   for (const auto &device_id : active_device_ids) {
     known_device_ids.insert(device_id);
   }
 
-  for (const auto &edge : physics_cfg.signal_graph) {
-    const auto slash = edge.target.find('/');
+  auto signal_paths = g_simulation_engine->list_signals();
+  for (const auto &path : signal_paths) {
+    // Filter to only signals owned by successfully initialized devices.
+    const auto slash = path.find('/');
     if (slash == std::string::npos) {
       continue;
     }
 
-    const std::string target_device = edge.target.substr(0, slash);
-    if (known_device_ids.count(target_device) == 0) {
-      continue;
-    }
-    if (!seen_paths.insert(edge.target).second) {
+    const std::string device_id = path.substr(0, slash);
+    if (known_device_ids.count(device_id) == 0) {
       continue;
     }
 
-    g_physics_output_paths.push_back(edge.target);
+    g_physics_output_paths.push_back(path);
     if (g_signal_registry) {
-      g_signal_registry->mark_physics_driven(edge.target);
+      g_signal_registry->mark_physics_driven(path);
     }
   }
 }

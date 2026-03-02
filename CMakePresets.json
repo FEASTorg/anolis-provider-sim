@@ -24,9 +24,12 @@
       "hidden": true,
       "inherits": "base",
       "generator": "Visual Studio 17 2022",
+      "toolset": "v143",
       "architecture": "x64",
       "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x64-windows"
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-v143",
+        "VCPKG_HOST_TRIPLET": "x64-windows-v143"
       }
     },
     {
@@ -108,8 +111,22 @@
       }
     },
     {
+      "name": "ci-windows-release-fluxgraph",
+      "inherits": "ci-windows-release",
+      "cacheVariables": {
+        "ENABLE_FLUXGRAPH": "ON"
+      }
+    },
+    {
       "name": "ci-linux-release-fluxgraph-strict",
       "inherits": "ci-linux-release-fluxgraph",
+      "cacheVariables": {
+        "ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-windows-release-fluxgraph-strict",
+      "inherits": "ci-windows-release-fluxgraph",
       "cacheVariables": {
         "ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS": "ON"
       }
@@ -166,8 +183,18 @@
       "configurePreset": "ci-linux-release-fluxgraph"
     },
     {
+      "name": "ci-windows-release-fluxgraph",
+      "configurePreset": "ci-windows-release-fluxgraph",
+      "configuration": "Release"
+    },
+    {
       "name": "ci-linux-release-fluxgraph-strict",
       "configurePreset": "ci-linux-release-fluxgraph-strict"
+    },
+    {
+      "name": "ci-windows-release-fluxgraph-strict",
+      "configurePreset": "ci-windows-release-fluxgraph-strict",
+      "configuration": "Release"
     }
   ],
   "testPresets": [
@@ -254,8 +281,24 @@
       }
     },
     {
+      "name": "ci-windows-release-fluxgraph",
+      "configurePreset": "ci-windows-release-fluxgraph",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
       "name": "ci-linux-release-fluxgraph-strict",
       "configurePreset": "ci-linux-release-fluxgraph-strict",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-windows-release-fluxgraph-strict",
+      "configurePreset": "ci-windows-release-fluxgraph-strict",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }

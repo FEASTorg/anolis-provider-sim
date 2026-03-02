@@ -7,6 +7,7 @@ This demo runs two provider instances against one FluxGraph server and validates
 - Chamber provider: `config/provider-chamber.yaml`
 - Extruder provider: `config/provider-extruder.yaml`
 - Shared FluxGraph graph: `config/multi-provider-extrusion.yaml`
+- Graph schema authority: FluxGraph (`docs/schema-yaml.md` in the FluxGraph repo)
 
 ## What to Observe
 

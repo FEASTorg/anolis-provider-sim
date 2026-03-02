@@ -22,55 +22,6 @@ enum class StartupPolicy {
   Degraded, // Continue with successfully initialized devices
 };
 
-// Transform primitive type
-enum class TransformType {
-  FirstOrderLag,
-  Noise,
-  Saturation,
-  Linear,
-  Deadband,
-  RateLimiter,
-  Delay,
-  MovingAverage
-};
-
-// Graph edge with optional transform
-struct GraphEdge {
-  std::string source; // device_id/signal_id or model_id/signal_id
-  std::string target; // model_id/signal_id
-  std::optional<TransformType> transform_type;
-  std::map<std::string, YAML::Node> transform_params;
-};
-
-// Physics model specification
-struct PhysicsModelSpec {
-  std::string id;
-  std::string type;
-  std::map<std::string, YAML::Node> params;
-};
-
-// Rule action
-struct RuleAction {
-  std::string device_id;
-  std::string function_name;
-  std::map<std::string, YAML::Node> args;
-};
-
-// Rule specification
-struct RuleSpec {
-  std::string id;
-  std::string condition; // Simple comparison format
-  std::vector<RuleAction> actions;
-  std::string on_error; // Currently only supports on_error='log_and_continue'
-};
-
-// Physics configuration
-struct PhysicsConfig {
-  std::vector<GraphEdge> signal_graph;
-  std::vector<PhysicsModelSpec> models;
-  std::vector<RuleSpec> rules;
-};
-
 // Specification for a single device from config
 struct DeviceSpec {
   std::string id;   // Device identifier (used by behavior tree)
@@ -95,10 +46,6 @@ struct ProviderConfig {
 // Load provider configuration from YAML file
 // Throws std::runtime_error if file cannot be read, parsed, or validated
 ProviderConfig load_config(const std::string &path);
-
-// Load physics configuration from YAML file
-// Throws std::runtime_error if file cannot be read, parsed, or validated
-PhysicsConfig load_physics_config(const std::string &path);
 
 // Parse simulation mode from string
 // Throws std::runtime_error if mode is invalid

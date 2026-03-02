@@ -7,6 +7,7 @@ This document defines provider-sim policy for dependencies, CI lane tiers, prese
 1. `vcpkg-configuration.json` is the baseline source of truth.
 2. Lockfile pinning is deferred for now.
 3. Determinism is enforced via baseline pinning plus reviewed `vcpkg.json` changes.
+4. Windows builds use pinned MSVC/vcpkg ABI settings via `x64-windows-v143` overlay triplet.
 
 ## Python Dependency Policy
 
@@ -26,6 +27,7 @@ This document defines provider-sim policy for dependencies, CI lane tiers, prese
   - Linux release (`fluxgraph OFF`)
   - Windows release (`fluxgraph OFF`)
   - Linux release (`fluxgraph ON`)
+  - Windows release (`fluxgraph ON`, build validation)
 - **Nightly/optional**:
   - heavy sanitizer/stress lanes
 
@@ -40,7 +42,7 @@ During migration to presets/new CI paths:
 
 Baseline names:
 - `dev-debug`, `dev-release`, `ci-linux-release`, `ci-windows-release`
-- feature extension lane: `ci-linux-release-fluxgraph`
+- feature extension lanes: `ci-linux-release-fluxgraph`, `ci-windows-release-fluxgraph`
 
 Rules:
 1. CI jobs should call presets directly.

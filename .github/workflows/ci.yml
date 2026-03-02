@@ -212,6 +212,54 @@ jobs:
         shell: pwsh
         run: ctest --preset "${{ matrix.test_preset }}" -L provider
 
+  windows-fluxgraph-build:
+    name: Windows Release (FluxGraph ON, strict build)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout provider-sim
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Resolve FluxGraph pin
+        id: pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          FLUXGRAPH_REPO=$(awk '/^fluxgraph:/{f=1; next} f && /repository:/{print $2; exit}' .ci/dependency-pins.yml)
+          FLUXGRAPH_REF=$(awk '/^fluxgraph:/{f=1; next} f && /ref:/{print $2; exit}' .ci/dependency-pins.yml)
+          if [ -z "$FLUXGRAPH_REPO" ] || [ -z "$FLUXGRAPH_REF" ]; then
+            echo "Failed to resolve FluxGraph pin from .ci/dependency-pins.yml" >&2
+            exit 1
+          fi
+          echo "repo=$FLUXGRAPH_REPO" >> "$GITHUB_OUTPUT"
+          echo "ref=$FLUXGRAPH_REF" >> "$GITHUB_OUTPUT"
+          echo "Using FluxGraph pin: $FLUXGRAPH_REPO@$FLUXGRAPH_REF"
+
+      - name: Checkout FluxGraph
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pins.outputs.repo }}
+          ref: ${{ steps.pins.outputs.ref }}
+          path: fluxgraph
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+          doNotCache: false
+
+      - name: Build provider-sim (FluxGraph ON)
+        shell: pwsh
+        run: |
+          cmake --preset "ci-windows-release-fluxgraph-strict" -DFLUXGRAPH_DIR="$env:GITHUB_WORKSPACE/fluxgraph"
+          cmake --build --preset "ci-windows-release-fluxgraph-strict" --parallel
+
   linux-fluxgraph:
     name: ${{ matrix.lane }}
     runs-on: ubuntu-24.04

@@ -6,6 +6,7 @@ This demo uses one provider instance (`tempctl0`) with external FluxGraph simula
 
 - Provider config: `config/provider-chamber.yaml`
 - FluxGraph graph: `config/multi-provider-extrusion.yaml`
+- Graph schema authority: FluxGraph (`docs/schema-yaml.md` in the FluxGraph repo)
 
 ## What to Observe
 

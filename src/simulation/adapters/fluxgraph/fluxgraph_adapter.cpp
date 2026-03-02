@@ -31,8 +31,7 @@ void FluxGraphAdapter::load_config(const std::string &config_path) {
   output_paths_.clear();
   std::set<std::string> dedup;
 
-  // Parse YAML to extract edge targets (FluxGraph format uses "edges" not
-  // "signal_graph")
+  // Parse YAML to extract edge targets from FluxGraph's graph schema.
   YAML::Node root = YAML::LoadFile(config_path);
   if (root["edges"] && root["edges"].IsSequence()) {
     for (const auto &edge : root["edges"]) {

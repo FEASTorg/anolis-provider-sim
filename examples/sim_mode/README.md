@@ -30,6 +30,7 @@ Windows:
 ## Graph Schema Note
 
 The file `physics.yaml` is a FluxGraph graph config (top-level `models`, `edges`, `rules`).
+Provider-sim does not define this schema; see FluxGraph docs (`docs/schema-yaml.md` in the FluxGraph repo).
 
 ## Related
 

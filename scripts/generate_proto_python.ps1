@@ -32,11 +32,54 @@ Write-Host "Generating Python protobuf bindings..." -ForegroundColor Cyan
 # Find protoc - check PATH first, then vcpkg installation
 $protoc = Get-Command protoc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 if (-not $protoc) {
-    # Check vcpkg installed location under selected output dir, then default build dir.
-    $vcpkgCandidates = @(
-        (Join-Path $outputDir "vcpkg_installed\x64-windows\tools\protobuf\protoc.exe"),
-        (Join-Path $repoRoot "build\vcpkg_installed\x64-windows\tools\protobuf\protoc.exe")
+    # Resolve triplet candidates from CMake cache/env, then probe common fallbacks.
+    $triplets = @()
+    $cacheCandidates = @(
+        (Join-Path $outputDir "CMakeCache.txt"),
+        (Join-Path $repoRoot "build\CMakeCache.txt")
     )
+    foreach ($cachePath in $cacheCandidates) {
+        if (-not (Test-Path $cachePath)) {
+            continue
+        }
+        $tripletLine = Select-String -Path $cachePath -Pattern '^VCPKG_TARGET_TRIPLET:STRING=(.+)$' | Select-Object -First 1
+        if ($tripletLine) {
+            $cacheTriplet = $tripletLine.Matches[0].Groups[1].Value.Trim()
+            if ($cacheTriplet -and ($triplets -notcontains $cacheTriplet)) {
+                $triplets += $cacheTriplet
+            }
+        }
+    }
+
+    if ($env:VCPKG_DEFAULT_TRIPLET -and ($triplets -notcontains $env:VCPKG_DEFAULT_TRIPLET)) {
+        $triplets += $env:VCPKG_DEFAULT_TRIPLET
+    }
+    foreach ($defaultTriplet in @("x64-windows-v143", "x64-windows")) {
+        if ($triplets -notcontains $defaultTriplet) {
+            $triplets += $defaultTriplet
+        }
+    }
+
+    $vcpkgCandidates = @()
+    foreach ($triplet in $triplets) {
+        $vcpkgCandidates += (Join-Path $outputDir "vcpkg_installed\$triplet\tools\protobuf\protoc.exe")
+        $vcpkgCandidates += (Join-Path $repoRoot "build\vcpkg_installed\$triplet\tools\protobuf\protoc.exe")
+    }
+    foreach ($vcpkgRoot in @(
+            (Join-Path $outputDir "vcpkg_installed"),
+            (Join-Path $repoRoot "build\vcpkg_installed")
+        )) {
+        if (-not (Test-Path $vcpkgRoot)) {
+            continue
+        }
+        foreach ($tripletDir in (Get-ChildItem -Path $vcpkgRoot -Directory -ErrorAction SilentlyContinue)) {
+            $candidate = Join-Path $tripletDir.FullName "tools\protobuf\protoc.exe"
+            if ($vcpkgCandidates -notcontains $candidate) {
+                $vcpkgCandidates += $candidate
+            }
+        }
+    }
+
     foreach ($candidate in $vcpkgCandidates) {
         if (Test-Path $candidate) {
             $protoc = $candidate
@@ -47,6 +90,7 @@ if (-not $protoc) {
 
     if (-not $protoc) {
         Write-Host "ERROR: protoc not found in PATH or vcpkg installation" -ForegroundColor Red
+        Write-Host "  Checked triplets: $($triplets -join ', ')" -ForegroundColor Yellow
         Write-Host "Install Protocol Buffers compiler from: https://github.com/protocolbuffers/protobuf/releases" -ForegroundColor Yellow
         exit 1
     }
