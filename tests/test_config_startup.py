@@ -233,9 +233,7 @@ def test_degraded_startup_continue(provider_exe: Path) -> None:
             health_map = {entry.device_id: entry for entry in health.get_health.devices}
             assert "bad0" in health_map, "Missing failed device bad0 in get_health"
             bad_state_name = protocol.DeviceHealth.State.Name(health_map["bad0"].state)
-            assert bad_state_name == "STATE_UNREACHABLE", (
-                f"Expected bad0 STATE_UNREACHABLE, got {bad_state_name}"
-            )
+            assert bad_state_name == "STATE_UNREACHABLE", f"Expected bad0 STATE_UNREACHABLE, got {bad_state_name}"
             assert "startup initialization failed" in health_map["bad0"].message
 
             time.sleep(0.1)
