@@ -70,7 +70,8 @@ static void cache_device_capabilities() {
 }
 
 static void rebuild_physics_output_paths(
-    const anolis_provider_sim::ProviderConfig &provider_config) {
+    const anolis_provider_sim::ProviderConfig &provider_config,
+    const std::vector<std::string> &active_device_ids) {
   g_physics_output_paths.clear();
 
   // Sim mode: query the engine directly - it already parsed FluxGraph config
@@ -78,8 +79,8 @@ static void rebuild_physics_output_paths(
       anolis_provider_sim::SimulationMode::Sim) {
     if (g_simulation_engine) {
       std::set<std::string> known_device_ids;
-      for (const auto &dev : provider_config.devices) {
-        known_device_ids.insert(dev.id);
+      for (const auto &device_id : active_device_ids) {
+        known_device_ids.insert(device_id);
       }
 
       auto signal_paths = g_simulation_engine->list_signals();
@@ -115,8 +116,8 @@ static void rebuild_physics_output_paths(
 
   std::set<std::string> known_device_ids;
   std::set<std::string> seen_paths;
-  for (const auto &dev : provider_config.devices) {
-    known_device_ids.insert(dev.id);
+  for (const auto &device_id : active_device_ids) {
+    known_device_ids.insert(device_id);
   }
 
   for (const auto &edge : physics_cfg.signal_graph) {
@@ -184,28 +185,13 @@ static void configure_simulation_inputs(
     return;
   }
 
-  const auto ambient_it = provider_config.simulation.find("ambient_temp_c");
-  if (ambient_it == provider_config.simulation.end()) {
+  if (!provider_config.ambient_temp_c) {
     return;
   }
-
-  double ambient_temp = 0.0;
-  try {
-    ambient_temp = ambient_it->second.as<double>();
-  } catch (const YAML::Exception &) {
-    throw std::runtime_error(
-        "[CONFIG] simulation.ambient_temp_c must be numeric");
-  }
-
+  const double ambient_temp = *provider_config.ambient_temp_c;
   std::string ambient_path = "environment/ambient_temp";
-  const auto path_it = provider_config.simulation.find("ambient_signal_path");
-  if (path_it != provider_config.simulation.end()) {
-    try {
-      ambient_path = path_it->second.as<std::string>();
-    } catch (const YAML::Exception &) {
-      throw std::runtime_error(
-          "[CONFIG] simulation.ambient_signal_path must be a string");
-    }
+  if (provider_config.ambient_signal_path) {
+    ambient_path = *provider_config.ambient_signal_path;
   }
 
   if (ambient_path.empty()) {
@@ -376,7 +362,8 @@ static void ticker_thread_func(double tick_rate_hz) {
 // -----------------------------
 
 void initialize_physics(
-    const anolis_provider_sim::ProviderConfig &provider_config) {
+    const anolis_provider_sim::ProviderConfig &provider_config,
+    const std::vector<std::string> &active_device_ids) {
   g_sim_mode = provider_config.simulation_mode;
   g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
   configure_simulation_inputs(provider_config);
@@ -416,7 +403,7 @@ void initialize_physics(
       });
 
   cache_device_capabilities();
-  rebuild_physics_output_paths(provider_config);
+  rebuild_physics_output_paths(provider_config, active_device_ids);
 }
 
 void start_physics() {

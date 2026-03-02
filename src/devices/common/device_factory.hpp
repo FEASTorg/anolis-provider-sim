@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
@@ -16,6 +17,18 @@ struct DeviceRegistryEntry {
   std::map<std::string, YAML::Node> config; // Device-specific config
 };
 
+struct DeviceInitFailure {
+  std::string device_id;
+  std::string type;
+  std::string reason;
+};
+
+struct DeviceInitializationReport {
+  std::size_t configured_device_count = 0;
+  std::vector<std::string> successful_device_ids;
+  std::vector<DeviceInitFailure> failed_devices;
+};
+
 // Device Factory - manages device creation and initialization from config
 class DeviceFactory {
 public:
@@ -24,8 +37,12 @@ public:
   static bool initialize_device(const DeviceSpec &spec);
 
   // Initialize all devices from provider config
-  // Returns number of devices successfully initialized
-  static int initialize_from_config(const ProviderConfig &config);
+  // Startup policy determines strict vs degraded behavior.
+  static DeviceInitializationReport
+  initialize_from_config(const ProviderConfig &config);
+
+  // Last startup report (for health/diagnostics)
+  static DeviceInitializationReport get_initialization_report();
 
   // Get list of registered device IDs and types
   static std::vector<DeviceRegistryEntry> get_registered_devices();

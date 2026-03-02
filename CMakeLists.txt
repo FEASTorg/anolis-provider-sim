@@ -263,6 +263,17 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME provider.config_startup
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_config_startup.py --test all
+    )
+    set_tests_properties(provider.config_startup PROPERTIES
+        LABELS "provider;integration;config"
+        FIXTURES_REQUIRED proto_python
+        TIMEOUT 120
+        ENVIRONMENT "${_provider_test_env}"
+    )
+
+    add_test(
         NAME provider.adpp
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_adpp_integration.py --test all
     )

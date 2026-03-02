@@ -24,6 +24,14 @@ Preferred (via CTest wrappers):
 - Linux/macOS: `bash ./scripts/test.sh --preset dev-release --suite all`
 - Windows: `pwsh ./scripts/test.ps1 -Preset dev-windows-release -Suite all`
 
+Targeted suites:
+- `smoke`: hello handshake baseline
+- `config`: config parser + startup policy validation (`tests/test_config_startup.py`)
+- `adpp`: protocol surface integration checks
+- `multi`: multi-instance behavior
+- `fault`: chaos fault-injection behavior
+- `fluxgraph`: FluxGraph integration scenarios (FluxGraph-enabled builds only)
+
 Direct script invocation requires generated Python protobuf bindings (`protocol_pb2.py`) in the chosen build directory.
 
 Generate bindings:

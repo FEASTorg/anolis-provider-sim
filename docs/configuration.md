@@ -16,6 +16,8 @@ This document defines the `anolis-provider-sim` YAML configuration used at proce
 provider:              # Optional
   name: chamber-provider
 
+startup_policy: strict # Optional: strict | degraded (default: strict)
+
 devices:               # Recommended (can be empty)
   - id: tempctl0
     type: tempctl
@@ -51,6 +53,13 @@ Supported type options:
 
 `chaos_control` is always added automatically and must not be configured in `devices`.
 
+### `startup_policy` (optional)
+
+Controls startup behavior when one or more configured devices fail to initialize.
+
+- `strict` (default): abort startup on first initialization failure
+- `degraded`: continue startup with successfully initialized devices only
+
 ### `simulation` (required)
 
 `simulation.mode` is required and must be one of:
@@ -72,6 +81,7 @@ Additional notes:
 - `tick_rate_hz` range: `[0.1, 1000.0]`
 - `physics_config` is resolved relative to the provider config file directory
 - `sim` mode requires a FluxGraph-enabled build (`ENABLE_FLUXGRAPH=ON`)
+- Removed keys (hard errors): `noise_enabled`, `update_rate_hz`
 
 ## Example Configs In-Repo
 
@@ -184,11 +194,15 @@ The runtime does not parse provider YAML content.
 
 ## Startup Behavior
 
-Current behavior is fail-fast:
+Startup behavior is policy-controlled:
 
-- Invalid YAML/schema -> startup failure
-- Unknown device type or invalid device parameter -> startup failure
-- Device initialization exception -> startup failure
+- Config/schema errors are always fail-fast:
+  - invalid YAML/schema
+  - duplicate `devices[].id`
+  - invalid simulation key matrix
+- Device initialization failures:
+  - `startup_policy=strict`: fail-fast
+  - `startup_policy=degraded`: startup continues with successful devices only
 
 ## Validation Commands
 

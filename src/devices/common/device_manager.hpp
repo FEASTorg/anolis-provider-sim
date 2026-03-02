@@ -22,7 +22,8 @@ using anolis::deviceprovider::v1::Value;
 // ---- Physics engine management ----
 
 void initialize_physics(
-    const anolis_provider_sim::ProviderConfig &provider_config);
+    const anolis_provider_sim::ProviderConfig &provider_config,
+    const std::vector<std::string> &active_device_ids);
 void start_physics();
 void stop_physics();
 void set_simulation_engine(

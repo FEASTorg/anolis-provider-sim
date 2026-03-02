@@ -6,14 +6,14 @@
 #
 # Options:
 #   -Preset <name>      Test preset (default: dev-windows-release on Windows, dev-release otherwise)
-#   -Suite <name>       all|smoke|adpp|multi|fault|fluxgraph (default: all)
+#   -Suite <name>       all|smoke|config|adpp|multi|fault|fluxgraph (default: all)
 #   -VerboseOutput      Run ctest with -VV
 #   -Help               Show help
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Preset = "",
-    [ValidateSet("all", "smoke", "adpp", "multi", "fault", "fluxgraph")]
+    [ValidateSet("all", "smoke", "config", "adpp", "multi", "fault", "fluxgraph")]
     [string]$Suite = "all",
     [switch]$VerboseOutput,
     [switch]$Help,

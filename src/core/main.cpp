@@ -108,10 +108,22 @@ int main(int argc, char **argv) {
     log_err("loading configuration from: " + *config_path);
     config = anolis_provider_sim::load_config(*config_path);
 
-    int initialized =
+    const auto init_report =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
-    log_err("initialized " + std::to_string(initialized) +
-            " devices from config");
+    log_err("startup_policy=" +
+            std::string(config.startup_policy ==
+                                anolis_provider_sim::StartupPolicy::Strict
+                            ? "strict"
+                            : "degraded"));
+    log_err("initialized " +
+            std::to_string(init_report.successful_device_ids.size()) + " / " +
+            std::to_string(init_report.configured_device_count) + " devices");
+    if (!init_report.failed_devices.empty()) {
+      for (const auto &failure : init_report.failed_devices) {
+        log_err("degraded init failure: device_id=" + failure.device_id +
+                " type=" + failure.type + " reason=" + failure.reason);
+      }
+    }
 
     if (config.simulation_mode != anolis_provider_sim::SimulationMode::Sim &&
         sim_server_address) {
@@ -131,15 +143,10 @@ int main(int argc, char **argv) {
       engine->initialize("");
     }
 
-    std::vector<std::string> device_ids;
-    device_ids.reserve(config.devices.size());
-    for (const auto &device : config.devices) {
-      device_ids.push_back(device.id);
-    }
-    engine->register_devices(device_ids);
+    engine->register_devices(init_report.successful_device_ids);
 
     sim_devices::set_simulation_engine(std::move(engine));
-    sim_devices::initialize_physics(config);
+    sim_devices::initialize_physics(config, init_report.successful_device_ids);
 
     // Start physics automatically for non-interacting mode only.
     // For sim mode, wait_ready() will start physics after all providers

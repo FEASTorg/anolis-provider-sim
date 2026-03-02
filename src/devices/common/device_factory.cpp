@@ -13,6 +13,7 @@ namespace anolis_provider_sim {
 // Static registry
 static std::map<std::string, DeviceRegistryEntry> g_device_registry;
 static bool g_config_loaded = false;
+static DeviceInitializationReport g_init_report;
 
 // Helper: Parse double from config map
 static std::optional<double>
@@ -134,21 +135,53 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
   }
 }
 
-int DeviceFactory::initialize_from_config(const ProviderConfig &config) {
+DeviceInitializationReport
+DeviceFactory::initialize_from_config(const ProviderConfig &config) {
   g_device_registry.clear();
-  int success_count = 0;
+  g_config_loaded = false;
+  g_init_report = {};
+  g_init_report.configured_device_count = config.devices.size();
 
   for (const auto &spec : config.devices) {
-    if (initialize_device(spec)) {
-      success_count++;
+    std::optional<std::string> failure_reason;
+    try {
+      if (initialize_device(spec)) {
+        g_init_report.successful_device_ids.push_back(spec.id);
+      } else {
+        failure_reason = "[DeviceFactory] initialize_device returned false";
+      }
+    } catch (const std::exception &e) {
+      failure_reason = e.what();
+    }
+
+    if (!failure_reason) {
+      continue;
+    }
+
+    g_init_report.failed_devices.push_back(
+        DeviceInitFailure{spec.id, spec.type, *failure_reason});
+    std::cerr << "[DeviceFactory] Failed to initialize device '" << spec.id
+              << "' (type: " << spec.type << "): " << *failure_reason << "\n";
+
+    if (config.startup_policy == StartupPolicy::Strict) {
+      g_device_registry.clear();
+      throw std::runtime_error(
+          "[DeviceFactory] startup_policy=strict: failed to initialize '" +
+          spec.id + "' (type: " + spec.type + "): " + *failure_reason);
     }
   }
 
   g_config_loaded = true;
-  std::cerr << "[DeviceFactory] Initialized " << success_count << " / "
-            << config.devices.size() << " devices" << std::endl;
+  std::cerr << "[DeviceFactory] Initialized "
+            << g_init_report.successful_device_ids.size() << " / "
+            << config.devices.size() << " devices";
+  if (!g_init_report.failed_devices.empty()) {
+    std::cerr << " (degraded: " << g_init_report.failed_devices.size()
+              << " failed)";
+  }
+  std::cerr << std::endl;
 
-  return success_count;
+  return g_init_report;
 }
 
 std::vector<DeviceRegistryEntry> DeviceFactory::get_registered_devices() {
@@ -174,8 +207,13 @@ std::string DeviceFactory::get_device_type(const std::string &device_id) {
 void DeviceFactory::reset() {
   g_device_registry.clear();
   g_config_loaded = false;
+  g_init_report = {};
 }
 
 bool DeviceFactory::is_config_loaded() { return g_config_loaded; }
+
+DeviceInitializationReport DeviceFactory::get_initialization_report() {
+  return g_init_report;
+}
 
 } // namespace anolis_provider_sim
