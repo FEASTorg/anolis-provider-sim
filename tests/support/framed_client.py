@@ -125,10 +125,19 @@ class AdppClient:
             request.read_signals.signal_ids.extend(signal_ids)
         return self.send_request(request)
 
-    def call_function(self, device_id: str, function_id: int, args: dict[str, Any] | None = None) -> Any:
+    def call_function(
+        self,
+        device_id: str,
+        function_id: int = 0,
+        args: dict[str, Any] | None = None,
+        *,
+        function_name: str | None = None,
+    ) -> Any:
         request = self.protocol.Request(request_id=self._request_id())
         request.call.device_id = device_id
         request.call.function_id = function_id
+        if function_name:
+            request.call.function_name = function_name
         if args:
             for key, value in args.items():
                 request.call.args[key].CopyFrom(value)

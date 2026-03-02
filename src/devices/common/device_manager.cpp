@@ -553,6 +553,29 @@ read_signals(const std::string &device_id,
   return signals;
 }
 
+std::optional<uint32_t> resolve_function_id(const std::string &device_id,
+                                            const std::string &function_name) {
+  if (device_id.empty() || function_name.empty()) {
+    return std::nullopt;
+  }
+
+  const auto cached_device_it = g_function_name_to_id.find(device_id);
+  if (cached_device_it != g_function_name_to_id.end()) {
+    const auto cached_fn_it = cached_device_it->second.find(function_name);
+    if (cached_fn_it != cached_device_it->second.end()) {
+      return cached_fn_it->second;
+    }
+  }
+
+  const auto caps = describe_device(device_id);
+  for (const auto &fn : caps.functions()) {
+    if (fn.name() == function_name) {
+      return fn.function_id();
+    }
+  }
+  return std::nullopt;
+}
+
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args) {
   if (fault_injection::is_device_unavailable(device_id)) {

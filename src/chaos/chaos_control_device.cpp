@@ -1,6 +1,8 @@
 #include "chaos/chaos_control_device.hpp"
 #include "chaos/fault_injection.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <thread>
 
 namespace sim_devices {
@@ -73,6 +75,12 @@ static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
   return p;
 }
 
+static bool is_numeric_function_id(const std::string &function_id) {
+  return !function_id.empty() &&
+         std::all_of(function_id.begin(), function_id.end(),
+                     [](unsigned char ch) { return std::isdigit(ch) != 0; });
+}
+
 // -----------------------------
 // Capabilities
 // -----------------------------
@@ -132,7 +140,7 @@ CapabilitySet get_capabilities() {
     *f.add_args() = make_arg("device_id", ValueType::VALUE_TYPE_STRING, true,
                              "Target device ID");
     *f.add_args() = make_arg("function_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target function name");
+                             "Target function ID as string (e.g. '1')");
     *f.add_args() = make_arg("failure_rate", ValueType::VALUE_TYPE_DOUBLE, true,
                              "Failure probability (0.0-1.0)");
     *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
@@ -179,6 +187,9 @@ CallResult call_function(uint32_t function_id,
     if (!get_arg_int64(args, "duration_ms", duration_ms)) {
       return bad("missing or invalid duration_ms");
     }
+    if (duration_ms <= 0) {
+      return bad("duration_ms must be > 0");
+    }
 
     fault_injection::inject_device_unavailable(device_id, duration_ms);
     return ok();
@@ -199,6 +210,9 @@ CallResult call_function(uint32_t function_id,
     if (!get_arg_int64(args, "duration_ms", duration_ms)) {
       return bad("missing or invalid duration_ms");
     }
+    if (duration_ms <= 0) {
+      return bad("duration_ms must be > 0");
+    }
 
     fault_injection::inject_signal_fault(device_id, signal_id, duration_ms);
     return ok();
@@ -214,6 +228,9 @@ CallResult call_function(uint32_t function_id,
     }
     if (!get_arg_int64(args, "latency_ms", latency_ms)) {
       return bad("missing or invalid latency_ms");
+    }
+    if (latency_ms < 0) {
+      return bad("latency_ms must be >= 0");
     }
 
     fault_injection::inject_call_latency(device_id, latency_ms);
@@ -232,8 +249,17 @@ CallResult call_function(uint32_t function_id,
     if (!get_arg_string(args, "function_id", function_id_str)) {
       return bad("missing or invalid function_id");
     }
+    if (!is_numeric_function_id(function_id_str)) {
+      return bad("function_id must be a numeric string (e.g. '1')");
+    }
+    if (function_id_str == "0") {
+      return bad("function_id must be >= 1");
+    }
     if (!get_arg_double(args, "failure_rate", failure_rate)) {
       return bad("missing or invalid failure_rate");
+    }
+    if (failure_rate < 0.0 || failure_rate > 1.0) {
+      return bad("failure_rate must be in [0.0, 1.0]");
     }
 
     fault_injection::inject_call_failure(device_id, function_id_str,

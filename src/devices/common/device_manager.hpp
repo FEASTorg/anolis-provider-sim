@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,5 +46,8 @@ read_signals(const std::string &device_id,
 
 CallResult call_function(const std::string &device_id, uint32_t function_id,
                          const std::map<std::string, Value> &args);
+
+std::optional<uint32_t> resolve_function_id(const std::string &device_id,
+                                            const std::string &function_name);
 
 } // namespace sim_devices

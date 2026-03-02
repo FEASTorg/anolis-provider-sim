@@ -216,6 +216,28 @@ def test_degraded_startup_continue(provider_exe: Path) -> None:
             assert "chaos_control" in ids, f"Expected chaos_control in inventory, got {ids}"
             assert "bad0" not in ids, f"Failed device should not be listed, got {ids}"
 
+            health = client.get_health()
+            assert_ok(health, "get_health degraded startup")
+            provider = health.get_health.provider
+            provider_state_name = protocol.ProviderHealth.State.Name(provider.state)
+            assert provider_state_name == "STATE_DEGRADED", (
+                f"Expected provider STATE_DEGRADED, got {provider_state_name}"
+            )
+            assert provider.metrics.get("startup_policy") == "degraded", (
+                f"Expected startup_policy=degraded, got {provider.metrics.get('startup_policy')}"
+            )
+            assert provider.metrics.get("startup_failed_devices") == "1", (
+                f"Expected startup_failed_devices=1, got {provider.metrics.get('startup_failed_devices')}"
+            )
+
+            health_map = {entry.device_id: entry for entry in health.get_health.devices}
+            assert "bad0" in health_map, "Missing failed device bad0 in get_health"
+            bad_state_name = protocol.DeviceHealth.State.Name(health_map["bad0"].state)
+            assert bad_state_name == "STATE_UNREACHABLE", (
+                f"Expected bad0 STATE_UNREACHABLE, got {bad_state_name}"
+            )
+            assert "startup initialization failed" in health_map["bad0"].message
+
             time.sleep(0.1)
             stderr_tail = client.output_tail(120)
             if "degraded init failure: device_id=bad0" not in stderr_tail:

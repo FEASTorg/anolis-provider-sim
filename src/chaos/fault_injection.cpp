@@ -157,7 +157,7 @@ void inject_call_failure(const std::string &device_id,
   std::lock_guard<std::mutex> lock(s.mutex);
   CallFailureFault fault;
   fault.function_id = function_id;
-  fault.failure_rate = std::clamp(failure_rate, 0.0, 1.0);
+  fault.failure_rate = failure_rate;
 
   // Replace existing fault for this function, or add new one
   auto &faults = s.call_failure_faults[device_id];

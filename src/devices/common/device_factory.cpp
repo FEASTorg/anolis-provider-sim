@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <optional>
 #include <sstream>
 
 namespace anolis_provider_sim {
@@ -141,6 +142,11 @@ DeviceFactory::initialize_from_config(const ProviderConfig &config) {
   g_config_loaded = false;
   g_init_report = {};
   g_init_report.configured_device_count = config.devices.size();
+  g_init_report.startup_policy = config.startup_policy;
+  g_init_report.configured_device_ids.reserve(config.devices.size());
+  for (const auto &device : config.devices) {
+    g_init_report.configured_device_ids.push_back(device.id);
+  }
 
   for (const auto &spec : config.devices) {
     std::optional<std::string> failure_reason;

@@ -17,7 +17,7 @@ import argparse
 import sys
 import time
 
-from support.assertions import assert_ok, require_signal
+from support.assertions import assert_ok, require_signal, status_text
 from support.env import repo_root, resolve_config_path, resolve_provider_executable
 from support.framed_client import (
     AdppClient,
@@ -307,6 +307,62 @@ def test_multiple_devices(client: AdppClient, protocol) -> bool:
     return True
 
 
+def test_invalid_inputs(client: AdppClient, protocol) -> bool:
+    """Validate chaos API rejects invalid argument values with CODE_INVALID_ARGUMENT."""
+    print("\n=== Test: Chaos Invalid Input Validation ===")
+
+    invalid_code = protocol.Status.Code.CODE_INVALID_ARGUMENT
+
+    resp = client.call_function(
+        "chaos_control",
+        1,
+        {
+            "device_id": make_string_value(protocol, "tempctl0"),
+            "duration_ms": make_int64_value(protocol, 0),
+        },
+    )
+    assert resp.status.code == invalid_code, f"Expected invalid duration rejection, got {status_text(resp)}"
+    assert "duration_ms must be > 0" in resp.status.message
+
+    resp = client.call_function(
+        "chaos_control",
+        3,
+        {
+            "device_id": make_string_value(protocol, "tempctl0"),
+            "latency_ms": make_int64_value(protocol, -5),
+        },
+    )
+    assert resp.status.code == invalid_code, f"Expected invalid latency rejection, got {status_text(resp)}"
+    assert "latency_ms must be >= 0" in resp.status.message
+
+    resp = client.call_function(
+        "chaos_control",
+        4,
+        {
+            "device_id": make_string_value(protocol, "tempctl0"),
+            "function_id": make_string_value(protocol, "abc"),
+            "failure_rate": make_double_value(protocol, 0.5),
+        },
+    )
+    assert resp.status.code == invalid_code, f"Expected invalid function_id rejection, got {status_text(resp)}"
+    assert "function_id must be a numeric string" in resp.status.message
+
+    resp = client.call_function(
+        "chaos_control",
+        4,
+        {
+            "device_id": make_string_value(protocol, "tempctl0"),
+            "function_id": make_string_value(protocol, "1"),
+            "failure_rate": make_double_value(protocol, 1.2),
+        },
+    )
+    assert resp.status.code == invalid_code, f"Expected invalid failure_rate rejection, got {status_text(resp)}"
+    assert "failure_rate must be in [0.0, 1.0]" in resp.status.message
+
+    print("OK: chaos invalid input validation working correctly")
+    return True
+
+
 def _new_client(protocol, exe_path, config_path) -> AdppClient:
     client = AdppClient(protocol, exe_path, config_path)
     hello_resp = client.hello(
@@ -330,6 +386,7 @@ def main() -> int:
             "call_failure",
             "clear_faults",
             "multiple_devices",
+            "invalid_inputs",
         ],
         help="Test to run",
     )
@@ -351,6 +408,7 @@ def main() -> int:
         "call_failure": lambda c: test_call_failure(c, protocol),
         "clear_faults": lambda c: test_clear_faults(c, protocol),
         "multiple_devices": lambda c: test_multiple_devices(c, protocol),
+        "invalid_inputs": lambda c: test_invalid_inputs(c, protocol),
     }
 
     if args.test == "all":

@@ -56,6 +56,30 @@ def test_list_devices(client: AdppClient) -> bool:
     return True
 
 
+def test_list_devices_with_health(client: AdppClient, protocol) -> bool:
+    """Verify include_health=true populates device_health entries."""
+    print("\n=== Test 1b: ListDevices(include_health=true) ===")
+    resp = client.list_devices(include_health=True)
+    assert_ok(resp, "list_devices include_health")
+
+    devices = list_devices_entries(resp)
+    device_ids = [entry.device_id for entry in devices]
+    health_entries = list(resp.list_devices.device_health)
+
+    assert len(health_entries) == len(devices), (
+        f"Expected health count to match devices ({len(devices)}), got {len(health_entries)}"
+    )
+
+    health_map = {entry.device_id: entry for entry in health_entries}
+    for device_id in device_ids:
+        assert device_id in health_map, f"Missing device_health for {device_id}"
+        state_name = protocol.DeviceHealth.State.Name(health_map[device_id].state)
+        assert state_name == "STATE_OK", f"Expected STATE_OK for {device_id}, got {state_name}"
+
+    print(f"OK: include_health returned {len(health_entries)} health entries")
+    return True
+
+
 def test_describe_tempctl(client: AdppClient) -> bool:
     """Verify tempctl0 capabilities."""
     print("\n=== Test 2: DescribeDevice (tempctl0) ===")
@@ -220,6 +244,83 @@ def test_precondition_check(client: AdppClient, protocol) -> bool:
     return True
 
 
+def test_call_by_function_name(client: AdppClient, protocol) -> bool:
+    """Verify Call.function_name path resolves correctly when function_id=0."""
+    print("\n=== Test 7: Call by function_name ===")
+
+    resp = client.call_function(
+        "tempctl0",
+        function_name="set_mode",
+        args={"mode": make_string_value(protocol, "open")},
+    )
+    assert_ok(resp, "call set_mode by function_name")
+
+    resp = client.read_signals("tempctl0", ["control_mode"])
+    assert_ok(resp, "read control_mode after function_name call")
+    mode_value = require_signal(resp, "control_mode").value.string_value
+    assert mode_value == "open", f"Expected control_mode=open, got {mode_value}"
+
+    print("OK: function_name call path working")
+    return True
+
+
+def test_wait_ready_diagnostics(client: AdppClient) -> bool:
+    """Verify WaitReady diagnostics expose startup-policy counts."""
+    print("\n=== Test 8: WaitReady Diagnostics ===")
+
+    resp = client.wait_ready(max_wait_ms_hint=5000)
+    assert_ok(resp, "wait_ready diagnostics")
+    diag = resp.wait_ready.diagnostics
+
+    required_keys = [
+        "startup_policy",
+        "startup_configured_devices",
+        "startup_initialized_devices",
+        "startup_failed_devices",
+        "startup_degraded",
+        "provider_version",
+    ]
+    for key in required_keys:
+        assert key in diag, f"Missing wait_ready diagnostics key: {key}"
+
+    assert diag["startup_policy"] == "strict", f"Expected strict startup policy, got {diag['startup_policy']}"
+    assert diag["startup_failed_devices"] == "0", f"Expected zero failed devices, got {diag['startup_failed_devices']}"
+    assert diag["startup_degraded"] == "false", f"Expected startup_degraded=false, got {diag['startup_degraded']}"
+
+    print("OK: WaitReady diagnostics include startup policy/count metadata")
+    return True
+
+
+def test_get_health_startup_state(client: AdppClient, protocol) -> bool:
+    """Verify GetHealth provider/device state and startup metrics."""
+    print("\n=== Test 9: GetHealth Startup State ===")
+
+    resp = client.get_health()
+    assert_ok(resp, "get_health")
+
+    provider = resp.get_health.provider
+    provider_state = protocol.ProviderHealth.State.Name(provider.state)
+    assert provider_state == "STATE_OK", f"Expected provider STATE_OK, got {provider_state}"
+
+    metrics = provider.metrics
+    assert metrics.get("startup_policy") == "strict", f"Unexpected startup_policy: {metrics.get('startup_policy')}"
+    assert metrics.get("startup_failed_devices") == "0", (
+        f"Unexpected startup_failed_devices: {metrics.get('startup_failed_devices')}"
+    )
+    assert metrics.get("startup_initialized_devices") == "4", (
+        f"Unexpected startup_initialized_devices: {metrics.get('startup_initialized_devices')}"
+    )
+
+    device_health = {entry.device_id: entry for entry in resp.get_health.devices}
+    for device_id in ["tempctl0", "motorctl0", "relayio0", "analogsensor0", "chaos_control"]:
+        assert device_id in device_health, f"Missing device health entry for {device_id}"
+        state_name = protocol.DeviceHealth.State.Name(device_health[device_id].state)
+        assert state_name == "STATE_OK", f"Expected STATE_OK for {device_id}, got {state_name}"
+
+    print("OK: GetHealth startup state and metrics are populated")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="ADPP integration tests for anolis-provider-sim")
     parser.add_argument(
@@ -228,11 +329,15 @@ def main() -> int:
         choices=[
             "all",
             "list_devices",
+            "list_devices_with_health",
             "describe_tempctl",
             "temp_convergence",
             "motor_control",
             "relay_control",
             "precondition_check",
+            "call_by_function_name",
+            "wait_ready_diagnostics",
+            "get_health_startup_state",
         ],
         help="Test to run",
     )
@@ -257,11 +362,15 @@ def main() -> int:
 
         tests = {
             "list_devices": lambda c: test_list_devices(c),
+            "list_devices_with_health": lambda c: test_list_devices_with_health(c, protocol),
             "describe_tempctl": lambda c: test_describe_tempctl(c),
             "temp_convergence": lambda c: test_temp_convergence(c, protocol),
             "motor_control": lambda c: test_motor_control(c, protocol),
             "relay_control": lambda c: test_relay_control(c, protocol),
             "precondition_check": lambda c: test_precondition_check(c, protocol),
+            "call_by_function_name": lambda c: test_call_by_function_name(c, protocol),
+            "wait_ready_diagnostics": lambda c: test_wait_ready_diagnostics(c),
+            "get_health_startup_state": lambda c: test_get_health_startup_state(c, protocol),
         }
 
         if args.test == "all":

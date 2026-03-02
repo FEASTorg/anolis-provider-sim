@@ -1,5 +1,7 @@
 #include "core/handlers.hpp"
 
+#include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,10 @@ using anolis::deviceprovider::v1::ListDevicesRequest;
 using anolis::deviceprovider::v1::ReadSignalsRequest;
 using anolis::deviceprovider::v1::Status;
 using anolis::deviceprovider::v1::WaitReadyRequest;
+
+#ifndef ANOLIS_PROVIDER_SIM_VERSION
+#define ANOLIS_PROVIDER_SIM_VERSION "0.0.0"
+#endif
 
 static inline void set_status_ok(anolis::deviceprovider::v1::Response &resp) {
   resp.mutable_status()->set_code(Status::CODE_OK);
@@ -41,7 +47,7 @@ void handle_hello(const HelloRequest &req,
   auto *hello = resp.mutable_hello();
   hello->set_protocol_version("v1");
   hello->set_provider_name("anolis-provider-sim");
-  hello->set_provider_version("0.0.3");
+  hello->set_provider_version(ANOLIS_PROVIDER_SIM_VERSION);
 
   (*hello->mutable_metadata())["transport"] = "stdio+uint32_le";
   (*hello->mutable_metadata())["max_frame_bytes"] =
@@ -60,8 +66,13 @@ void handle_list_devices(const ListDevicesRequest &req,
     *out->add_devices() = d;
   }
 
-  // v1 sim: we ignore include_health for now (device_health omitted
-  // intentionally).
+  if (req.include_health()) {
+    const auto device_health = sim_health::make_list_devices_health(devices);
+    for (const auto &health : device_health) {
+      *out->add_device_health() = health;
+    }
+  }
+
   set_status_ok(resp);
 }
 
@@ -149,11 +160,26 @@ void handle_call(const CallRequest &req,
     return;
   }
 
-  // v1: only function_id supported (matches our DescribeDevice contract).
+  uint32_t resolved_function_id = req.function_id();
+
   if (req.function_id() == 0) {
-    set_status(resp, Status::CODE_UNIMPLEMENTED,
-               "function_name lookup not implemented in sim provider v1");
-    return;
+    const auto function_id =
+        sim_devices::resolve_function_id(req.device_id(), req.function_name());
+    if (!function_id.has_value()) {
+      set_status(resp, Status::CODE_NOT_FOUND,
+                 "unknown function_name '" + req.function_name() +
+                     "' for device_id '" + req.device_id() + "'");
+      return;
+    }
+    resolved_function_id = *function_id;
+  } else if (!req.function_name().empty()) {
+    const auto by_name =
+        sim_devices::resolve_function_id(req.device_id(), req.function_name());
+    if (by_name.has_value() && *by_name != req.function_id()) {
+      set_status(resp, Status::CODE_INVALID_ARGUMENT,
+                 "function_id/function_name mismatch");
+      return;
+    }
   }
 
   std::map<std::string, anolis::deviceprovider::v1::Value> args;
@@ -162,7 +188,7 @@ void handle_call(const CallRequest &req,
   }
 
   const auto result =
-      sim_devices::call_function(req.device_id(), req.function_id(), args);
+      sim_devices::call_function(req.device_id(), resolved_function_id, args);
   if (result.code != Status::CODE_OK) {
     set_status(resp, result.code, result.message);
     return;
@@ -176,19 +202,14 @@ void handle_call(const CallRequest &req,
 
 void handle_get_health(const GetHealthRequest & /*req*/,
                        anolis::deviceprovider::v1::Response &resp) {
+  const auto init_report =
+      anolis_provider_sim::DeviceFactory::get_initialization_report();
   auto *out = resp.mutable_get_health();
-  *out->mutable_provider() = sim_health::make_provider_health_ok();
+  *out->mutable_provider() = sim_health::make_provider_health(init_report);
 
-  // v1 sim: device health is optional; include basic OK states for known
-  // devices
-  const auto devices = sim_devices::list_devices(false);
-  for (const auto &d : devices) {
-    auto *dh = out->add_devices();
-    dh->set_device_id(d.device_id());
-    dh->set_state(anolis::deviceprovider::v1::DeviceHealth::STATE_OK);
-    dh->set_message("ok");
-    // last_seen omitted in v1 sim
-    (*dh->mutable_metrics())["impl"] = "sim";
+  const auto device_health = sim_health::make_get_health_devices(init_report);
+  for (const auto &health : device_health) {
+    *out->add_devices() = health;
   }
 
   set_status_ok(resp);
@@ -205,10 +226,24 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
 
   std::cerr << "[WaitReady] Processing wait_ready() request\n";
 
+  const auto init_report =
+      anolis_provider_sim::DeviceFactory::get_initialization_report();
   auto *out = resp.mutable_wait_ready();
   (*out->mutable_diagnostics())["init_time_ms"] = "0";
   (*out->mutable_diagnostics())["device_count"] =
       std::to_string(sim_devices::list_devices(false).size());
+  (*out->mutable_diagnostics())["startup_policy"] =
+      sim_health::startup_policy_name(init_report.startup_policy);
+  (*out->mutable_diagnostics())["startup_configured_devices"] =
+      std::to_string(init_report.configured_device_count);
+  (*out->mutable_diagnostics())["startup_initialized_devices"] =
+      std::to_string(init_report.successful_device_ids.size());
+  (*out->mutable_diagnostics())["startup_failed_devices"] =
+      std::to_string(init_report.failed_devices.size());
+  (*out->mutable_diagnostics())["startup_degraded"] =
+      init_report.failed_devices.empty() ? "false" : "true";
+  (*out->mutable_diagnostics())["provider_version"] =
+      ANOLIS_PROVIDER_SIM_VERSION;
   (*out->mutable_diagnostics())["provider_impl"] = "sim";
 
   set_status_ok(resp);

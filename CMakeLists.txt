@@ -95,6 +95,7 @@ set(SOURCES
     # Layer 1: Protocol core
     src/core/main.cpp
     src/core/handlers.cpp
+    src/core/health.cpp
     src/core/transport/framed_stdio.cpp
 
     # Layer 2: Devices
@@ -223,6 +224,10 @@ endif()
 if (WIN32)
     target_compile_definitions(anolis-provider-sim PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
+
+target_compile_definitions(anolis-provider-sim PRIVATE
+    ANOLIS_PROVIDER_SIM_VERSION="${PROJECT_VERSION}"
+)
 
 if(BUILD_TESTING)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)

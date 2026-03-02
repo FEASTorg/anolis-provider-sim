@@ -130,6 +130,7 @@ Makes a device appear unavailable for a specified duration.
 - `DescribeDevice` returns `NOT_FOUND` (unknown/unavailable target)
 - `ReadSignals` for explicit signal requests returns `NOT_FOUND`
 - `CallFunction` returns `INVALID_ARGUMENT` with injected fault message
+- Rejects invalid requests where `duration_ms <= 0`
 - Automatically clears after duration expires
 
 #### `inject_signal_fault`
@@ -146,6 +147,7 @@ Forces a signal to report `FAULT` quality for a specified duration.
 
 - Signal quality becomes `FAULT`
 - Signal value freezes at current value
+- Rejects invalid requests where `duration_ms <= 0`
 - Automatically clears after duration expires
 
 #### `inject_call_latency`
@@ -160,6 +162,7 @@ Adds artificial latency to all function calls on a device.
 **Behavior:**
 
 - All CallFunction requests delayed by specified amount
+- Rejects invalid requests where `latency_ms < 0`
 - Useful for testing timeout handling and responsiveness under load
 
 #### `inject_call_failure`
@@ -176,6 +179,8 @@ Causes a specific function to fail probabilistically.
 
 - Function returns `INVALID_ARGUMENT` at specified rate
 - Uses uniform random distribution for probabilistic failures
+- Requires numeric string `function_id` (for example, `"1"`)
+- Requires `failure_rate` in `[0.0, 1.0]`
 
 #### `clear_faults`
 

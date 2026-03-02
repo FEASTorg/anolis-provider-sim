@@ -29,7 +29,7 @@ Targeted suites:
 - `config`: config parser + startup policy validation (`tests/test_config_startup.py`)
 - `adpp`: protocol surface integration checks
 - `multi`: multi-instance behavior
-- `fault`: chaos fault-injection behavior
+- `fault`: chaos fault-injection behavior (including invalid-input validation)
 - `fluxgraph`: FluxGraph integration scenarios (FluxGraph-enabled builds only)
 
 Direct script invocation requires generated Python protobuf bindings (`protocol_pb2.py`) in the chosen build directory.
