@@ -16,6 +16,7 @@
 
 #include "config.hpp"
 #include "core/handlers.hpp"
+#include "core/runtime_state.hpp"
 #include "core/transport/framed_stdio.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
@@ -75,6 +76,8 @@ create_engine(const anolis_provider_sim::ProviderConfig &config,
 }
 
 int main(int argc, char **argv) {
+  sim_runtime::reset();
+
   std::optional<std::string> config_path;
   std::optional<std::string> sim_server_address;
   double crash_after_sec = -1.0;
@@ -110,6 +113,7 @@ int main(int argc, char **argv) {
 
     const auto init_report =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
+    sim_runtime::set_startup_report(init_report);
     log_err("startup_policy=" +
             std::string(config.startup_policy ==
                                 anolis_provider_sim::StartupPolicy::Strict

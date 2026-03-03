@@ -83,21 +83,63 @@ def resolve_fluxgraph_server(root: Path | None = None) -> Path:
             return candidate.resolve()
         raise FileNotFoundError(f"FLUXGRAPH_SERVER_EXE points to missing file: {candidate}")
 
-    fluxgraph_root = root.parent / "fluxgraph"
-    candidates = [
-        fluxgraph_root / "build-release-server" / "server" / "Release" / "fluxgraph-server.exe",
-        fluxgraph_root / "build-server" / "server" / "Release" / "fluxgraph-server.exe",
-        fluxgraph_root / "build" / "server" / "Release" / "fluxgraph-server.exe",
-        fluxgraph_root / "build-release-server" / "server" / "fluxgraph-server",
-        fluxgraph_root / "build-server" / "server" / "fluxgraph-server",
-        fluxgraph_root / "build" / "server" / "fluxgraph-server",
+    fluxgraph_root_env = os.environ.get("FLUXGRAPH_DIR")
+    if fluxgraph_root_env:
+        fluxgraph_root = Path(fluxgraph_root_env)
+        if not fluxgraph_root.is_absolute():
+            fluxgraph_root = root / fluxgraph_root
+        fluxgraph_root = fluxgraph_root.resolve()
+    else:
+        fluxgraph_root = (root.parent / "fluxgraph").resolve()
+
+    names = ["fluxgraph-server.exe", "fluxgraph-server"]
+    build_dirs = [
+        # Current FluxGraph presets
+        "build-windows-server/server/Release",
+        "build-windows-server/server/Debug",
+        "build-windows-server/server",
+        "build-windows-server-release/server/Release",
+        "build-windows-server-release/server/Debug",
+        "build-windows-server-release/server",
+        # Legacy/alternate directories
+        "build-release-server/server/Release",
+        "build-release-server/server/Debug",
+        "build-release-server/server",
+        "build-server/server/Release",
+        "build-server/server/Debug",
+        "build-server/server",
+        "build/server/Release",
+        "build/server/Debug",
+        "build/server",
     ]
+
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    for build_dir in build_dirs:
+        for name in names:
+            candidate = fluxgraph_root / build_dir / name
+            if candidate not in seen:
+                candidates.append(candidate)
+                seen.add(candidate)
+
+    # Final fallback for future preset/output layout changes.
+    for pattern in ("build*/server/**/fluxgraph-server.exe", "build*/server/**/fluxgraph-server"):
+        for candidate in sorted(fluxgraph_root.glob(pattern)):
+            if candidate not in seen:
+                candidates.append(candidate)
+                seen.add(candidate)
+
     for candidate in candidates:
         if candidate.exists():
             return candidate.resolve()
 
     candidate_text = "\n".join(f"  - {path}" for path in candidates)
-    raise FileNotFoundError("Could not find fluxgraph-server executable. Checked:\n" + candidate_text)
+    raise FileNotFoundError(
+        "Could not find fluxgraph-server executable. Checked:\n"
+        + candidate_text
+        + "\nBuild FluxGraph server first (example on Windows): "
+        + ".\\scripts\\build.ps1 -Preset dev-windows-server"
+    )
 
 
 def resolve_config_path(path: str | Path, root: Path | None = None) -> Path:

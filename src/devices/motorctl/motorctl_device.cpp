@@ -9,7 +9,6 @@
 namespace sim_devices {
 namespace motorctl {
 
-using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::FunctionSpec;
 using anolis::deviceprovider::v1::SignalSpec;
@@ -118,27 +117,6 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 // Capabilities
 // -----------------------------
 
-static ArgSpec make_arg(const std::string &name, ValueType type, bool required,
-                        const std::string &desc = "",
-                        const std::string &unit = "") {
-  ArgSpec a;
-  a.set_name(name);
-  a.set_type(type);
-  a.set_required(required);
-  a.set_description(desc);
-  a.set_unit(unit);
-  return a;
-}
-
-static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
-  FunctionPolicy p;
-  p.set_category(cat);
-  p.set_requires_lease(false);
-  p.set_is_idempotent(false);
-  p.set_min_interval_ms(0);
-  return p;
-}
-
 CapabilitySet get_capabilities() {
   CapabilitySet caps;
 
@@ -194,15 +172,17 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetDuty);
     f.set_name("set_motor_duty");
     f.set_description("Set PWM duty for a motor channel");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
 
-    auto idx =
-        make_arg("motor_index", ValueType::VALUE_TYPE_INT64, true, "1 or 2");
+    auto idx = make_arg_spec("motor_index", ValueType::VALUE_TYPE_INT64, true,
+                             "1 or 2");
     idx.set_min_int64(1);
     idx.set_max_int64(2);
     *f.add_args() = idx;
 
-    auto d = make_arg("duty", ValueType::VALUE_TYPE_DOUBLE, true, "Duty 0..1");
+    auto d =
+        make_arg_spec("duty", ValueType::VALUE_TYPE_DOUBLE, true, "Duty 0..1");
     d.set_min_double(0.0);
     d.set_max_double(1.0);
     *f.add_args() = d;

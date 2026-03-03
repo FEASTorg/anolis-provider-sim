@@ -11,6 +11,7 @@
 #endif
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -19,6 +20,8 @@
 
 namespace sim_devices {
 
+using anolis::deviceprovider::v1::ArgSpec;
+using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::SignalValue;
 using anolis::deviceprovider::v1::Status;
 using anolis::deviceprovider::v1::Value;
@@ -115,6 +118,31 @@ static inline SignalValue make_signal_value(const std::string &id,
   *sv.mutable_timestamp() = now_ts();
   sv.set_quality(SignalValue::QUALITY_OK);
   return sv;
+}
+
+static inline ArgSpec make_arg_spec(const std::string &name, ValueType type,
+                                    bool required,
+                                    const std::string &description = "",
+                                    const std::string &unit = "") {
+  ArgSpec arg;
+  arg.set_name(name);
+  arg.set_type(type);
+  arg.set_required(required);
+  arg.set_description(description);
+  arg.set_unit(unit);
+  return arg;
+}
+
+static inline FunctionPolicy
+make_function_policy(FunctionPolicy::Category category,
+                     bool requires_lease = false, bool is_idempotent = false,
+                     int32_t min_interval_ms = 0) {
+  FunctionPolicy policy;
+  policy.set_category(category);
+  policy.set_requires_lease(requires_lease);
+  policy.set_is_idempotent(is_idempotent);
+  policy.set_min_interval_ms(min_interval_ms);
+  return policy;
 }
 
 // -----------------------------

@@ -68,6 +68,10 @@ Full provider baseline suite:
 ## Optional: FluxGraph-enabled build (`sim` mode)
 
 ```powershell
+# From sibling FluxGraph repo, build server preset first:
+#   cd ..\fluxgraph
+#   .\scripts\build.ps1 -Preset dev-windows-server
+#   cd ..\anolis-provider-sim
 .\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
 .\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```

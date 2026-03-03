@@ -42,6 +42,7 @@ Environment overrides:
 - `ANOLIS_PROVIDER_SIM_EXE`: explicit provider executable path
 - `ANOLIS_PROVIDER_SIM_BUILD_DIR`: build directory containing `protocol_pb2.py`
 - `FLUXGRAPH_SERVER_EXE`: explicit FluxGraph server executable path
+- `FLUXGRAPH_DIR`: explicit FluxGraph repository root used for server auto-discovery
 
 ## Troubleshooting
 1. If a test hangs, run the same suite with verbose CTest output (`-VV`) and inspect stderr tails emitted by the harness.

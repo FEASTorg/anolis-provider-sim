@@ -10,7 +10,6 @@
 namespace sim_devices {
 namespace analogsensor {
 
-using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::FunctionSpec;
 using anolis::deviceprovider::v1::SignalSpec;
@@ -135,31 +134,6 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 }
 
 // -----------------------------
-// Helper functions
-// -----------------------------
-
-static ArgSpec make_arg(const std::string &name, ValueType type, bool required,
-                        const std::string &desc = "",
-                        const std::string &unit = "") {
-  ArgSpec a;
-  a.set_name(name);
-  a.set_type(type);
-  a.set_required(required);
-  a.set_description(desc);
-  a.set_unit(unit);
-  return a;
-}
-
-static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
-  FunctionPolicy p;
-  p.set_category(cat);
-  p.set_requires_lease(false);
-  p.set_is_idempotent(false);
-  p.set_min_interval_ms(0);
-  return p;
-}
-
-// -----------------------------
 // Capabilities
 // -----------------------------
 
@@ -230,9 +204,9 @@ CapabilitySet get_capabilities() {
     f.set_name("calibrate_channel");
     f.set_description(
         "Calibrate a specific analog input channel (requires GOOD quality)");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_CONFIG);
-    auto a = make_arg("channel", ValueType::VALUE_TYPE_INT64, true,
-                      "Channel index (1-4)");
+    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+    auto a = make_arg_spec("channel", ValueType::VALUE_TYPE_INT64, true,
+                           "Channel index (1-4)");
     a.set_min_int64(1);
     a.set_max_int64(4);
     *f.add_args() = a;
@@ -243,9 +217,9 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnInjectNoise);
     f.set_name("inject_noise");
     f.set_description("Enable or disable simulated noise injection");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_CONFIG);
-    *f.add_args() = make_arg("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                             "Enable/disable noise");
+    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
+                                  "Enable/disable noise");
     *caps.add_functions() = f;
   }
 

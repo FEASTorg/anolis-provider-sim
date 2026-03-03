@@ -9,7 +9,6 @@
 namespace sim_devices {
 namespace tempctl {
 
-using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::FunctionSpec;
 using anolis::deviceprovider::v1::SignalSpec;
@@ -200,27 +199,6 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 // Capabilities
 // -----------------------------
 
-static ArgSpec make_arg(const std::string &name, ValueType type, bool required,
-                        const std::string &desc = "",
-                        const std::string &unit = "") {
-  ArgSpec a;
-  a.set_name(name);
-  a.set_type(type);
-  a.set_required(required);
-  a.set_description(desc);
-  a.set_unit(unit);
-  return a;
-}
-
-static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
-  FunctionPolicy p;
-  p.set_category(cat);
-  p.set_requires_lease(false);
-  p.set_is_idempotent(false);
-  p.set_min_interval_ms(0);
-  return p;
-}
-
 CapabilitySet get_capabilities() {
   CapabilitySet caps;
 
@@ -298,9 +276,9 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetMode);
     f.set_name("set_mode");
     f.set_description("Set control mode: open or closed");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_CONFIG);
-    *f.add_args() =
-        make_arg("mode", ValueType::VALUE_TYPE_STRING, true, "open or closed");
+    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+    *f.add_args() = make_arg_spec("mode", ValueType::VALUE_TYPE_STRING, true,
+                                  "open or closed");
     *caps.add_functions() = f;
   }
   {
@@ -308,9 +286,9 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetSetpoint);
     f.set_name("set_setpoint");
     f.set_description("Set closed-loop setpoint (C)");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_CONFIG);
-    auto a = make_arg("value", ValueType::VALUE_TYPE_DOUBLE, true,
-                      "Temperature setpoint", "C");
+    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+    auto a = make_arg_spec("value", ValueType::VALUE_TYPE_DOUBLE, true,
+                           "Temperature setpoint", "C");
     a.set_min_double(-50.0);
     a.set_max_double(400.0);
     *f.add_args() = a;
@@ -321,16 +299,17 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetRelay);
     f.set_name("set_relay");
     f.set_description("Set relay state in open-loop mode");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
 
-    auto idx =
-        make_arg("relay_index", ValueType::VALUE_TYPE_INT64, true, "1 or 2");
+    auto idx = make_arg_spec("relay_index", ValueType::VALUE_TYPE_INT64, true,
+                             "1 or 2");
     idx.set_min_int64(1);
     idx.set_max_int64(2);
     *f.add_args() = idx;
 
-    *f.add_args() = make_arg("state", ValueType::VALUE_TYPE_BOOL, true,
-                             "true=on false=off");
+    *f.add_args() = make_arg_spec("state", ValueType::VALUE_TYPE_BOOL, true,
+                                  "true=on false=off");
     *caps.add_functions() = f;
   }
 

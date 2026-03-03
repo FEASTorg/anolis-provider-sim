@@ -31,8 +31,8 @@ ProviderHealth make_provider_health(const DeviceInitializationReport &report) {
 
   if (failed > 0U) {
     health.set_state(ProviderHealth::STATE_DEGRADED);
-    health.set_message("startup degraded: " + std::to_string(failed) +
-                       " of " + std::to_string(report.configured_device_count) +
+    health.set_message("startup degraded: " + std::to_string(failed) + " of " +
+                       std::to_string(report.configured_device_count) +
                        " devices failed to initialize");
   } else {
     health.set_state(ProviderHealth::STATE_OK);

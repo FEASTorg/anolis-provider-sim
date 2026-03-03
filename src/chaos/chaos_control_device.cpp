@@ -8,10 +8,8 @@
 namespace sim_devices {
 namespace chaos_control {
 
-using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::FunctionSpec;
-using anolis::deviceprovider::v1::SignalSpec;
 using anolis::deviceprovider::v1::ValueType;
 
 // -----------------------------
@@ -50,31 +48,6 @@ Device get_device_info(bool /*include_health*/) {
   return d;
 }
 
-// -----------------------------
-// Helper functions
-// -----------------------------
-
-static ArgSpec make_arg(const std::string &name, ValueType type, bool required,
-                        const std::string &desc = "",
-                        const std::string &unit = "") {
-  ArgSpec a;
-  a.set_name(name);
-  a.set_type(type);
-  a.set_required(required);
-  a.set_description(desc);
-  a.set_unit(unit);
-  return a;
-}
-
-static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
-  FunctionPolicy p;
-  p.set_category(cat);
-  p.set_requires_lease(false);
-  p.set_is_idempotent(false);
-  p.set_min_interval_ms(0);
-  return p;
-}
-
 static bool is_numeric_function_id(const std::string &function_id) {
   return !function_id.empty() &&
          std::all_of(function_id.begin(), function_id.end(),
@@ -97,11 +70,12 @@ CapabilitySet get_capabilities() {
     f.set_name("inject_device_unavailable");
     f.set_description(
         "Make a device appear unavailable for specified duration");
-    *f.add_args() = make_arg("device_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target device ID");
-    *f.add_args() = make_arg("duration_ms", ValueType::VALUE_TYPE_INT64, true,
-                             "Duration in milliseconds", "ms");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
+                                  true, "Target device ID");
+    *f.add_args() = make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64,
+                                  true, "Duration in milliseconds", "ms");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
     *caps.add_functions() = f;
   }
   {
@@ -110,13 +84,14 @@ CapabilitySet get_capabilities() {
     f.set_name("inject_signal_fault");
     f.set_description(
         "Make a signal report FAULT quality for specified duration");
-    *f.add_args() = make_arg("device_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target device ID");
-    *f.add_args() = make_arg("signal_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target signal ID");
-    *f.add_args() = make_arg("duration_ms", ValueType::VALUE_TYPE_INT64, true,
-                             "Duration in milliseconds", "ms");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
+                                  true, "Target device ID");
+    *f.add_args() = make_arg_spec("signal_id", ValueType::VALUE_TYPE_STRING,
+                                  true, "Target signal ID");
+    *f.add_args() = make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64,
+                                  true, "Duration in milliseconds", "ms");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
     *caps.add_functions() = f;
   }
   {
@@ -125,11 +100,12 @@ CapabilitySet get_capabilities() {
     f.set_name("inject_call_latency");
     f.set_description(
         "Add artificial latency to all function calls on a device");
-    *f.add_args() = make_arg("device_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target device ID");
-    *f.add_args() = make_arg("latency_ms", ValueType::VALUE_TYPE_INT64, true,
-                             "Latency in milliseconds", "ms");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
+                                  true, "Target device ID");
+    *f.add_args() = make_arg_spec("latency_ms", ValueType::VALUE_TYPE_INT64,
+                                  true, "Latency in milliseconds", "ms");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
     *caps.add_functions() = f;
   }
   {
@@ -137,13 +113,15 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnInjectCallFailure);
     f.set_name("inject_call_failure");
     f.set_description("Make a function fail probabilistically");
-    *f.add_args() = make_arg("device_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target device ID");
-    *f.add_args() = make_arg("function_id", ValueType::VALUE_TYPE_STRING, true,
-                             "Target function ID as string (e.g. '1')");
-    *f.add_args() = make_arg("failure_rate", ValueType::VALUE_TYPE_DOUBLE, true,
-                             "Failure probability (0.0-1.0)");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
+                                  true, "Target device ID");
+    *f.add_args() =
+        make_arg_spec("function_id", ValueType::VALUE_TYPE_STRING, true,
+                      "Target function ID as string (e.g. '1')");
+    *f.add_args() = make_arg_spec("failure_rate", ValueType::VALUE_TYPE_DOUBLE,
+                                  true, "Failure probability (0.0-1.0)");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
     *caps.add_functions() = f;
   }
   {
@@ -151,7 +129,8 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnClearFaults);
     f.set_name("clear_faults");
     f.set_description("Clear all injected faults");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
     *caps.add_functions() = f;
   }
 

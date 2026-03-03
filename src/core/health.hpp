@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "devices/common/device_factory.hpp"
+#include "core/startup_report.hpp"
 #include "protocol.pb.h"
 
 namespace sim_health {
@@ -11,7 +11,8 @@ namespace sim_health {
 using Device = anolis::deviceprovider::v1::Device;
 using DeviceHealth = anolis::deviceprovider::v1::DeviceHealth;
 using ProviderHealth = anolis::deviceprovider::v1::ProviderHealth;
-using DeviceInitializationReport = anolis_provider_sim::DeviceInitializationReport;
+using DeviceInitializationReport =
+    anolis_provider_sim::DeviceInitializationReport;
 using StartupPolicy = anolis_provider_sim::StartupPolicy;
 
 std::string startup_policy_name(StartupPolicy policy);

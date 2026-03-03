@@ -8,7 +8,6 @@
 namespace sim_devices {
 namespace relayio {
 
-using anolis::deviceprovider::v1::ArgSpec;
 using anolis::deviceprovider::v1::FunctionPolicy;
 using anolis::deviceprovider::v1::FunctionSpec;
 using anolis::deviceprovider::v1::SignalSpec;
@@ -104,31 +103,6 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
   (*d.mutable_tags())["family"] = "sim";
   (*d.mutable_tags())["kind"] = "relay_io";
   return d;
-}
-
-// -----------------------------
-// Helper functions
-// -----------------------------
-
-static ArgSpec make_arg(const std::string &name, ValueType type, bool required,
-                        const std::string &desc = "",
-                        const std::string &unit = "") {
-  ArgSpec a;
-  a.set_name(name);
-  a.set_type(type);
-  a.set_required(required);
-  a.set_description(desc);
-  a.set_unit(unit);
-  return a;
-}
-
-static FunctionPolicy make_policy(FunctionPolicy::Category cat) {
-  FunctionPolicy p;
-  p.set_category(cat);
-  p.set_requires_lease(false);
-  p.set_is_idempotent(false);
-  p.set_min_interval_ms(0);
-  return p;
 }
 
 // -----------------------------
@@ -234,9 +208,10 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetRelayCh1);
     f.set_name("set_relay_ch1");
     f.set_description("Set relay channel 1 state");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                             "Enable/disable relay channel 1");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
+                                  "Enable/disable relay channel 1");
     *caps.add_functions() = f;
   }
   {
@@ -244,9 +219,10 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetRelayCh2);
     f.set_name("set_relay_ch2");
     f.set_description("Set relay channel 2 state");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                             "Enable/disable relay channel 2");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
+                                  "Enable/disable relay channel 2");
     *caps.add_functions() = f;
   }
   {
@@ -254,9 +230,10 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetRelayCh3);
     f.set_name("set_relay_ch3");
     f.set_description("Set relay channel 3 state");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                             "Enable/disable relay channel 3");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
+                                  "Enable/disable relay channel 3");
     *caps.add_functions() = f;
   }
   {
@@ -264,9 +241,10 @@ CapabilitySet get_capabilities() {
     f.set_function_id(kFnSetRelayCh4);
     f.set_name("set_relay_ch4");
     f.set_description("Set relay channel 4 state");
-    *f.mutable_policy() = make_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                             "Enable/disable relay channel 4");
+    *f.mutable_policy() =
+        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
+                                  "Enable/disable relay channel 4");
     *caps.add_functions() = f;
   }
 

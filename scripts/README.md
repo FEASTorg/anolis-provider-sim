@@ -100,6 +100,10 @@ bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 ```
 
 ```powershell
+# Build FluxGraph server first (required for fluxgraph suite):
+#   cd ..\fluxgraph
+#   .\scripts\build.ps1 -Preset dev-windows-server
+#   cd ..\anolis-provider-sim
 .\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
 ```
 

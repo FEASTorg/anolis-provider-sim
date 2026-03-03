@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/health.hpp"
+#include "core/runtime_state.hpp"
 #include "core/transport/framed_stdio.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
@@ -202,8 +203,8 @@ void handle_call(const CallRequest &req,
 
 void handle_get_health(const GetHealthRequest & /*req*/,
                        anolis::deviceprovider::v1::Response &resp) {
-  const auto init_report =
-      anolis_provider_sim::DeviceFactory::get_initialization_report();
+  const auto runtime_state = sim_runtime::snapshot();
+  const auto init_report = runtime_state.startup_report;
   auto *out = resp.mutable_get_health();
   *out->mutable_provider() = sim_health::make_provider_health(init_report);
 
@@ -226,8 +227,8 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
 
   std::cerr << "[WaitReady] Processing wait_ready() request\n";
 
-  const auto init_report =
-      anolis_provider_sim::DeviceFactory::get_initialization_report();
+  const auto runtime_state = sim_runtime::snapshot();
+  const auto init_report = runtime_state.startup_report;
   auto *out = resp.mutable_wait_ready();
   (*out->mutable_diagnostics())["init_time_ms"] = "0";
   (*out->mutable_diagnostics())["device_count"] =
