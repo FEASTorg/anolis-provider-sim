@@ -45,8 +45,11 @@ Environment overrides:
 - `ANOLIS_PROVIDER_SIM_BUILD_DIR`: build directory containing `protocol_pb2.py`
 - `FLUXGRAPH_SERVER_EXE`: explicit FluxGraph server executable path
 - `FLUXGRAPH_DIR`: explicit FluxGraph repository root used for server auto-discovery
+- `ANOLIS_PROVIDER_SIM_LOG_LEVEL`: provider log threshold (`debug|info|warn|error|none`)
 
 ## Troubleshooting
 1. If a test hangs, run the same suite with verbose CTest output (`-VV`) and inspect stderr tails emitted by the harness.
-2. If `protocol_pb2` import fails, verify generation target path and `ANOLIS_PROVIDER_SIM_BUILD_DIR`.
-3. If FluxGraph tests fail early, validate server binary path and port availability before rerunning.
+2. If failure context is insufficient, rerun with `ANOLIS_PROVIDER_SIM_LOG_LEVEL=debug` to expand provider-side diagnostics.
+3. If `protocol_pb2` import fails, verify generation target path and `ANOLIS_PROVIDER_SIM_BUILD_DIR`.
+4. If FluxGraph tests fail early, validate server binary path and port availability before rerunning.
+5. Do not print diagnostics to `stdout` in provider code; ADPP framing uses `stdout` and corruption will break tests.

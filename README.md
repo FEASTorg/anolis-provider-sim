@@ -69,6 +69,29 @@ Physics execution uses the SignalRegistry pattern to coordinate between:
 
 See [docs/architecture-signal-registry.md](docs/architecture-signal-registry.md) for details.
 
+## Logging
+
+Provider-sim uses a dedicated process logger and writes all diagnostics to
+`stderr` using this format:
+
+```text
+[YYYY-MM-DD HH:MM:SS.mmm] [LEVEL] [Component] message
+```
+
+Log level is controlled by `ANOLIS_PROVIDER_SIM_LOG_LEVEL`:
+
+- `debug`
+- `info` (default)
+- `warn`
+- `error`
+- `none`
+
+Values are case-insensitive. Invalid values fall back to `info` and emit one
+warning.
+
+Important: `stdout` is reserved for ADPP framed transport. Provider diagnostics
+must never be written to `stdout`.
+
 ## Configuration
 
 Provider-sim supports device configuration via YAML files. This allows operators to customize device topology without code changes.

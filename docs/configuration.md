@@ -168,6 +168,22 @@ providers:
 
 The runtime does not parse provider YAML content.
 
+## Logging Controls
+
+Logging is configured via environment variable (not YAML):
+
+- `ANOLIS_PROVIDER_SIM_LOG_LEVEL=debug|info|warn|error|none`
+
+Behavior:
+
+- Default level: `info`
+- Parsing is case-insensitive
+- Invalid value: one warning is emitted and level falls back to `info`
+- Logs are written to `stderr` only
+
+`stdout` is reserved for ADPP framed protocol traffic and must not be used for
+diagnostics.
+
 ## Startup Behavior
 
 Startup behavior is policy-controlled:
