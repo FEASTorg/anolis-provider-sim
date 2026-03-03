@@ -59,7 +59,7 @@ bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 ## Assertions
 
 - Hotend reaches about `230C` (within tolerance).
-- Chamber warm phase reaches at least `40C`.
+- Chamber warmup window reaches at least `40C`.
 - Coupling delta passes threshold:
   - `avg_coupled - avg_baseline >= 8.0C`
 

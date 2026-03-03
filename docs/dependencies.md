@@ -64,6 +64,6 @@ On Windows local development, use `dev-windows-*` presets.
 - `anolis-protocol` is consumed as pinned submodule.
 - FluxGraph integration remains explicit opt-in (`ENABLE_FLUXGRAPH`, `FLUXGRAPH_DIR`).
 - No hidden network dependency resolution in normal configure paths.
-- FluxGraph CI lanes currently consume floating `main` from `.ci/dependency-pins.yml` by explicit phase decision.
-- Reproducibility is intentionally relaxed in this phase; each FluxGraph CI lane logs the resolved checked-out SHA.
+- FluxGraph CI lanes currently consume floating `main` from `.ci/dependency-pins.yml` by explicit development policy.
+- Reproducibility is intentionally relaxed for this lane; each FluxGraph CI lane logs the resolved checked-out SHA.
 - Revisit immutable FluxGraph SHA pinning before release hardening.

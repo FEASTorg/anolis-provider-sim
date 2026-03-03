@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 
     // Start physics automatically for non-interacting mode only.
     // For sim mode, wait_ready() will start physics after all providers
-    // have registered to prevent phase misalignment in multi-provider
+    // have registered to prevent schedule misalignment in multi-provider
     // scenarios.
     if (config.simulation_mode ==
         anolis_provider_sim::SimulationMode::NonInteracting) {

@@ -1,10 +1,10 @@
 # Cross-repo compatibility refs consumed by provider compatibility lanes.
-# DEV PHASE: FluxGraph is intentionally floating (`main`) for the foreseeable
-# future while provider/graph integration is still evolving.
+# FluxGraph is intentionally floating (`main`) while provider/graph integration
+# is still evolving.
 # Revisit immutable SHA pinning before release hardening.
 
 fluxgraph:
   repository: FEASTorg/fluxgraph
   ref: main
   updated_utc: 2026-03-03
-  rationale: "DEV PHASE: keep floating main and rely on CI SHA logging for traceability"
+  rationale: "Keep floating main and rely on CI SHA logging for traceability"

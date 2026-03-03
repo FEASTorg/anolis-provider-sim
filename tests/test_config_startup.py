@@ -205,7 +205,7 @@ def test_degraded_startup_continue(provider_exe: Path) -> None:
 
         client = AdppClient(protocol, provider_exe, cfg)
         try:
-            hello = client.hello(client_name="ws2-config-test", client_version="0.0.1")
+            hello = client.hello(client_name="config-startup-test", client_version="0.0.1")
             assert_ok(hello, "hello degraded startup")
 
             resp = client.list_devices(include_health=False)

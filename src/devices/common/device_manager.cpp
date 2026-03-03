@@ -304,19 +304,19 @@ static void ticker_thread_func(double tick_rate_hz) {
                                          << " FAILED (maintaining schedule)");
       }
       // Continue with stale data but MAINTAIN THE TICK SCHEDULE.
-      // Don't let timeouts/failures shift our phase relative to other
+      // Don't let timeouts/failures shift our cadence relative to other
       // providers.
     }
 
     tick_count++;
 
     // CRITICAL: Always advance next_tick by tick_duration, regardless of
-    // success/failure. This maintains consistent phase alignment across
+    // success/failure. This maintains consistent tick alignment across
     // providers even when one times out.
     next_tick += tick_duration;
 
     // If we're significantly behind (e.g., first startup, or multi-second
-    // block), catch up gradually rather than immediately resetting phase.
+    // block), catch up gradually rather than immediately resetting alignment.
     const auto now = std::chrono::steady_clock::now();
     while (next_tick <= now && g_ticker_running.load()) {
       next_tick += tick_duration;
