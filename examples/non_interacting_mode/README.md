@@ -16,15 +16,19 @@ Linux/macOS:
 
 ```bash
 bash ./scripts/build.sh --preset dev-release
-bash ./scripts/run_local.sh --preset dev-release -- --config examples/non_interacting_mode/provider.yaml
+python examples/non_interacting_mode/test_non_interacting.py
 ```
 
 Windows:
 
 ```powershell
 .\scripts\build.ps1 -Preset dev-windows-release
-.\scripts\run_local.ps1 -Preset dev-windows-release -- --config examples/non_interacting_mode/provider.yaml
+$env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release"
+python .\examples\non_interacting_mode\test_non_interacting.py
 ```
+
+The script uses shared helpers from `tests/support/` for protocol framing and
+process management; only non-interacting scenario logic lives in this file.
 
 ## Related
 

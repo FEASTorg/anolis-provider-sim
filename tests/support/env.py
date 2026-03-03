@@ -21,6 +21,29 @@ def resolve_build_dir(root: Path | None = None) -> Path:
         if not candidate.is_absolute():
             candidate = root / candidate
         return candidate.resolve()
+
+    candidates = [
+        root / "build",
+        root / "build" / "dev-release",
+        root / "build" / "dev-debug",
+        root / "build" / "dev-release-fluxgraph",
+        root / "build" / "dev-windows-release",
+        root / "build" / "dev-windows-debug",
+        root / "build" / "dev-windows-release-fluxgraph",
+        root / "build" / "ci-linux-release",
+        root / "build" / "ci-linux-release-strict",
+        root / "build" / "ci-linux-release-fluxgraph",
+        root / "build" / "ci-linux-release-fluxgraph-strict",
+        root / "build" / "ci-windows-release",
+        root / "build" / "ci-windows-release-strict",
+        root / "build" / "ci-windows-release-fluxgraph",
+        root / "build" / "ci-windows-release-fluxgraph-strict",
+    ]
+
+    for candidate in candidates:
+        if (candidate / "protocol_pb2.py").exists():
+            return candidate.resolve()
+
     return (root / "build").resolve()
 
 
@@ -53,8 +76,10 @@ def resolve_provider_executable(root: Path | None = None) -> Path:
         root / "build-tsan" / "anolis-provider-sim",
         root / "build" / "dev-release" / "anolis-provider-sim",
         root / "build" / "dev-debug" / "anolis-provider-sim",
+        root / "build" / "dev-release-fluxgraph" / "anolis-provider-sim",
         root / "build" / "dev-windows-release" / "Release" / "anolis-provider-sim.exe",
         root / "build" / "dev-windows-debug" / "Debug" / "anolis-provider-sim.exe",
+        root / "build" / "dev-windows-release-fluxgraph" / "Release" / "anolis-provider-sim.exe",
         root / "build" / "ci-linux-release" / "anolis-provider-sim",
         root / "build" / "ci-linux-release-strict" / "anolis-provider-sim",
         root / "build" / "ci-windows-release" / "Release" / "anolis-provider-sim.exe",
@@ -68,6 +93,39 @@ def resolve_provider_executable(root: Path | None = None) -> Path:
 
     candidate_text = "\n".join(f"  - {path}" for path in candidates)
     raise FileNotFoundError("Could not find anolis-provider-sim executable. Checked:\n" + candidate_text)
+
+
+def resolve_fluxgraph_provider_executable(root: Path | None = None) -> Path:
+    """Resolve a FluxGraph-enabled provider executable for sim-mode workflows."""
+    root = root or repo_root()
+
+    env_path = os.environ.get("ANOLIS_PROVIDER_SIM_EXE")
+    if env_path:
+        candidate = Path(env_path)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        if candidate.exists():
+            return candidate.resolve()
+        raise FileNotFoundError(f"ANOLIS_PROVIDER_SIM_EXE points to missing file: {candidate}")
+
+    candidates = [
+        root / "build" / "dev-release-fluxgraph" / "anolis-provider-sim",
+        root / "build" / "dev-windows-release-fluxgraph" / "Release" / "anolis-provider-sim.exe",
+        root / "build" / "ci-linux-release-fluxgraph" / "anolis-provider-sim",
+        root / "build" / "ci-linux-release-fluxgraph-strict" / "anolis-provider-sim",
+        root / "build" / "ci-windows-release-fluxgraph" / "Release" / "anolis-provider-sim.exe",
+        root / "build" / "ci-windows-release-fluxgraph-strict" / "Release" / "anolis-provider-sim.exe",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+
+    candidate_text = "\n".join(f"  - {path}" for path in candidates)
+    raise FileNotFoundError(
+        "Could not find FluxGraph-enabled anolis-provider-sim executable. Checked:\n"
+        + candidate_text
+        + "\nBuild provider-sim with FluxGraph enabled or set ANOLIS_PROVIDER_SIM_EXE."
+    )
 
 
 def resolve_fluxgraph_server(root: Path | None = None) -> Path:

@@ -1,259 +1,150 @@
 #!/usr/bin/env python3
-"""
-Sim Mode Example: FluxGraph external simulation.
+"""Sim-mode scenario demo backed by shared tests/support harness."""
 
-Demonstrates:
-- FluxGraph server integration
-- External physics computation
-- Device coupling through simulation
-- Signal transforms (noise, scaling)
-- Safety rules from simulation
-"""
+from __future__ import annotations
 
-import subprocess
-import struct
+import argparse
 import sys
 import time
 from pathlib import Path
-from typing import Any, cast
 
-# Add protocol_pb2 to path
-build_dir = Path(__file__).parent.parent.parent / "build"
-if not build_dir.exists():
-    print("ERROR: Build directory not found. Run: .\\scripts\\build.ps1 -Release")
-    sys.exit(1)
+ROOT = Path(__file__).resolve().parents[2]
+TESTS_DIR = ROOT / "tests"
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
 
-sys.path.insert(0, str(build_dir))
-
-try:
-    import protocol_pb2 as _protocol
-except ImportError:
-    print("ERROR: protocol_pb2.py not found in build directory")
-    print("Solution: Rebuild with: .\\scripts\\build.ps1 -Release")
-    sys.exit(1)
-
-protocol = cast(Any, _protocol)
-Request = protocol.Request
-Response = protocol.Response
-Value = protocol.Value
-ValueType = protocol.ValueType
+from support.assertions import assert_ok, require_signal  # noqa: E402
+from support.env import (  # noqa: E402
+    find_free_port,
+    repo_root,
+    resolve_config_path,
+    resolve_fluxgraph_server,
+    resolve_fluxgraph_provider_executable,
+)
+from support.framed_client import AdppClient, make_double_value, make_string_value  # noqa: E402
+from support.process import ManagedTextProcess  # noqa: E402
+from support.proto_bootstrap import load_protocol_module  # noqa: E402
 
 
-def find_fluxgraph_server():
-    """Find FluxGraph server executable"""
-    candidates = [
-        Path("../../../fluxgraph/build-server/server/Release/fluxgraph-server.exe"),
-        Path("../../../fluxgraph/build-release-server/server/Release/fluxgraph-server.exe"),
-        Path("../../../fluxgraph/build/server/Release/fluxgraph-server.exe"),
-        Path("../../../fluxgraph/build-server/server/fluxgraph-server"),
-        Path("../../../fluxgraph/build/server/fluxgraph-server"),
-    ]
-    for path in candidates:
-        if path.exists():
-            return str(path.resolve())
-    return None
+def _read_temp(client: AdppClient) -> float:
+    resp = client.read_signals("chamber", ["tc1_temp"])
+    assert_ok(resp, "read chamber tc1_temp")
+    return float(require_signal(resp, "tc1_temp").value.double_value)
 
 
-def find_provider():
-    """Find provider executable"""
-    candidates = [
-        Path(__file__).parent.parent.parent / "build" / "Release" / "anolis-provider-sim.exe",
-        Path(__file__).parent.parent.parent / "build" / "anolis-provider-sim.exe",
-    ]
-    for path in candidates:
-        if path.exists():
-            return str(path)
-    return None
+def run_sim_example(duration_sec: int, port: int) -> int:
+    protocol, build_dir = load_protocol_module()
+    root = repo_root()
+    provider_exe = resolve_fluxgraph_provider_executable(root)
+    fluxgraph_server = resolve_fluxgraph_server(root)
+    config_path = resolve_config_path("examples/sim_mode/provider.yaml", root)
 
+    print("=" * 60)
+    print("Sim Mode Example")
+    print("=" * 60)
+    print(f"Provider: {provider_exe}")
+    print(f"Build dir: {build_dir}")
+    print(f"FluxGraph server: {fluxgraph_server}")
+    print(f"Config: {config_path}")
+    print(f"Port: {port}")
 
-def run_sim_example():
-    # Start FluxGraph server
-    print("[0] Starting FluxGraph server...")
-    server_exe = find_fluxgraph_server()
-    if not server_exe:
-        print("[FAIL] FluxGraph server not found. Build it with:")
-        print("  cd d:\\repos_feast\\fluxgraph")
-        print("  .\\scripts\\build.ps1 -Server -Release")
-        print("\nAlternatively, start FluxGraph server manually:")
-        print("  fluxgraph-server.exe --port 50051")
-        print("\nThen run this test again.")
-        return False
+    if not config_path.exists():
+        print(f"ERROR: Config file not found: {config_path}", file=sys.stderr)
+        return 1
 
-    server = subprocess.Popen([server_exe, "--port", "50051"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+    server = ManagedTextProcess.start(
+        "fluxgraph-server",
+        [str(fluxgraph_server), "--port", str(port), "--dt", "0.1"],
+    )
+    client: AdppClient | None = None
     try:
-        time.sleep(2.0)  # Let server start and bind port
-        print("[OK] FluxGraph server running on localhost:50051")
+        if not server.wait_for_port("127.0.0.1", port, timeout=8.0):
+            raise RuntimeError(
+                "FluxGraph server did not become ready in time\n"
+                + server.output_tail(120)
+            )
 
-        # Start provider (connects to FluxGraph)
-        print("\n[1] Starting provider-sim with FluxGraph integration...")
-        provider_exe = find_provider()
-        if not provider_exe:
-            print("[FAIL] Provider executable not found")
-            print("Solution: Build with: .\\scripts\\build.ps1 -Release")
-            return False
-
-        provider = subprocess.Popen(
-            [
-                provider_exe,
-                "--config",
-                "provider.yaml",
-                "--sim-server",
-                "localhost:50051",
-            ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        client = AdppClient(
+            protocol,
+            provider_exe,
+            config_path,
+            sim_server=f"localhost:{port}",
         )
 
-        time.sleep(1.0)  # Let provider connect
+        hello = client.hello(client_name="sim-example", client_version="1.0.0")
+        assert_ok(hello, "hello")
 
-        # Check if provider is still running
-        if provider.poll() is not None:
-            stderr_pipe = provider.stderr
-            stderr_output = stderr_pipe.read().decode() if stderr_pipe is not None else ""
-            print("[FAIL] Provider terminated unexpectedly:")
-            print(stderr_output)
-            return False
+        ready = client.wait_ready(max_wait_ms_hint=5000)
+        assert_ok(ready, "wait_ready")
 
-        print("[OK] Provider connected to FluxGraph")
+        baseline = _read_temp(client)
+        print(f"Initial chamber temperature: {baseline:.2f} C")
 
-        # Test: Temperature convergence with external physics
-        print("\n[2] Testing FluxGraph thermal simulation...")
-        print("  Setting mode=closed, setpoint=80degC\n")
+        resp = client.call_function(
+            "chamber",
+            1,
+            {"mode": make_string_value(protocol, "closed")},
+        )
+        assert_ok(resp, "set_mode closed")
 
-        # Set closed-loop mode
-        req = Request(request_id=1)
-        req.call.device_id = "chamber"
-        req.call.function_id = 1  # set_mode
-        mode_arg = make_string("closed")
-        req.call.args["mode"].CopyFrom(mode_arg)
-        resp = send_recv(provider, req)
+        resp = client.call_function(
+            "chamber",
+            2,
+            {"value": make_double_value(protocol, 80.0)},
+        )
+        assert_ok(resp, "set_setpoint 80")
 
-        if resp.status.code != 1:
-            print(f"[FAIL] set_mode failed: {resp.status.message}")
-            return False
+        deadline = time.time() + max(duration_sec, 5)
+        observed_max = baseline
+        samples = 0
+        while time.time() < deadline:
+            current = _read_temp(client)
+            observed_max = max(observed_max, current)
+            samples += 1
+            print(f"temp sample {samples}: {current:.2f} C")
+            if current >= baseline + 1.0:
+                break
+            time.sleep(0.5)
+        else:
+            raise RuntimeError(
+                "Simulation progression assertion failed: expected >=1.0 C rise "
+                f"(initial={baseline:.2f}, max={observed_max:.2f})"
+            )
 
-        # Set setpoint
-        req = Request(request_id=2)
-        req.call.device_id = "chamber"
-        req.call.function_id = 2  # set_setpoint
-        sp_arg = make_double(80.0)
-        req.call.args["value"].CopyFrom(sp_arg)
-        resp = send_recv(provider, req)
-
-        if resp.status.code != 1:
-            print(f"[FAIL] set_setpoint failed: {resp.status.message}")
-            return False
-
-        # Monitor temperature (FluxGraph computes physics)
-        temps = []
-        for i in range(10):
-            time.sleep(1.5)
-            req = Request(request_id=10 + i)
-            req.read_signals.device_id = "chamber"
-            req.read_signals.signal_ids.extend(["tc1_temp", "tc2_temp", "relay1_state"])
-            resp = send_recv(provider, req)
-
-            if resp.status.code != 1:
-                print(f"[FAIL] ReadSignals failed: {resp.status.message}")
-                return False
-
-            if len(resp.read_signals.values) < 3:
-                print(f"[FAIL] Expected 3 signals, got {len(resp.read_signals.values)}")
-                return False
-
-            # Extract values by signal_id
-            values = {v.signal_id: v for v in resp.read_signals.values}
-
-            tc1 = values["tc1_temp"].value.double_value
-            tc2 = values["tc2_temp"].value.double_value
-            relay = values["relay1_state"].value.bool_value
-
-            temps.append(tc1)
-            print(f"  t={i * 1.5:.1f}s: TC1={tc1:.1f}degC, TC2={tc2:.1f}degC, relay={'ON' if relay else 'OFF'}")
-
-        # Verify convergence
-        if temps[-1] <= temps[0]:
-            print("[FAIL] Temperature did not increase (FluxGraph physics issue)")
-            print(f"  Initial: {temps[0]:.1f}degC, Final: {temps[-1]:.1f}degC")
-            return False
-
-        if temps[-1] < 60.0:
-            print(f"[FAIL] Should reach >60degC, got {temps[-1]:.1f}degC")
-            return False
-
-        print("[OK] FluxGraph thermal physics working!")
-
-        print("\n[OK] Sim mode with FluxGraph integration successful!")
-        return True
-
-    except Exception as e:
-        print(f"\n[FAIL] Exception: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
+        print("[PASS] Sim mode scenario completed")
+        return 0
+    except Exception as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        print(server.output_tail(120), file=sys.stderr)
+        if client is not None:
+            print("Provider stderr tail:", file=sys.stderr)
+            print(client.output_tail(120) or "(empty)", file=sys.stderr)
+        return 1
     finally:
-        # Cleanup
-        try:
-            if provider.stdin is not None:
-                provider.stdin.close()
-            provider.terminate()
-            provider.wait(timeout=2)
-        except Exception:
-            pass
-
-        try:
-            server.terminate()
-            server.wait(timeout=2)
-        except Exception:
-            pass
+        if client is not None:
+            client.close()
+        server.close(timeout=5.0)
 
 
-def send_recv(proc, req):
-    """Send request and receive response via ADPP framing"""
-    payload = req.SerializeToString()
-    frame = struct.pack("<I", len(payload)) + payload
-    proc.stdin.write(frame)
-    proc.stdin.flush()
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Sim mode example scenario")
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=15,
+        help="Max seconds to wait for measurable simulation progression (default: 15)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="FluxGraph server port (default: auto-select free port)",
+    )
+    args = parser.parse_args()
 
-    # Read response
-    hdr = proc.stdout.read(4)
-    if len(hdr) < 4:
-        raise RuntimeError("Failed to read response header")
-
-    length = struct.unpack("<I", hdr)[0]
-    data = proc.stdout.read(length)
-
-    if len(data) < length:
-        raise RuntimeError(f"Incomplete response: expected {length}, got {len(data)}")
-
-    resp = Response()
-    resp.ParseFromString(data)
-    return resp
-
-
-def make_string(s):
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_STRING
-    v.string_value = s
-    return v
-
-
-def make_double(d):
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_DOUBLE
-    v.double_value = d
-    return v
+    port = args.port if args.port > 0 else find_free_port(50061, 10)
+    return run_sim_example(args.duration, port)
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Sim Mode Example (FluxGraph Integration)")
-    print("=" * 60)
-    print("\nUse Case: Advanced physics with external simulation")
-    print("Benefits: Device coupling, complex models, safety rules\n")
-
-    success = run_sim_example()
-    sys.exit(0 if success else 1)
+    sys.exit(main())

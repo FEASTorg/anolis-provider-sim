@@ -243,6 +243,23 @@ jobs:
           ref: ${{ steps.pins.outputs.ref }}
           path: fluxgraph
 
+      - name: Log FluxGraph resolved commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          FLUXGRAPH_SHA=$(git -C fluxgraph rev-parse HEAD)
+          FLUXGRAPH_SUBJECT=$(git -C fluxgraph log -1 --pretty=%s)
+          echo "FluxGraph requested ref: ${{ steps.pins.outputs.ref }}"
+          echo "FluxGraph resolved commit: $FLUXGRAPH_SHA"
+          echo "FluxGraph HEAD subject: $FLUXGRAPH_SUBJECT"
+          {
+            echo "### FluxGraph Resolution (Windows FluxGraph build)"
+            echo ""
+            echo "- Ref: \`${{ steps.pins.outputs.ref }}\`"
+            echo "- Commit: \`$FLUXGRAPH_SHA\`"
+            echo "- Subject: $FLUXGRAPH_SUBJECT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -296,6 +313,22 @@ jobs:
           repository: ${{ steps.pins.outputs.repo }}
           ref: ${{ steps.pins.outputs.ref }}
           path: fluxgraph
+
+      - name: Log FluxGraph resolved commit
+        run: |
+          set -euo pipefail
+          FLUXGRAPH_SHA=$(git -C fluxgraph rev-parse HEAD)
+          FLUXGRAPH_SUBJECT=$(git -C fluxgraph log -1 --pretty=%s)
+          echo "FluxGraph requested ref: ${{ steps.pins.outputs.ref }}"
+          echo "FluxGraph resolved commit: $FLUXGRAPH_SHA"
+          echo "FluxGraph HEAD subject: $FLUXGRAPH_SUBJECT"
+          {
+            echo "### FluxGraph Resolution (Linux FluxGraph lane)"
+            echo ""
+            echo "- Ref: \`${{ steps.pins.outputs.ref }}\`"
+            echo "- Commit: \`$FLUXGRAPH_SHA\`"
+            echo "- Subject: $FLUXGRAPH_SUBJECT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install system dependencies
         run: |

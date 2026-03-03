@@ -1,6 +1,8 @@
 # Provider-Sim Examples
 
-This directory contains configuration-first examples for each simulation mode.
+This directory contains scenario-focused examples for each simulation mode.
+Example scripts intentionally reuse the shared harness in `tests/support/` so
+transport/process/protobuf handling stays centralized in one place.
 
 ## Example Directories
 
@@ -10,7 +12,7 @@ This directory contains configuration-first examples for each simulation mode.
 
 ## Quick Start
 
-Build provider-sim first:
+Build provider-sim first.
 
 Linux/macOS:
 
@@ -24,23 +26,31 @@ Windows:
 .\scripts\build.ps1 -Preset dev-windows-release
 ```
 
-Run each mode with its example config:
+Run inert and non-interacting scenarios:
 
 Linux/macOS:
 
 ```bash
-bash ./scripts/run_local.sh --preset dev-release -- --config examples/inert_mode/provider.yaml
-bash ./scripts/run_local.sh --preset dev-release -- --config examples/non_interacting_mode/provider.yaml
+python examples/inert_mode/test_inert.py
+python examples/non_interacting_mode/test_non_interacting.py
 ```
 
 Windows:
 
 ```powershell
-.\scripts\run_local.ps1 -Preset dev-windows-release -- --config examples/inert_mode/provider.yaml
-.\scripts\run_local.ps1 -Preset dev-windows-release -- --config examples/non_interacting_mode/provider.yaml
+python .\examples\inert_mode\test_inert.py
+python .\examples\non_interacting_mode\test_non_interacting.py
 ```
 
-For `sim_mode`, build FluxGraph-enabled provider and pass `--sim-server`.
+If generated Python protobuf bindings are in a preset-specific build directory,
+set `ANOLIS_PROVIDER_SIM_BUILD_DIR` before running examples.
+Example (Windows):
+
+```powershell
+$env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release"
+```
+
+`sim_mode` also requires FluxGraph server availability.
 
 ## FluxGraph (`sim_mode`)
 
@@ -48,14 +58,15 @@ Linux/macOS:
 
 ```bash
 bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
-bash ./scripts/run_local.sh --preset ci-linux-release-fluxgraph -- --config examples/sim_mode/provider.yaml --sim-server localhost:50051
+python examples/sim_mode/test_sim.py
 ```
 
 Windows:
 
 ```powershell
 .\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
-.\scripts\run_local.ps1 -Preset dev-windows-release-fluxgraph -- --config examples/sim_mode/provider.yaml --sim-server localhost:50051
+$env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release-fluxgraph"
+python .\examples\sim_mode\test_sim.py
 ```
 
 ## Notes

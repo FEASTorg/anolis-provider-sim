@@ -22,7 +22,7 @@ from support.env import (
     repo_root,
     resolve_config_path,
     resolve_fluxgraph_server,
-    resolve_provider_executable,
+    resolve_fluxgraph_provider_executable,
 )
 from support.framed_client import (
     AdppClient,
@@ -121,7 +121,7 @@ def run_scenario(port: int) -> int:
     protocol, _ = load_protocol_module()
     root = repo_root()
 
-    provider_exe = resolve_provider_executable(root)
+    provider_exe = resolve_fluxgraph_provider_executable(root)
     server_exe = resolve_fluxgraph_server(root)
     chamber_cfg = resolve_config_path("config/provider-chamber.yaml", root)
     extruder_cfg = resolve_config_path("config/provider-extruder.yaml", root)

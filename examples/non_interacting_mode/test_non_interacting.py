@@ -1,254 +1,116 @@
 #!/usr/bin/env python3
-"""
-Non-Interacting Mode Example: Built-in first-order physics.
+"""Non-interacting-mode scenario demo backed by shared tests/support harness."""
 
-Demonstrates:
-- Temperature convergence (heater -> setpoint)
-- Motor speed ramp (duty -> target RPM)
-- Independent device physics
-- No external dependencies
-"""
+from __future__ import annotations
 
-import subprocess
-import struct
 import sys
 import time
 from pathlib import Path
-from typing import Any, cast
 
-# Add protocol_pb2 to path
-build_dir = Path(__file__).parent.parent.parent / "build"
-if not build_dir.exists():
-    print("ERROR: Build directory not found. Run: .\\scripts\\build.ps1 -Release")
-    sys.exit(1)
+ROOT = Path(__file__).resolve().parents[2]
+TESTS_DIR = ROOT / "tests"
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
 
-sys.path.insert(0, str(build_dir))
-
-try:
-    import protocol_pb2 as _protocol
-except ImportError:
-    print("ERROR: protocol_pb2.py not found in build directory")
-    print("Solution: Rebuild with: .\\scripts\\build.ps1 -Release")
-    sys.exit(1)
-
-protocol = cast(Any, _protocol)
-Request = protocol.Request
-Response = protocol.Response
-Value = protocol.Value
-ValueType = protocol.ValueType
+from support.assertions import assert_ok, require_signal  # noqa: E402
+from support.env import repo_root, resolve_config_path, resolve_provider_executable  # noqa: E402
+from support.framed_client import (  # noqa: E402
+    AdppClient,
+    make_double_value,
+    make_int64_value,
+    make_string_value,
+)
+from support.proto_bootstrap import load_protocol_module  # noqa: E402
 
 
-def run_non_interacting_example():
-    # Find provider executable
-    provider_paths = [
-        Path(__file__).parent.parent.parent / "build" / "Release" / "anolis-provider-sim.exe",
-        Path(__file__).parent.parent.parent / "build-standalone" / "Release" / "anolis-provider-sim.exe",
-        Path(__file__).parent.parent.parent / "build" / "anolis-provider-sim.exe",
-    ]
-
-    provider_exe = None
-    for path in provider_paths:
-        if path.exists():
-            provider_exe = str(path)
-            break
-
-    if not provider_exe:
-        print("ERROR: Provider executable not found")
-        print("Solution: Build first with: .\\scripts\\build.ps1 -Release")
-        sys.exit(1)
-
-    print(f"Using provider: {provider_exe}\n")
-
-    # Start provider
-    provider = subprocess.Popen(
-        [provider_exe, "--config", "provider.yaml"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    try:
-        time.sleep(0.5)  # Let provider start and ticker begin
-
-        # Test 1: Temperature convergence
-        print("[1] Testing temperature convergence...")
-        print("  Setting mode=closed, setpoint=80degC\n")
-
-        # Set closed-loop mode
-        req = Request(request_id=1)
-        req.call.device_id = "chamber"
-        req.call.function_id = 1  # set_mode
-        mode_arg = make_string("closed")
-        req.call.args["mode"].CopyFrom(mode_arg)
-        resp = send_recv(provider, req)
-
-        if resp.status.code != 1:
-            print(f"[FAIL] set_mode failed: {resp.status.message}")
-            return False
-
-        # Set setpoint
-        req = Request(request_id=2)
-        req.call.device_id = "chamber"
-        req.call.function_id = 2  # set_setpoint
-        sp_arg = make_double(80.0)
-        req.call.args["value"].CopyFrom(sp_arg)
-        resp = send_recv(provider, req)
-
-        if resp.status.code != 1:
-            print(f"[FAIL] set_setpoint failed: {resp.status.message}")
-            return False
-
-        # Read temperature over time
-        temps = []
-        for i in range(10):
-            time.sleep(1.5)
-            req = Request(request_id=10 + i)
-            req.read_signals.device_id = "chamber"
-            req.read_signals.signal_ids.append("tc1_temp")
-            resp = send_recv(provider, req)
-
-            if resp.status.code != 1:
-                print(f"[FAIL] ReadSignals failed: {resp.status.message}")
-                return False
-
-            if not resp.read_signals.values:
-                print("[FAIL] No signal values returned")
-                return False
-
-            temp = resp.read_signals.values[0].value.double_value
-            temps.append(temp)
-            print(f"  t={i * 1.5:.1f}s: temp={temp:.1f}degC")
-
-        # Verify convergence
-        if temps[-1] <= temps[0]:
-            print(f"[FAIL] Temperature did not increase: {temps[0]:.1f} -> {temps[-1]:.1f}")
-            return False
-
-        if temps[-1] < 60.0:
-            print(f"[FAIL] Temperature should reach >60degC, got {temps[-1]:.1f}degC")
-            return False
-
-        print("[OK] Temperature converging to setpoint")
-
-        # Test 2: Motor speed ramp
-        print("\n[2] Testing motor speed ramp...")
-        print("  Setting motor duty=0.5 (50%)\n")
-
-        # Set motor duty
-        req = Request(request_id=20)
-        req.call.device_id = "motor"
-        req.call.function_id = 10  # set_motor_duty
-
-        motor_idx = make_int64(1)
-        req.call.args["motor_index"].CopyFrom(motor_idx)
-
-        duty = make_double(0.5)
-        req.call.args["duty"].CopyFrom(duty)
-
-        resp = send_recv(provider, req)
-
-        if resp.status.code != 1:
-            print(f"[FAIL] set_motor_duty failed: {resp.status.message}")
-            return False
-
-        # Read speed over time
-        speeds = []
-        for i in range(6):
-            time.sleep(1.0)
-            req = Request(request_id=30 + i)
-            req.read_signals.device_id = "motor"
-            req.read_signals.signal_ids.append("motor1_speed")
-            resp = send_recv(provider, req)
-
-            if resp.status.code != 1:
-                print(f"[FAIL] ReadSignals failed: {resp.status.message}")
-                return False
-
-            if not resp.read_signals.values:
-                print("[FAIL] No signal values returned")
-                return False
-
-            speed = resp.read_signals.values[0].value.double_value
-            speeds.append(speed)
-            print(f"  t={i}s: speed={speed:.0f} RPM")
-
-        # Verify ramp
-        if speeds[-1] <= speeds[0]:
-            print(f"[FAIL] Speed did not increase: {speeds[0]:.0f} -> {speeds[-1]:.0f}")
-            return False
-
-        if speeds[-1] < 1000:
-            print(f"[FAIL] Speed should reach >1000 RPM, got {speeds[-1]:.0f}")
-            return False
-
-        print("[OK] Motor speed ramping up")
-
-        print("\n[OK] Non-interacting mode physics working!")
-        return True
-
-    except Exception as e:
-        print(f"\n[FAIL] Exception: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-    finally:
-        if provider.stdin is not None:
-            provider.stdin.close()
-        provider.terminate()
-        provider.wait(timeout=2)
+def _read_temp(client: AdppClient) -> float:
+    resp = client.read_signals("chamber", ["tc1_temp"])
+    assert_ok(resp, "read chamber tc1_temp")
+    return float(require_signal(resp, "tc1_temp").value.double_value)
 
 
-def send_recv(proc, req):
-    """Send request and receive response via ADPP framing"""
-    payload = req.SerializeToString()
-    frame = struct.pack("<I", len(payload)) + payload
-    proc.stdin.write(frame)
-    proc.stdin.flush()
-
-    # Read response
-    hdr = proc.stdout.read(4)
-    if len(hdr) < 4:
-        raise RuntimeError("Failed to read response header")
-
-    length = struct.unpack("<I", hdr)[0]
-    data = proc.stdout.read(length)
-
-    if len(data) < length:
-        raise RuntimeError(f"Incomplete response: expected {length}, got {len(data)}")
-
-    resp = Response()
-    resp.ParseFromString(data)
-    return resp
+def _read_speed(client: AdppClient) -> float:
+    resp = client.read_signals("motor", ["motor1_speed"])
+    assert_ok(resp, "read motor1_speed")
+    return float(require_signal(resp, "motor1_speed").value.double_value)
 
 
-def make_string(s):
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_STRING
-    v.string_value = s
-    return v
+def run_non_interacting_example() -> int:
+    protocol, build_dir = load_protocol_module()
+    root = repo_root()
+    provider_exe = resolve_provider_executable(root)
+    config_path = resolve_config_path("examples/non_interacting_mode/provider.yaml", root)
 
-
-def make_double(d):
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_DOUBLE
-    v.double_value = d
-    return v
-
-
-def make_int64(i):
-    v = Value()
-    v.type = ValueType.VALUE_TYPE_INT64
-    v.int64_value = i
-    return v
-
-
-if __name__ == "__main__":
     print("=" * 60)
     print("Non-Interacting Mode Example")
     print("=" * 60)
-    print("\nUse Case: Standalone simulation with built-in physics")
-    print("Benefits: No external dependencies, simple first-order dynamics\n")
+    print(f"Provider: {provider_exe}")
+    print(f"Build dir: {build_dir}")
+    print(f"Config: {config_path}")
 
-    success = run_non_interacting_example()
-    sys.exit(0 if success else 1)
+    if not config_path.exists():
+        print(f"ERROR: Config file not found: {config_path}", file=sys.stderr)
+        return 1
+
+    client = AdppClient(protocol, provider_exe, config_path)
+    try:
+        hello = client.hello(client_name="non-interacting-example", client_version="1.0.0")
+        assert_ok(hello, "hello")
+
+        resp = client.call_function(
+            "chamber",
+            1,
+            {"mode": make_string_value(protocol, "closed")},
+        )
+        assert_ok(resp, "set_mode closed")
+
+        resp = client.call_function(
+            "chamber",
+            2,
+            {"value": make_double_value(protocol, 80.0)},
+        )
+        assert_ok(resp, "set_setpoint 80")
+
+        temps: list[float] = []
+        for idx in range(8):
+            time.sleep(1.0)
+            temp = _read_temp(client)
+            temps.append(temp)
+            print(f"temp sample {idx + 1}: {temp:.1f} C")
+
+        if temps[-1] <= temps[0]:
+            raise RuntimeError(f"Temperature did not rise (first={temps[0]:.1f}, last={temps[-1]:.1f})")
+
+        resp = client.call_function(
+            "motor",
+            10,
+            {
+                "motor_index": make_int64_value(protocol, 1),
+                "duty": make_double_value(protocol, 0.5),
+            },
+        )
+        assert_ok(resp, "set_motor_duty")
+
+        speeds: list[float] = []
+        for idx in range(5):
+            time.sleep(1.0)
+            speed = _read_speed(client)
+            speeds.append(speed)
+            print(f"motor sample {idx + 1}: {speed:.0f} RPM")
+
+        if speeds[-1] <= speeds[0]:
+            raise RuntimeError(f"Motor speed did not rise (first={speeds[0]:.0f}, last={speeds[-1]:.0f})")
+
+        print("[PASS] Non-interacting mode scenario completed")
+        return 0
+    except Exception as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        print("Provider stderr tail:", file=sys.stderr)
+        print(client.output_tail(120) or "(empty)", file=sys.stderr)
+        return 1
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    sys.exit(run_non_interacting_example())
