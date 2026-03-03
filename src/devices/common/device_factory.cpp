@@ -126,9 +126,8 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
     entry.config = spec.config;
     g_device_registry[spec.id] = entry;
 
-    PSIM_LOG_INFO(
-        "DeviceFactory",
-        "Initialized device '" << spec.id << "' (type: analogsensor)");
+    PSIM_LOG_INFO("DeviceFactory", "Initialized device '"
+                                       << spec.id << "' (type: analogsensor)");
     return true;
   } else {
     throw std::runtime_error("[DeviceFactory] Unknown device type: " +
@@ -166,10 +165,9 @@ DeviceFactory::initialize_from_config(const ProviderConfig &config) {
 
     init_report.failed_devices.push_back(
         DeviceInitFailure{spec.id, spec.type, *failure_reason});
-    PSIM_LOG_WARN("DeviceFactory",
-                  "Failed to initialize device '" << spec.id
-                                                   << "' (type: " << spec.type
-                                                   << "): " << *failure_reason);
+    PSIM_LOG_WARN("DeviceFactory", "Failed to initialize device '"
+                                       << spec.id << "' (type: " << spec.type
+                                       << "): " << *failure_reason);
 
     if (config.startup_policy == StartupPolicy::Strict) {
       g_device_registry.clear();

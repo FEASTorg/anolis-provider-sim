@@ -168,9 +168,8 @@ static void configure_simulation_inputs(
   }
 
   g_ambient_input = ConstantSignalInput{ambient_path, ambient_temp};
-  PSIM_LOG_INFO("DeviceManager", "Configured ambient input: " << ambient_path
-                                                               << "="
-                                                               << ambient_temp);
+  PSIM_LOG_INFO("DeviceManager", "Configured ambient input: "
+                                     << ambient_path << "=" << ambient_temp);
 }
 
 static void execute_engine_command(const sim_engine::Command &cmd) {
@@ -182,9 +181,9 @@ static void execute_engine_command(const sim_engine::Command &cmd) {
 
   const auto fn_it = dev_it->second.find(cmd.function_name);
   if (fn_it == dev_it->second.end()) {
-    PSIM_LOG_WARN("DeviceManager", "Unknown command function: " << cmd.device_id
-                                                                 << "::"
-                                                                 << cmd.function_name);
+    PSIM_LOG_WARN("DeviceManager",
+                  "Unknown command function: " << cmd.device_id
+                                               << "::" << cmd.function_name);
     return;
   }
 
@@ -225,10 +224,10 @@ static void ticker_thread_func(double tick_rate_hz) {
           thread_start.time_since_epoch())
           .count();
 
-  PSIM_LOG_INFO("Ticker", "Thread started at steady_clock=" << thread_start_ms
-                                                             << "ms");
+  PSIM_LOG_INFO("Ticker",
+                "Thread started at steady_clock=" << thread_start_ms << "ms");
   PSIM_LOG_INFO("Ticker", "Tick period: " << (dt * 1000.0) << "ms (@"
-                                           << tick_rate_hz << " Hz)");
+                                          << tick_rate_hz << " Hz)");
 
   // Start ticking immediately from thread creation time
   auto next_tick = thread_start;
@@ -263,11 +262,11 @@ static void ticker_thread_func(double tick_rate_hz) {
 
     // Debug first 2 ticks only
     if (tick_count < 2) {
-      PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " at steady_clock "
-                                        << tick_start_ms << " ms"
-                                        << " (delta="
-                                        << (tick_start_ms - thread_start_ms)
-                                        << "ms from thread start)");
+      PSIM_LOG_DEBUG("Ticker",
+                     "Tick #" << tick_count << " at steady_clock "
+                              << tick_start_ms << " ms"
+                              << " (delta=" << (tick_start_ms - thread_start_ms)
+                              << "ms from thread start)");
       PSIM_LOG_DEBUG("Ticker", "Sending " << actuators.size() << " signals");
     }
 
@@ -286,8 +285,7 @@ static void ticker_thread_func(double tick_rate_hz) {
                 tick_end.time_since_epoch())
                 .count();
         const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
-        PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count
-                                          << " SUCCESS (RPC took "
+        PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " SUCCESS (RPC took "
                                           << rpc_duration_ms << "ms)");
       }
 
@@ -388,8 +386,7 @@ void start_physics() {
     return;
   }
   if (g_ticker_running.load()) {
-    PSIM_LOG_INFO("DeviceManager",
-                  "start_physics: already running, skipping");
+    PSIM_LOG_INFO("DeviceManager", "start_physics: already running, skipping");
     return;
   }
 

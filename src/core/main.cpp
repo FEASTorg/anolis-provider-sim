@@ -57,9 +57,8 @@ create_engine(const anolis_provider_sim::ProviderConfig &config,
     if (sim_server_address.empty()) {
       throw std::runtime_error("mode=sim requires --sim-server <host:port>");
     }
-    PSIM_LOG_INFO("Main",
-                  "mode=sim (external simulation at " + sim_server_address +
-                      ")");
+    PSIM_LOG_INFO("Main", "mode=sim (external simulation at " +
+                              sim_server_address + ")");
     return std::make_unique<sim_engine::RemoteEngine>(
         std::make_unique<sim_adapters::FluxGraphAdapter>(sim_server_address),
         config.tick_rate_hz.value_or(10.0));
@@ -115,25 +114,23 @@ int main(int argc, char **argv) {
     const auto init_report =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
     sim_runtime::set_startup_report(init_report);
-    PSIM_LOG_INFO("Main", "startup_policy=" +
-                              std::string(config.startup_policy ==
-                                                  anolis_provider_sim::
-                                                      StartupPolicy::Strict
-                                              ? "strict"
-                                              : "degraded"));
-    PSIM_LOG_INFO("Main", "initialized " +
-                              std::to_string(
-                                  init_report.successful_device_ids.size()) +
-                              " / " +
-                              std::to_string(
-                                  init_report.configured_device_count) +
-                              " devices");
+    PSIM_LOG_INFO(
+        "Main",
+        "startup_policy=" +
+            std::string(config.startup_policy ==
+                                anolis_provider_sim::StartupPolicy::Strict
+                            ? "strict"
+                            : "degraded"));
+    PSIM_LOG_INFO(
+        "Main",
+        "initialized " +
+            std::to_string(init_report.successful_device_ids.size()) + " / " +
+            std::to_string(init_report.configured_device_count) + " devices");
     if (!init_report.failed_devices.empty()) {
       for (const auto &failure : init_report.failed_devices) {
-        PSIM_LOG_WARN("Main", "degraded init failure: device_id=" +
-                                  failure.device_id +
-                                  " type=" + failure.type +
-                                  " reason=" + failure.reason);
+        PSIM_LOG_WARN(
+            "Main", "degraded init failure: device_id=" + failure.device_id +
+                        " type=" + failure.type + " reason=" + failure.reason);
       }
     }
 
@@ -180,9 +177,8 @@ int main(int argc, char **argv) {
     }
 
   } catch (const std::exception &e) {
-    PSIM_LOG_ERROR("Main",
-                   "FATAL: Failed to initialize simulation: " +
-                       std::string(e.what()));
+    PSIM_LOG_ERROR("Main", "FATAL: Failed to initialize simulation: " +
+                               std::string(e.what()));
     return 1;
   }
 
