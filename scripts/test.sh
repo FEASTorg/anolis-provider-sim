@@ -6,7 +6,7 @@
 #
 # Options:
 #   --preset <name>   Test preset (default: dev-release)
-#   --suite <name>    all|smoke|config|adpp|multi|fault|fluxgraph (default: all)
+#   --suite <name>    all|unit|smoke|config|adpp|multi|fault|fluxgraph (default: all)
 #   -v, --verbose     Run ctest with -VV
 #   -h, --help        Show help
 
@@ -59,10 +59,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SUITE" in
-all | smoke | config | adpp | multi | fault | fluxgraph) ;;
+all | unit | smoke | config | adpp | multi | fault | fluxgraph) ;;
 *)
     echo "[ERROR] Invalid suite: $SUITE"
-    echo "Valid values: all, smoke, config, adpp, multi, fault, fluxgraph"
+    echo "Valid values: all, unit, smoke, config, adpp, multi, fault, fluxgraph"
     exit 2
     ;;
 esac

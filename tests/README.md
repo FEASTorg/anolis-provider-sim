@@ -25,6 +25,7 @@ Preferred (via CTest wrappers):
 - Windows: `pwsh ./scripts/test.ps1 -Preset dev-windows-release -Suite all`
 
 Targeted suites:
+- `unit`: C++ config parser validation tests (GoogleTest)
 - `smoke`: hello handshake baseline
 - `config`: config parser + startup policy validation (`tests/test_config_startup.py`)
 - `adpp`: protocol surface integration checks

@@ -232,6 +232,9 @@ target_compile_definitions(anolis-provider-sim PRIVATE
 
 if(BUILD_TESTING)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    find_package(GTest CONFIG REQUIRED)
+
+    add_subdirectory(tests/unit)
 
     if(WIN32)
         set(_python_gen_cmd

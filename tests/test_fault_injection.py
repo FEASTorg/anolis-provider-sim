@@ -359,6 +359,18 @@ def test_invalid_inputs(client: AdppClient, protocol) -> bool:
     assert resp.status.code == invalid_code, f"Expected invalid failure_rate rejection, got {status_text(resp)}"
     assert "failure_rate must be in [0.0, 1.0]" in resp.status.message
 
+    resp = client.call_function(
+        "chaos_control",
+        4,
+        {
+            "device_id": make_string_value(protocol, "tempctl0"),
+            "function_id": make_string_value(protocol, "1"),
+            "failure_rate": make_double_value(protocol, -0.1),
+        },
+    )
+    assert resp.status.code == invalid_code, f"Expected negative failure_rate rejection, got {status_text(resp)}"
+    assert "failure_rate must be in [0.0, 1.0]" in resp.status.message
+
     print("OK: chaos invalid input validation working correctly")
     return True
 
