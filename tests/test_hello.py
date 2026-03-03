@@ -38,6 +38,20 @@ def main() -> int:
         assert resp.hello.provider_name == "anolis-provider-sim", f"provider name mismatch: {resp.hello.provider_name}"
 
         print("OK: Hello handshake successful", file=sys.stderr)
+
+        resp_bad = client.hello(
+            client_name="smoke-test",
+            client_version="0.0.1",
+            protocol_version="v999",
+        )
+        assert resp_bad.status.code in (12, 14), (
+            f"Expected unsupported protocol version rejection, got code={resp_bad.status.code} "
+            f"message='{resp_bad.status.message}'"
+        )
+        print(
+            f"OK: Unsupported protocol version rejected (code={resp_bad.status.code})",
+            file=sys.stderr,
+        )
         return 0
 
     except Exception as exc:

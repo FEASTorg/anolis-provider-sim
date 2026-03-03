@@ -8,7 +8,7 @@
 
 namespace transport {
 
-// v0 sim limit: 1 MiB frames
+// ADPP stdio frame size guardrail: 1 MiB max payload.
 constexpr uint32_t kMaxFrameBytes = 1024u * 1024u;
 
 // Reads exactly n bytes into buf. Returns false on EOF or stream failure before
