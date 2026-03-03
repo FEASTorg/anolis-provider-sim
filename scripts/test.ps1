@@ -78,7 +78,7 @@ if (($env:OS -eq "Windows_NT") -and $Preset -in @("dev-release", "dev-debug", "d
 
 $ctestArgs = @("--preset", $Preset)
 if ($Suite -eq "all") {
-    $ctestArgs += @("-L", "provider")
+    $ctestArgs += @("-L", "provider|unit")
 }
 else {
     $ctestArgs += @("-L", $Suite)

@@ -23,6 +23,7 @@ The shared harness under `tests/support/` centralizes process lifecycle, ADPP fr
 Preferred (via CTest wrappers):
 - Linux/macOS: `bash ./scripts/test.sh --preset dev-release --suite all`
 - Windows: `pwsh ./scripts/test.ps1 -Preset dev-windows-release -Suite all`
+  - `all` runs both legacy `provider`-labeled integration tests and `unit`-labeled C++ tests.
 
 Targeted suites:
 - `unit`: C++ config parser validation tests (GoogleTest)

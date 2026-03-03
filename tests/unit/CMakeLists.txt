@@ -23,6 +23,6 @@ gtest_discover_tests(provider_unit_tests
     TEST_PREFIX provider.unit.
     DISCOVERY_TIMEOUT 30
     PROPERTIES
-        LABELS "provider;unit"
+        LABELS "unit"
         TIMEOUT 30
 )

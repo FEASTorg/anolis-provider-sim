@@ -69,7 +69,7 @@ esac
 
 CTEST_ARGS=(--preset "$PRESET")
 if [[ "$SUITE" == "all" ]]; then
-    CTEST_ARGS+=(-L "provider")
+    CTEST_ARGS+=(-L "provider|unit")
 else
     CTEST_ARGS+=(-L "$SUITE")
 fi
