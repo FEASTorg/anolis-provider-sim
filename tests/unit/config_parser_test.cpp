@@ -16,7 +16,8 @@ class TempConfigFile {
 public:
   explicit TempConfigFile(const std::string &yaml_body) {
     static std::atomic<unsigned long long> counter{0ULL};
-    const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto nonce =
+        std::chrono::steady_clock::now().time_since_epoch().count();
     const auto id = counter.fetch_add(1ULL, std::memory_order_relaxed);
 
     path_ = std::filesystem::temp_directory_path() /
@@ -25,12 +26,14 @@ public:
 
     std::ofstream out(path_);
     if (!out.is_open()) {
-      throw std::runtime_error("failed to create temp config: " + path_.string());
+      throw std::runtime_error("failed to create temp config: " +
+                               path_.string());
     }
     out << yaml_body;
     out.flush();
     if (!out.good()) {
-      throw std::runtime_error("failed to write temp config: " + path_.string());
+      throw std::runtime_error("failed to write temp config: " +
+                               path_.string());
     }
   }
 
@@ -54,7 +57,8 @@ void expect_config_error(const std::string &yaml_body,
   } catch (const std::runtime_error &e) {
     const std::string message = e.what();
     EXPECT_NE(message.find(expected_token), std::string::npos)
-        << "expected token: " << expected_token << "\nactual message: " << message;
+        << "expected token: " << expected_token
+        << "\nactual message: " << message;
   }
 }
 
@@ -130,7 +134,8 @@ simulation:
 }
 
 TEST(ConfigParserTest, RejectsAmbientSignalPathWithoutAmbientTemperature) {
-  expect_config_error(R"(
+  expect_config_error(
+      R"(
 devices:
   - id: tempctl0
     type: tempctl
@@ -140,7 +145,7 @@ simulation:
   physics_config: physics.yaml
   ambient_signal_path: environment/ambient_temp
 )",
-                      "simulation.ambient_signal_path requires simulation.ambient_temp_c");
+      "simulation.ambient_signal_path requires simulation.ambient_temp_c");
 }
 
 TEST(ConfigParserTest, RejectsInvalidStartupPolicyValue) {
