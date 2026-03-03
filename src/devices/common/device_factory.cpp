@@ -3,9 +3,9 @@
 #include "devices/motorctl/motorctl_device.hpp"
 #include "devices/relayio/relayio_device.hpp"
 #include "devices/tempctl/tempctl_device.hpp"
+#include "logging/logger.hpp"
 
 #include <algorithm>
-#include <iostream>
 #include <optional>
 #include <sstream>
 
@@ -77,12 +77,12 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
     entry.config = spec.config;
     g_device_registry[spec.id] = entry;
 
-    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-              << "' (type: tempctl)";
+    std::ostringstream msg;
+    msg << "Initialized device '" << spec.id << "' (type: tempctl)";
     if (config.initial_temp.has_value()) {
-      std::cerr << " with initial_temp=" << config.initial_temp.value();
+      msg << " with initial_temp=" << config.initial_temp.value();
     }
-    std::cerr << std::endl;
+    PSIM_LOG_INFO("DeviceFactory", msg.str());
     return true;
   } else if (spec.type == "motorctl") {
     // Parse device-specific config parameters
@@ -98,12 +98,12 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
     entry.config = spec.config;
     g_device_registry[spec.id] = entry;
 
-    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-              << "' (type: motorctl)";
+    std::ostringstream msg;
+    msg << "Initialized device '" << spec.id << "' (type: motorctl)";
     if (config.max_speed.has_value()) {
-      std::cerr << " with max_speed=" << config.max_speed.value();
+      msg << " with max_speed=" << config.max_speed.value();
     }
-    std::cerr << std::endl;
+    PSIM_LOG_INFO("DeviceFactory", msg.str());
     return true;
   } else if (spec.type == "relayio") {
     sim_devices::relayio::init(spec.id);
@@ -114,8 +114,8 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
     entry.config = spec.config;
     g_device_registry[spec.id] = entry;
 
-    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-              << "' (type: relayio)" << std::endl;
+    PSIM_LOG_INFO("DeviceFactory",
+                  "Initialized device '" << spec.id << "' (type: relayio)");
     return true;
   } else if (spec.type == "analogsensor") {
     sim_devices::analogsensor::init(spec.id);
@@ -126,8 +126,9 @@ bool DeviceFactory::initialize_device(const DeviceSpec &spec) {
     entry.config = spec.config;
     g_device_registry[spec.id] = entry;
 
-    std::cerr << "[DeviceFactory] Initialized device '" << spec.id
-              << "' (type: analogsensor)" << std::endl;
+    PSIM_LOG_INFO(
+        "DeviceFactory",
+        "Initialized device '" << spec.id << "' (type: analogsensor)");
     return true;
   } else {
     throw std::runtime_error("[DeviceFactory] Unknown device type: " +
@@ -165,8 +166,10 @@ DeviceFactory::initialize_from_config(const ProviderConfig &config) {
 
     init_report.failed_devices.push_back(
         DeviceInitFailure{spec.id, spec.type, *failure_reason});
-    std::cerr << "[DeviceFactory] Failed to initialize device '" << spec.id
-              << "' (type: " << spec.type << "): " << *failure_reason << "\n";
+    PSIM_LOG_WARN("DeviceFactory",
+                  "Failed to initialize device '" << spec.id
+                                                   << "' (type: " << spec.type
+                                                   << "): " << *failure_reason);
 
     if (config.startup_policy == StartupPolicy::Strict) {
       g_device_registry.clear();
@@ -177,14 +180,14 @@ DeviceFactory::initialize_from_config(const ProviderConfig &config) {
   }
 
   g_config_loaded = true;
-  std::cerr << "[DeviceFactory] Initialized "
-            << init_report.successful_device_ids.size() << " / "
-            << config.devices.size() << " devices";
+  std::ostringstream summary;
+  summary << "Initialized " << init_report.successful_device_ids.size() << " / "
+          << config.devices.size() << " devices";
   if (!init_report.failed_devices.empty()) {
-    std::cerr << " (degraded: " << init_report.failed_devices.size()
-              << " failed)";
+    summary << " (degraded: " << init_report.failed_devices.size()
+            << " failed)";
   }
-  std::cerr << std::endl;
+  PSIM_LOG_INFO("DeviceFactory", summary.str());
 
   return init_report;
 }

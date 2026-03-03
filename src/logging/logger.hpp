@@ -34,24 +34,24 @@ public:
 
 #define PSIM_LOG_INTERNAL(level, component, msg)                              \
   do {                                                                        \
-    std::ostringstream _psim_log_component_ss;                               \
+    std::ostringstream _psim_log_component_ss;                                \
     _psim_log_component_ss << component;                                      \
-    std::ostringstream _psim_log_message_ss;                                 \
+    std::ostringstream _psim_log_message_ss;                                  \
     _psim_log_message_ss << msg;                                              \
     ::anolis_provider_sim::logging::Logger::log(                              \
-        (level), _psim_log_component_ss.str(), __FILE__, __LINE__,            \
+        level, _psim_log_component_ss.str(), __FILE__, __LINE__,              \
         _psim_log_message_ss.str());                                          \
   } while (0)
 
 #define PSIM_LOG_DEBUG(component, msg)                                        \
   PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Debug,          \
-                    (component), (msg))
+                    component, msg)
 #define PSIM_LOG_INFO(component, msg)                                         \
-  PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Info,           \
-                    (component), (msg))
+  PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Info, component, \
+                    msg)
 #define PSIM_LOG_WARN(component, msg)                                         \
-  PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Warn,           \
-                    (component), (msg))
+  PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Warn, component, \
+                    msg)
 #define PSIM_LOG_ERROR(component, msg)                                        \
   PSIM_LOG_INTERNAL(::anolis_provider_sim::logging::LogLevel::Error,          \
-                    (component), (msg))
+                    component, msg)

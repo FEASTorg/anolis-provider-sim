@@ -2,7 +2,8 @@
 
 #include <chrono>
 #include <exception>
-#include <iostream>
+
+#include "logging/logger.hpp"
 
 namespace sim_engine {
 
@@ -38,7 +39,7 @@ TickResult RemoteEngine::tick(const std::map<std::string, double> &actuators) {
     const bool success =
         adapter_->update_signals(actuators, "dimensionless", timeout);
     if (!success) {
-      std::cerr << "[RemoteEngine] Tick failed or timed out\n";
+      PSIM_LOG_WARN("RemoteEngine", "Tick failed or timed out");
       return TickResult{false, {}, {}};
     }
 
@@ -48,7 +49,7 @@ TickResult RemoteEngine::tick(const std::map<std::string, double> &actuators) {
 
     return TickResult{true, sensors, commands};
   } catch (const std::exception &e) {
-    std::cerr << "[RemoteEngine] Tick error: " << e.what() << "\n";
+    PSIM_LOG_ERROR("RemoteEngine", "Tick error: " << e.what());
     return TickResult{false, {}, {}};
   }
 }

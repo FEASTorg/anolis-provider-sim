@@ -61,9 +61,9 @@ void Logger::init_from_env(const char *env_var) {
   set_level(parsed);
 
   if (!ok) {
-    std::lock_guard<std::mutex> lock(g_sink_mutex);
-    std::cerr << "[WARN] [Logger] Invalid " << env_var << "='" << raw
-              << "', defaulting to INFO\n";
+    Logger::log(LogLevel::Warn, "Logger", __FILE__, __LINE__,
+                "Invalid " + std::string(env_var) + "='" + raw +
+                    "', defaulting to INFO");
   }
 }
 

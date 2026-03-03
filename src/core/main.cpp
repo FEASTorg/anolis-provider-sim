@@ -20,6 +20,7 @@
 #include "core/transport/framed_stdio.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
+#include "logging/logger.hpp"
 #include "protocol.pb.h"
 #include "simulation/engines/local_engine.hpp"
 #include "simulation/engines/null_engine.hpp"
@@ -37,10 +38,6 @@ static void set_binary_mode_stdio() {
 #endif
 }
 
-static void log_err(const std::string &msg) {
-  std::cerr << "anolis-provider-sim: " << msg << "\n";
-}
-
 static std::unique_ptr<sim_engine::SimulationEngine>
 create_engine(const anolis_provider_sim::ProviderConfig &config,
               const std::string &sim_server_address) {
@@ -48,11 +45,11 @@ create_engine(const anolis_provider_sim::ProviderConfig &config,
 
   switch (config.simulation_mode) {
   case SimulationMode::Inert:
-    log_err("mode=inert (no simulation)");
+    PSIM_LOG_INFO("Main", "mode=inert (no simulation)");
     return std::make_unique<sim_engine::NullEngine>();
 
   case SimulationMode::NonInteracting:
-    log_err("mode=non_interacting (local physics)");
+    PSIM_LOG_INFO("Main", "mode=non_interacting (local physics)");
     return std::make_unique<sim_engine::LocalEngine>();
 
   case SimulationMode::Sim:
@@ -60,7 +57,9 @@ create_engine(const anolis_provider_sim::ProviderConfig &config,
     if (sim_server_address.empty()) {
       throw std::runtime_error("mode=sim requires --sim-server <host:port>");
     }
-    log_err("mode=sim (external simulation at " + sim_server_address + ")");
+    PSIM_LOG_INFO("Main",
+                  "mode=sim (external simulation at " + sim_server_address +
+                      ")");
     return std::make_unique<sim_engine::RemoteEngine>(
         std::make_unique<sim_adapters::FluxGraphAdapter>(sim_server_address),
         config.tick_rate_hz.value_or(10.0));
@@ -77,6 +76,7 @@ create_engine(const anolis_provider_sim::ProviderConfig &config,
 
 int main(int argc, char **argv) {
   sim_runtime::reset();
+  anolis_provider_sim::logging::Logger::init_from_env();
 
   std::optional<std::string> config_path;
   std::optional<std::string> sim_server_address;
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
       try {
         crash_after_sec = std::stod(argv[++i]);
       } catch (...) {
-        log_err("invalid --crash-after value");
+        PSIM_LOG_ERROR("Main", "invalid --crash-after value");
         return 1;
       }
     } else if (arg == "--sim-server" && i + 1 < argc) {
@@ -100,38 +100,46 @@ int main(int argc, char **argv) {
   }
 
   if (!config_path) {
-    log_err("FATAL: --config argument is required");
-    log_err("Usage: anolis-provider-sim --config <path/to/config.yaml> "
-            "[--sim-server <host:port>]");
+    PSIM_LOG_ERROR("Main", "FATAL: --config argument is required");
+    PSIM_LOG_ERROR("Main",
+                   "Usage: anolis-provider-sim --config <path/to/config.yaml> "
+                   "[--sim-server <host:port>]");
     return 1;
   }
 
   anolis_provider_sim::ProviderConfig config;
   try {
-    log_err("loading configuration from: " + *config_path);
+    PSIM_LOG_INFO("Main", "loading configuration from: " + *config_path);
     config = anolis_provider_sim::load_config(*config_path);
 
     const auto init_report =
         anolis_provider_sim::DeviceFactory::initialize_from_config(config);
     sim_runtime::set_startup_report(init_report);
-    log_err("startup_policy=" +
-            std::string(config.startup_policy ==
-                                anolis_provider_sim::StartupPolicy::Strict
-                            ? "strict"
-                            : "degraded"));
-    log_err("initialized " +
-            std::to_string(init_report.successful_device_ids.size()) + " / " +
-            std::to_string(init_report.configured_device_count) + " devices");
+    PSIM_LOG_INFO("Main", "startup_policy=" +
+                              std::string(config.startup_policy ==
+                                                  anolis_provider_sim::
+                                                      StartupPolicy::Strict
+                                              ? "strict"
+                                              : "degraded"));
+    PSIM_LOG_INFO("Main", "initialized " +
+                              std::to_string(
+                                  init_report.successful_device_ids.size()) +
+                              " / " +
+                              std::to_string(
+                                  init_report.configured_device_count) +
+                              " devices");
     if (!init_report.failed_devices.empty()) {
       for (const auto &failure : init_report.failed_devices) {
-        log_err("degraded init failure: device_id=" + failure.device_id +
-                " type=" + failure.type + " reason=" + failure.reason);
+        PSIM_LOG_WARN("Main", "degraded init failure: device_id=" +
+                                  failure.device_id +
+                                  " type=" + failure.type +
+                                  " reason=" + failure.reason);
       }
     }
 
     if (config.simulation_mode != anolis_provider_sim::SimulationMode::Sim &&
         sim_server_address) {
-      log_err("WARNING: --sim-server ignored for non-sim mode");
+      PSIM_LOG_WARN("Main", "--sim-server ignored for non-sim mode");
     }
 
     auto engine = create_engine(config, sim_server_address.value_or(""));
@@ -158,33 +166,36 @@ int main(int argc, char **argv) {
     // scenarios.
     if (config.simulation_mode ==
         anolis_provider_sim::SimulationMode::NonInteracting) {
-      log_err("mode=non-interacting: auto-starting physics ticker");
+      PSIM_LOG_INFO("Main", "mode=non-interacting: auto-starting physics "
+                            "ticker");
       sim_devices::start_physics();
     } else {
       std::string mode_str =
           (config.simulation_mode == anolis_provider_sim::SimulationMode::Sim)
               ? "sim"
               : "inert";
-      log_err("mode=" + mode_str +
-              ": deferring physics ticker until wait_ready()");
+      PSIM_LOG_INFO("Main",
+                    "mode=" + mode_str +
+                        ": deferring physics ticker until wait_ready()");
     }
 
   } catch (const std::exception &e) {
-    log_err("FATAL: Failed to initialize simulation: " + std::string(e.what()));
+    PSIM_LOG_ERROR("Main",
+                   "FATAL: Failed to initialize simulation: " +
+                       std::string(e.what()));
     return 1;
   }
 
   set_binary_mode_stdio();
-  log_err("starting (transport=stdio+uint32_le)");
+  PSIM_LOG_INFO("Main", "starting (transport=stdio+uint32_le)");
 
   if (crash_after_sec > 0.0) {
-    log_err("CHAOS MODE: will crash after " + std::to_string(crash_after_sec) +
-            " seconds");
+    PSIM_LOG_WARN("Main", "CHAOS MODE: will crash after " +
+                              std::to_string(crash_after_sec) + " seconds");
     std::thread([crash_after_sec]() {
       std::this_thread::sleep_for(std::chrono::milliseconds(
           static_cast<long long>(crash_after_sec * 1000)));
-      std::cerr << "anolis-provider-sim: CRASHING NOW (exit 42)\n"
-                << std::flush;
+      PSIM_LOG_ERROR("Main", "CRASHING NOW (exit 42)");
       std::exit(42);
     }).detach();
   }
@@ -197,18 +208,18 @@ int main(int argc, char **argv) {
     const bool ok = transport::read_frame(std::cin, frame, io_err);
     if (!ok) {
       if (io_err.empty()) {
-        log_err("EOF on stdin; exiting cleanly");
+        PSIM_LOG_INFO("Main", "EOF on stdin; exiting cleanly");
         sim_devices::stop_physics();
         return 0;
       }
-      log_err(std::string("read_frame error: ") + io_err);
+      PSIM_LOG_ERROR("Main", std::string("read_frame error: ") + io_err);
       sim_devices::stop_physics();
       return 2;
     }
 
     anolis::deviceprovider::v1::Request req;
     if (!req.ParseFromArray(frame.data(), static_cast<int>(frame.size()))) {
-      log_err("failed to parse Request protobuf");
+      PSIM_LOG_ERROR("Main", "failed to parse Request protobuf");
       return 3;
     }
 
@@ -222,9 +233,9 @@ int main(int argc, char **argv) {
       handlers::handle_hello(req.hello(), resp);
     } else if (req.has_wait_ready()) {
       handlers::handle_wait_ready(req.wait_ready(), resp);
-      log_err("waiting ready -> starting physics ticker");
+      PSIM_LOG_INFO("Main", "waiting ready -> starting physics ticker");
       sim_devices::start_physics();
-      log_err("physics ticker started");
+      PSIM_LOG_INFO("Main", "physics ticker started");
     } else if (req.has_list_devices()) {
       handlers::handle_list_devices(req.list_devices(), resp);
     } else if (req.has_describe_device()) {
@@ -241,14 +252,14 @@ int main(int argc, char **argv) {
 
     std::string resp_bytes;
     if (!resp.SerializeToString(&resp_bytes)) {
-      log_err("failed to serialize Response protobuf");
+      PSIM_LOG_ERROR("Main", "failed to serialize Response protobuf");
       return 4;
     }
 
     if (!transport::write_frame(
             std::cout, reinterpret_cast<const uint8_t *>(resp_bytes.data()),
             resp_bytes.size(), io_err)) {
-      log_err(std::string("write_frame error: ") + io_err);
+      PSIM_LOG_ERROR("Main", std::string("write_frame error: ") + io_err);
       return 5;
     }
   }

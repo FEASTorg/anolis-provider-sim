@@ -17,6 +17,7 @@
 #include "devices/motorctl/motorctl_device.hpp"
 #include "devices/relayio/relayio_device.hpp"
 #include "devices/tempctl/tempctl_device.hpp"
+#include "logging/logger.hpp"
 
 namespace sim_devices {
 
@@ -167,22 +168,23 @@ static void configure_simulation_inputs(
   }
 
   g_ambient_input = ConstantSignalInput{ambient_path, ambient_temp};
-  std::cerr << "[DeviceManager] Configured ambient input: " << ambient_path
-            << "=" << ambient_temp << "\n";
+  PSIM_LOG_INFO("DeviceManager", "Configured ambient input: " << ambient_path
+                                                               << "="
+                                                               << ambient_temp);
 }
 
 static void execute_engine_command(const sim_engine::Command &cmd) {
   const auto dev_it = g_function_name_to_id.find(cmd.device_id);
   if (dev_it == g_function_name_to_id.end()) {
-    std::cerr << "[DeviceManager] Unknown command device: " << cmd.device_id
-              << "\n";
+    PSIM_LOG_WARN("DeviceManager", "Unknown command device: " << cmd.device_id);
     return;
   }
 
   const auto fn_it = dev_it->second.find(cmd.function_name);
   if (fn_it == dev_it->second.end()) {
-    std::cerr << "[DeviceManager] Unknown command function: " << cmd.device_id
-              << "::" << cmd.function_name << "\n";
+    PSIM_LOG_WARN("DeviceManager", "Unknown command function: " << cmd.device_id
+                                                                 << "::"
+                                                                 << cmd.function_name);
     return;
   }
 
@@ -207,7 +209,7 @@ static void execute_engine_command(const sim_engine::Command &cmd) {
 
   const auto result = call_function(cmd.device_id, fn_it->second, pb_args);
   if (result.code != anolis::deviceprovider::v1::Status::CODE_OK) {
-    std::cerr << "[DeviceManager] Command failed: " << result.message << "\n";
+    PSIM_LOG_WARN("DeviceManager", "Command failed: " << result.message);
   }
 }
 
@@ -223,10 +225,10 @@ static void ticker_thread_func(double tick_rate_hz) {
           thread_start.time_since_epoch())
           .count();
 
-  std::cerr << "[Ticker] Thread started at steady_clock=" << thread_start_ms
-            << "ms\\n";
-  std::cerr << "[Ticker] Tick period: " << (dt * 1000.0) << "ms (@"
-            << tick_rate_hz << " Hz)\\n";
+  PSIM_LOG_INFO("Ticker", "Thread started at steady_clock=" << thread_start_ms
+                                                             << "ms");
+  PSIM_LOG_INFO("Ticker", "Tick period: " << (dt * 1000.0) << "ms (@"
+                                           << tick_rate_hz << " Hz)");
 
   // Start ticking immediately from thread creation time
   auto next_tick = thread_start;
@@ -261,15 +263,16 @@ static void ticker_thread_func(double tick_rate_hz) {
 
     // Debug first 2 ticks only
     if (tick_count < 2) {
-      std::cerr << "[Ticker] Tick #" << tick_count << " at steady_clock "
-                << tick_start_ms << " ms"
-                << " (delta=" << (tick_start_ms - thread_start_ms)
-                << "ms from thread start)\n";
-      std::cerr << "[Ticker]   Sending " << actuators.size() << " signals\n";
+      PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " at steady_clock "
+                                        << tick_start_ms << " ms"
+                                        << " (delta="
+                                        << (tick_start_ms - thread_start_ms)
+                                        << "ms from thread start)");
+      PSIM_LOG_DEBUG("Ticker", "Sending " << actuators.size() << " signals");
     }
 
     if (!g_simulation_engine) {
-      std::cerr << "[DeviceManager] Missing simulation engine in ticker\n";
+      PSIM_LOG_ERROR("DeviceManager", "Missing simulation engine in ticker");
       break;
     }
 
@@ -283,8 +286,9 @@ static void ticker_thread_func(double tick_rate_hz) {
                 tick_end.time_since_epoch())
                 .count();
         const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
-        std::cerr << "[Ticker] Tick #" << tick_count << " SUCCESS (RPC took "
-                  << rpc_duration_ms << "ms)\n";
+        PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count
+                                          << " SUCCESS (RPC took "
+                                          << rpc_duration_ms << "ms)");
       }
 
       if (g_signal_registry) {
@@ -298,8 +302,8 @@ static void ticker_thread_func(double tick_rate_hz) {
       }
     } else {
       if (tick_count < 2) {
-        std::cerr << "[Ticker] Tick #" << tick_count
-                  << " FAILED (maintaining schedule)\n";
+        PSIM_LOG_WARN("Ticker", "Tick #" << tick_count
+                                         << " FAILED (maintaining schedule)");
       }
       // Continue with stale data but MAINTAIN THE TICK SCHEDULE.
       // Don't let timeouts/failures shift our phase relative to other
@@ -375,25 +379,26 @@ void initialize_physics(
 
 void start_physics() {
   if (g_sim_mode == anolis_provider_sim::SimulationMode::Inert) {
-    std::cerr << "[DeviceManager] start_physics: inert mode, skipping\n";
+    PSIM_LOG_INFO("DeviceManager", "start_physics: inert mode, skipping");
     return;
   }
   if (!g_simulation_engine) {
-    std::cerr << "[DeviceManager] Non-inert mode requires simulation engine; "
-                 "ticker not started\n";
+    PSIM_LOG_ERROR("DeviceManager", "Non-inert mode requires simulation "
+                                    "engine; ticker not started");
     return;
   }
   if (g_ticker_running.load()) {
-    std::cerr << "[DeviceManager] start_physics: already running, skipping\n";
+    PSIM_LOG_INFO("DeviceManager",
+                  "start_physics: already running, skipping");
     return;
   }
 
-  std::cerr << "[DeviceManager] start_physics: spawning ticker thread (@"
-            << g_tick_rate_hz << " Hz)\n";
+  PSIM_LOG_INFO("DeviceManager", "start_physics: spawning ticker thread (@"
+                                     << g_tick_rate_hz << " Hz)");
   g_ticker_running = true;
   g_ticker_thread =
       std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
-  std::cerr << "[DeviceManager] start_physics: ticker thread started\n";
+  PSIM_LOG_INFO("DeviceManager", "start_physics: ticker thread started");
 }
 
 void stop_physics() {

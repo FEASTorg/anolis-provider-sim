@@ -10,6 +10,7 @@
 #include "core/transport/framed_stdio.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
+#include "logging/logger.hpp"
 
 namespace handlers {
 
@@ -225,7 +226,7 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
   // - Wait for hardware warm-up periods
   // For sim, we just report immediate readiness
 
-  std::cerr << "[WaitReady] Processing wait_ready() request\n";
+  PSIM_LOG_INFO("Handlers", "Processing wait_ready() request");
 
   const auto runtime_state = sim_runtime::snapshot();
   const auto init_report = runtime_state.startup_report;
