@@ -96,6 +96,7 @@ set(SOURCES
     src/core/main.cpp
     src/core/handlers.cpp
     src/core/health.cpp
+    src/logging/logger.cpp
     src/core/runtime_state.cpp
     src/core/transport/framed_stdio.cpp
 
