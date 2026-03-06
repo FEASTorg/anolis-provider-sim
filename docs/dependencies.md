@@ -34,6 +34,7 @@ This document defines provider-sim policy for dependencies, CI lane tiers, prese
 ## Dual-Run Policy
 
 During migration to presets/new CI paths:
+
 - run legacy and new paths in parallel,
 - minimum 5 consecutive green runs,
 - preferred 10 runs before legacy path removal.
@@ -41,10 +42,12 @@ During migration to presets/new CI paths:
 ## Preset Baseline and Exception Policy
 
 Baseline names:
+
 - `dev-debug`, `dev-release`, `ci-linux-release`, `ci-windows-release`
 - feature extension lanes: `ci-linux-release-fluxgraph`, `ci-windows-release-fluxgraph`
 
 Rules:
+
 1. CI jobs should call presets directly.
 2. CI-only deviations must be explicit and documented.
 3. Feature-specific extension presets are allowed when documented.

@@ -13,16 +13,16 @@ This document defines the `anolis-provider-sim` YAML configuration used at proce
 ## Provider Config Schema
 
 ```yaml
-provider:              # Optional
+provider: # Optional
   name: chamber-provider
 
 startup_policy: strict # Optional: strict | degraded (default: strict)
 
-devices:               # Recommended (can be empty)
+devices: # Recommended (can be empty)
   - id: tempctl0
     type: tempctl
 
-simulation:            # Required
+simulation: # Required
   mode: non_interacting
   tick_rate_hz: 10.0
 ```
@@ -70,11 +70,11 @@ Controls startup behavior when one or more configured devices fail to initialize
 
 Mode matrix:
 
-| Mode | `tick_rate_hz` | `physics_config` | `ambient_temp_c` / `ambient_signal_path` |
-| --- | --- | --- | --- |
-| `inert` | forbidden | forbidden | forbidden |
-| `non_interacting` | required | forbidden | forbidden |
-| `sim` | required | required | optional (`ambient_signal_path` requires `ambient_temp_c`) |
+| Mode              | `tick_rate_hz` | `physics_config` | `ambient_temp_c` / `ambient_signal_path`                   |
+| ----------------- | -------------- | ---------------- | ---------------------------------------------------------- |
+| `inert`           | forbidden      | forbidden        | forbidden                                                  |
+| `non_interacting` | required       | forbidden        | forbidden                                                  |
+| `sim`             | required       | required         | optional (`ambient_signal_path` requires `ambient_temp_c`) |
 
 Additional notes:
 
