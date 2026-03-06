@@ -6,7 +6,8 @@ Simulation device provider for anolis runtime, implementing the Anolis Device Pr
 
 ## Overview
 
-Provider-sim provides a **dry-run machine** with 5 simulated devices covering a variety of signal types and control patterns. This enables comprehensive validation of the anolis runtime before integrating real hardware.
+Provider-sim provides a **dry-run machine** with 5 simulated devices covering a variety of signal types and control patterns.
+This enables comprehensive validation of the anolis runtime before integrating real hardware.
 
 ### Device Roster
 
@@ -24,7 +25,8 @@ Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 
 ## Physics Simulation
 
-Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the **Signal Registry pattern** for clean separation between simulation and protocol layers.
+Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the
+**Signal Registry pattern** for clean separation between simulation and protocol layers.
 
 ### Simulation Modes
 
@@ -134,7 +136,8 @@ simulation:
 
 ## Fault Injection API
 
-Provider-sim includes a special control device (`chaos_control`) with functions for injecting deterministic failures into the simulation. This enables testing of fault handling, recovery workflows, and edge cases.
+Provider-sim includes a special control device (`chaos_control`) with functions for injecting deterministic failures into the simulation.
+This enables testing of fault handling, recovery workflows, and edge cases.
 
 ### Functions
 
@@ -377,7 +380,8 @@ Physical device documentation and operational context available in [docs/](docs/
 
 ## Safe Initialization in Provider-Sim
 
-Provider-sim demonstrates compliance with the **Anolis Provider Safe Initialization Contract**. All devices initialize in safe, inactive states on startup, ensuring physical safety and predictable behavior.
+Provider-sim demonstrates compliance with the **Anolis Provider Safe Initialization Contract**.
+All devices initialize in safe, inactive states on startup, ensuring physical safety and predictable behavior.
 
 ### Device Safe Defaults
 
@@ -495,4 +499,6 @@ void initialize_device() {
 }
 ```
 
-See [Anolis Provider Safe Initialization Contract](https://github.com/FEASTorg/anolis/blob/main/docs/providers.md#safe-initialization-contract) for complete requirements.
+See
+[Anolis Provider Safe Initialization Contract](https://github.com/FEASTorg/anolis/blob/main/docs/providers.md#safe-initialization-contract)
+for complete requirements.
