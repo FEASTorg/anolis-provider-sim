@@ -2,6 +2,7 @@
 
 ## CI / Quality
 
+- [ ] configure and clean up clang-format and clang-tidy then enable checks in CI
 - [ ] Setup precommit hooks for relevant tooling
 
 ## Concurrency / Correctness
