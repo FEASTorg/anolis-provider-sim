@@ -1,5 +1,13 @@
 # anolis-provider-sim - TODO
 
+## Docs
+
+- [ ] Write proper index.md page in docs/
+- [ ] Write overview.md page in docs/ describing the general provider aspects versus the simulation-specific aspects.
+- [ ] Add a "Getting Started" guide for new developers to quickly set up and run the simulator locally.
+- [ ] Document the architecture and key components of the simulator, including how it interacts with the core Anolis application and providers.
+- [ ] Create a troubleshooting guide for common issues encountered during development and testing with the simulator.
+
 ## CI / Quality
 
 - [ ] configure and clean up clang-format and clang-tidy then enable checks in CI
