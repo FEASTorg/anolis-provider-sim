@@ -21,13 +21,15 @@ Both provider configs point to the same `physics_config` file.
 Provider-sim (FluxGraph enabled):
 
 ```bash
-bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
+cmake --preset ci-linux-release-fluxgraph -DFLUXGRAPH_DIR=../fluxgraph
+cmake --build --preset ci-linux-release-fluxgraph --parallel
 ```
 
 Windows:
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --preset dev-windows-release-fluxgraph -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --build --preset dev-windows-release-fluxgraph --parallel
 ```
 
 FluxGraph server must also be built in `../fluxgraph`.
@@ -49,11 +51,11 @@ python tests\test_multi_provider_scenario.py
 Or run through CTest label:
 
 ```bash
-bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
+ctest --preset ci-linux-release-fluxgraph -L fluxgraph
 ```
 
 ```powershell
-.\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
+ctest --preset dev-windows-release-fluxgraph -L fluxgraph
 ```
 
 ## Assertions

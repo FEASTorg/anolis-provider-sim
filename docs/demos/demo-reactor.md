@@ -20,14 +20,16 @@ This demo runs two provider instances against one FluxGraph server and validates
 Linux/macOS:
 
 ```bash
-bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
+cmake --preset ci-linux-release-fluxgraph -DFLUXGRAPH_DIR=../fluxgraph
+cmake --build --preset ci-linux-release-fluxgraph --parallel
 python tests/test_multi_provider_scenario.py
 ```
 
 Windows:
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --preset dev-windows-release-fluxgraph -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --build --preset dev-windows-release-fluxgraph --parallel
 python tests\test_multi_provider_scenario.py
 ```
 

@@ -17,13 +17,15 @@ Build provider-sim first.
 Linux/macOS:
 
 ```bash
-bash ./scripts/build.sh --preset dev-release
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
 ```
 
 Windows:
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release
+cmake --preset dev-windows-release
+cmake --build --preset dev-windows-release --parallel
 ```
 
 Run inert and non-interacting scenarios:
@@ -57,14 +59,16 @@ $env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release"
 Linux/macOS:
 
 ```bash
-bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
+cmake --preset ci-linux-release-fluxgraph -DFLUXGRAPH_DIR=../fluxgraph
+cmake --build --preset ci-linux-release-fluxgraph --parallel
 python examples/sim_mode/test_sim.py
 ```
 
 Windows:
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --preset dev-windows-release-fluxgraph -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --build --preset dev-windows-release-fluxgraph --parallel
 $env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release-fluxgraph"
 python .\examples\sim_mode\test_sim.py
 ```

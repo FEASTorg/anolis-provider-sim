@@ -268,9 +268,13 @@ See [examples/README.md](examples/README.md) for the full index and quick start 
 ## Building
 
 ```bash
-# Recommended wrappers
-bash ./scripts/build.sh --preset dev-release
-# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release
+# Linux/macOS
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
+
+# Windows (PowerShell)
+cmake --preset dev-windows-release
+cmake --build --preset dev-windows-release --parallel
 ```
 
 List available presets:
@@ -290,12 +294,20 @@ ctest --list-presets
 
 ```bash
 # Standalone build (no FluxGraph dependencies, default)
-bash ./scripts/build.sh --preset dev-release --clean
-# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release -Clean
+rm -rf build/dev-release
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
+# PowerShell clean:
+#   Remove-Item -Recurse -Force .\build\dev-windows-release
+#   cmake --preset dev-windows-release
+#   cmake --build --preset dev-windows-release --parallel
 
 # FluxGraph-enabled build (sim mode support)
-bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
-# PowerShell: .\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --preset ci-linux-release-fluxgraph -DFLUXGRAPH_DIR=../fluxgraph
+cmake --build --preset ci-linux-release-fluxgraph --parallel
+# PowerShell:
+#   cmake --preset dev-windows-release-fluxgraph -DFLUXGRAPH_DIR=..\fluxgraph
+#   cmake --build --preset dev-windows-release-fluxgraph --parallel
 
 # sim mode will fail with: "mode=sim requires FluxGraph support. Rebuild with -DENABLE_FLUXGRAPH=ON"
 ```
@@ -308,11 +320,28 @@ See [docs/setup-linux.md](docs/setup-linux.md)
 
 ```bash
 # Requires --config argument
-bash ./scripts/run_local.sh --preset dev-release -- --config config/provider-sim.yaml
-# PowerShell: .\scripts\run_local.ps1 -Preset dev-windows-release -- --config config/provider-sim.yaml
+./build/dev-release/anolis-provider-sim --config config/provider-sim.yaml
+# PowerShell: .\build\dev-windows-release\Release\anolis-provider-sim.exe --config config\provider-sim.yaml
 ```
 
 Provider uses stdio+uint32_le transport for ADPP v1 communication with anolis-runtime.
+
+### TSAN Runtime Environment (Linux/macOS)
+
+If the build was configured with `-DENABLE_TSAN=ON`, set runtime environment variables before launching:
+
+```bash
+BUILD_DIR=build/dev-release
+VCPKG_TRIPLET=$(awk -F= '/^VCPKG_TARGET_TRIPLET:STRING=/{print $2}' "$BUILD_DIR/CMakeCache.txt")
+export LD_LIBRARY_PATH="$BUILD_DIR/vcpkg_installed/${VCPKG_TRIPLET:-x64-linux}/lib:${LD_LIBRARY_PATH:-}"
+export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7"
+```
+
+Then run:
+
+```bash
+./build/dev-release/anolis-provider-sim --config config/provider-sim.yaml
+```
 
 ## Testing
 
@@ -328,18 +357,20 @@ ctest --preset dev-release -L provider
 ctest --preset dev-windows-release -L provider
 ```
 
-### Test Scripts
-
-`scripts/test.*` remain supported as convenience wrappers around the same suites:
+### CTest Labels
 
 ```bash
-# Recommended wrappers
-bash ./scripts/test.sh --preset dev-release --suite all
-# PowerShell: .\scripts\test.ps1 -Preset dev-windows-release -Suite all
+# Full provider + unit suites
+ctest --preset dev-release
 
-# FluxGraph-only integration suite (requires FluxGraph-enabled build)
-bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
-# PowerShell: .\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
+# Provider integration only
+ctest --preset dev-release -L provider
+
+# Unit tests only
+ctest --preset dev-release -L unit
+
+# FluxGraph-only integration suite (FluxGraph build required)
+ctest --preset ci-linux-release-fluxgraph -L fluxgraph
 ```
 
 **Basic Protocol Tests:**

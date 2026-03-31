@@ -200,8 +200,8 @@ Startup behavior is policy-controlled:
 
 ```bash
 # Local run
-bash ./scripts/run_local.sh --preset dev-release -- --config config/provider-sim.yaml
+./build/dev-release/anolis-provider-sim --config config/provider-sim.yaml
 
 # Provider baseline tests
-bash ./scripts/test.sh --preset dev-release --suite all
+ctest --preset dev-release
 ```

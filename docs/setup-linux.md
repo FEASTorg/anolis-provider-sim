@@ -1,6 +1,6 @@
 # anolis-provider-sim Linux Setup
 
-Build and validate `anolis-provider-sim` on Linux using the repository presets and wrapper scripts.
+Build and validate `anolis-provider-sim` on Linux using repository presets.
 
 ## Prerequisites
 
@@ -51,7 +51,8 @@ git submodule update --init --recursive
 ## 4) Configure and build
 
 ```bash
-bash ./scripts/build.sh --preset dev-release
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
 ```
 
 This configures into `build/dev-release` and builds `anolis-provider-sim` there.
@@ -59,7 +60,7 @@ This configures into `build/dev-release` and builds `anolis-provider-sim` there.
 ## 5) Run locally (requires `--config`)
 
 ```bash
-bash ./scripts/run_local.sh --preset dev-release -- --config config/provider-sim.yaml
+./build/dev-release/anolis-provider-sim --config config/provider-sim.yaml
 ```
 
 Notes:
@@ -72,20 +73,21 @@ Notes:
 Smoke test:
 
 ```bash
-bash ./scripts/test.sh --preset dev-release --suite smoke
+ctest --preset dev-release -L smoke
 ```
 
 Full provider baseline suite:
 
 ```bash
-bash ./scripts/test.sh --preset dev-release --suite all
+ctest --preset dev-release
 ```
 
 ## Optional: FluxGraph-enabled build (`sim` mode)
 
 ```bash
-bash ./scripts/build.sh --preset ci-linux-release-fluxgraph -- -DFLUXGRAPH_DIR=../fluxgraph
-bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
+cmake --preset ci-linux-release-fluxgraph -DFLUXGRAPH_DIR=../fluxgraph
+cmake --build --preset ci-linux-release-fluxgraph --parallel
+ctest --preset ci-linux-release-fluxgraph -L fluxgraph
 ```
 
 ## Troubleshooting
@@ -93,12 +95,23 @@ bash ./scripts/test.sh --preset ci-linux-release-fluxgraph --suite fluxgraph
 `Could NOT find Protobuf` or other package errors:
 
 - Confirm `VCPKG_ROOT` is set.
-- Re-run configure via `bash ./scripts/build.sh --preset dev-release --clean`.
+- Re-run configure via `rm -rf build/dev-release && cmake --preset dev-release`.
 
 `mode=sim requires FluxGraph support`:
 
 - Build with a FluxGraph-enabled preset (`*-fluxgraph`).
 
+TSAN build launches but fails to resolve libraries:
+
+- For `-DENABLE_TSAN=ON` builds, export runtime environment first:
+
+```bash
+BUILD_DIR=build/dev-release
+VCPKG_TRIPLET=$(awk -F= '/^VCPKG_TARGET_TRIPLET:STRING=/{print $2}' "$BUILD_DIR/CMakeCache.txt")
+export LD_LIBRARY_PATH="$BUILD_DIR/vcpkg_installed/${VCPKG_TRIPLET:-x64-linux}/lib:${LD_LIBRARY_PATH:-}"
+export TSAN_OPTIONS="second_deadlock_stack=1 detect_deadlocks=1 history_size=7"
+```
+
 `FATAL: --config argument is required`:
 
-- Start provider with `-- --config <path>` when using `scripts/run_local.sh`.
+- Start provider with `./build/dev-release/anolis-provider-sim --config <path>`.

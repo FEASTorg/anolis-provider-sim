@@ -15,14 +15,16 @@
 Linux/macOS:
 
 ```bash
-bash ./scripts/build.sh --preset dev-release
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
 python examples/non_interacting_mode/test_non_interacting.py
 ```
 
 Windows:
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release
+cmake --preset dev-windows-release
+cmake --build --preset dev-windows-release --parallel
 $env:ANOLIS_PROVIDER_SIM_BUILD_DIR="build/dev-windows-release"
 python .\examples\non_interacting_mode\test_non_interacting.py
 ```

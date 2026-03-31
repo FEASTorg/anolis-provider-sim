@@ -1,6 +1,6 @@
 # anolis-provider-sim Windows Setup
 
-Build and validate `anolis-provider-sim` on Windows using Visual Studio presets and wrapper scripts.
+Build and validate `anolis-provider-sim` on Windows using Visual Studio presets.
 
 ## Prerequisites
 
@@ -35,7 +35,8 @@ git submodule update --init --recursive
 ## 3) Configure and build
 
 ```powershell
-.\scripts\build.ps1 -Preset dev-windows-release
+cmake --preset dev-windows-release
+cmake --build --preset dev-windows-release --parallel
 ```
 
 This configures into `build\dev-windows-release` and builds `anolis-provider-sim.exe` there.
@@ -43,7 +44,7 @@ This configures into `build\dev-windows-release` and builds `anolis-provider-sim
 ## 4) Run locally (requires `--config`)
 
 ```powershell
-.\scripts\run_local.ps1 -Preset dev-windows-release -- --config config/provider-sim.yaml
+.\build\dev-windows-release\Release\anolis-provider-sim.exe --config config\provider-sim.yaml
 ```
 
 Notes:
@@ -56,13 +57,13 @@ Notes:
 Smoke test:
 
 ```powershell
-.\scripts\test.ps1 -Preset dev-windows-release -Suite smoke
+ctest --preset dev-windows-release -L smoke
 ```
 
 Full provider baseline suite:
 
 ```powershell
-.\scripts\test.ps1 -Preset dev-windows-release -Suite all
+ctest --preset dev-windows-release
 ```
 
 ## Optional: FluxGraph-enabled build (`sim` mode)
@@ -70,10 +71,12 @@ Full provider baseline suite:
 ```powershell
 # From sibling FluxGraph repo, build server preset first:
 #   cd ..\fluxgraph
-#   .\scripts\build.ps1 -Preset dev-windows-server
+#   cmake --preset dev-windows-server
+#   cmake --build --preset dev-windows-server --parallel
 #   cd ..\anolis-provider-sim
-.\scripts\build.ps1 -Preset dev-windows-release-fluxgraph -- -DFLUXGRAPH_DIR=..\fluxgraph
-.\scripts\test.ps1 -Preset dev-windows-release-fluxgraph -Suite fluxgraph
+cmake --preset dev-windows-release-fluxgraph -DFLUXGRAPH_DIR=..\fluxgraph
+cmake --build --preset dev-windows-release-fluxgraph --parallel
+ctest --preset dev-windows-release-fluxgraph -L fluxgraph
 ```
 
 ## Troubleshooting
@@ -84,7 +87,7 @@ Full provider baseline suite:
 
 `FATAL: --config argument is required`:
 
-- Start provider with `-- --config <path>` when using `scripts/run_local.ps1`.
+- Start provider with `.\build\dev-windows-release\Release\anolis-provider-sim.exe --config <path>`.
 
 Preset/toolchain mismatch on Windows:
 
