@@ -80,12 +80,16 @@ int main(int argc, char **argv) {
   std::optional<std::string> config_path;
   std::optional<std::string> sim_server_address;
   double crash_after_sec = -1.0;
+  bool check_config_only = false;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
 
     if (arg == "--config" && i + 1 < argc) {
       config_path = argv[++i];
+    } else if (arg == "--check-config" && i + 1 < argc) {
+      config_path = argv[++i];
+      check_config_only = true;
     } else if (arg == "--crash-after" && i + 1 < argc) {
       try {
         crash_after_sec = std::stod(argv[++i]);
@@ -132,6 +136,24 @@ int main(int argc, char **argv) {
             "Main", "degraded init failure: device_id=" + failure.device_id +
                         " type=" + failure.type + " reason=" + failure.reason);
       }
+    }
+
+    if (check_config_only) {
+      const std::string mode_str =
+          (config.simulation_mode == anolis_provider_sim::SimulationMode::Inert)
+              ? "inert"
+              : (config.simulation_mode ==
+                 anolis_provider_sim::SimulationMode::NonInteracting)
+                    ? "non_interacting"
+                    : "sim";
+      PSIM_LOG_INFO("Main",
+                    "Config valid: " +
+                        config.provider_name.value_or("provider-sim") +
+                        ", mode=" + mode_str + ", " +
+                        std::to_string(
+                            init_report.successful_device_ids.size()) +
+                        " device(s)");
+      return 0;
     }
 
     if (config.simulation_mode != anolis_provider_sim::SimulationMode::Sim &&
