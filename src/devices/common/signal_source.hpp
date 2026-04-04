@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file signal_source.hpp
+ * @brief Coordination interface shared by device code and simulation backends.
+ */
+
 #include <optional>
 #include <string>
 
@@ -13,8 +18,9 @@ namespace sim_coordination {
  * depends ONLY on this interface, not on ADPP protocol types or specific device
  * implementations.
  *
- * Thread Safety: Implementations must be thread-safe, as this interface is
- * called from both the physics ticker thread and ADPP request handler threads.
+ * Threading:
+ * Implementations must be thread-safe because reads and writes can arrive from
+ * the physics ticker thread and ADPP request handler threads.
  */
 class ISignalSource {
 public:
@@ -28,7 +34,8 @@ public:
    * @return Signal value if available, nullopt if signal doesn't exist or is
    * unavailable
    *
-   * Thread-safe: Can be called concurrently from multiple threads.
+   * Threading:
+   * Safe for concurrent calls from multiple threads.
    */
   virtual std::optional<double> read_signal(const std::string &path) = 0;
 
@@ -42,7 +49,8 @@ public:
    * @param path Full signal path in format "device_id/signal_id"
    * @param value Computed signal value from physics
    *
-   * Thread-safe: Can be called concurrently from multiple threads.
+   * Threading:
+   * Safe for concurrent calls from multiple threads.
    */
   virtual void write_signal(const std::string &path, double value) = 0;
 };

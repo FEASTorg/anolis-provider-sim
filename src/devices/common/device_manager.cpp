@@ -1,3 +1,13 @@
+/**
+ * @file device_manager.cpp
+ * @brief Coordination layer between registered devices, signal registry, and simulation backends.
+ *
+ * This module owns the provider's shared simulation state. Device handlers call
+ * into it on demand, while the background ticker uses it to collect actuator
+ * snapshots, execute one simulation tick, and publish any resulting sensor
+ * updates back into the registry.
+ */
+
 #include "devices/common/device_manager.hpp"
 
 #include <atomic>
@@ -21,10 +31,6 @@
 
 namespace sim_devices {
 
-// -----------------------------
-// Shared coordination/runtime state
-// -----------------------------
-
 static std::unique_ptr<sim_coordination::SignalRegistry>
     g_signal_registry_owned;
 sim_coordination::SignalRegistry *g_signal_registry = nullptr;
@@ -46,10 +52,6 @@ struct ConstantSignalInput {
   double value;
 };
 static std::optional<ConstantSignalInput> g_ambient_input;
-
-// -----------------------------
-// Helpers
-// -----------------------------
 
 void set_simulation_engine(
     std::unique_ptr<sim_engine::SimulationEngine> engine) {
@@ -79,7 +81,8 @@ static void rebuild_physics_output_paths(
     return;
   }
 
-  // Sim mode: query the engine directly - FluxGraph owns graph parsing.
+  // In `sim` mode the backend owns graph parsing, so the provider asks the
+  // engine which signal paths it will drive and pre-marks them in the registry.
   if (!g_simulation_engine) {
     return;
   }
@@ -115,7 +118,8 @@ static void maybe_collect_signal(const std::string &path,
     return;
   }
   if (g_signal_registry->is_physics_driven(path)) {
-    // Provider should not overwrite physics-owned outputs.
+    // Physics-owned outputs come from the backend's last published tick, not
+    // from live device state, so the provider must not feed them back in here.
     return;
   }
 
@@ -241,15 +245,14 @@ static void ticker_thread_func(double tick_rate_hz) {
             tick_start.time_since_epoch())
             .count();
 
-    // Update device control logic BEFORE collecting actuator states.
-    // This allows closed-loop controllers to read sensor values from the
-    // previous tick and update relay/actuator states accordingly.
+    // Device-local control loops run before actuator collection so a closed
+    // loop can react to the previous sensor sample and contribute its updated
+    // actuator state to the current simulation tick.
     auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
     for (const auto &dev : devices) {
       if (dev.type == "tempctl") {
         sim_devices::tempctl::update_control(dev.id);
       }
-      // Future: add control updates for other device types here
     }
 
     std::map<std::string, double> actuators;
@@ -303,20 +306,18 @@ static void ticker_thread_func(double tick_rate_hz) {
         PSIM_LOG_WARN("Ticker", "Tick #" << tick_count
                                          << " FAILED (maintaining schedule)");
       }
-      // Continue with stale data but MAINTAIN THE TICK SCHEDULE.
-      // Don't let timeouts/failures shift our cadence relative to other
-      // providers.
+      // Keep the previous sensor state but preserve cadence so a slow or failed
+      // backend tick does not permanently drift the provider's schedule.
     }
 
     tick_count++;
 
-    // CRITICAL: Always advance next_tick by tick_duration, regardless of
-    // success/failure. This maintains consistent tick alignment across
-    // providers even when one times out.
+    // Advance by one fixed period regardless of success or failure so tick
+    // cadence stays aligned to wall-clock time rather than execution duration.
     next_tick += tick_duration;
 
-    // If we're significantly behind (e.g., first startup, or multi-second
-    // block), catch up gradually rather than immediately resetting alignment.
+    // If the loop falls behind badly, recover by skipping ahead only as needed
+    // rather than fully resetting phase alignment.
     const auto now = std::chrono::steady_clock::now();
     while (next_tick <= now && g_ticker_running.load()) {
       next_tick += tick_duration;

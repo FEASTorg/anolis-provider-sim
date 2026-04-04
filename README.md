@@ -23,6 +23,9 @@ Physical basis documentation for each device is available in [docs/](docs/).
 
 Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 
+Local API docs: run `doxygen docs/Doxyfile` from the repo root.
+Generated output goes to `build/docs/doxygen/html/` and remains untracked.
+
 ## Physics Simulation
 
 Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the

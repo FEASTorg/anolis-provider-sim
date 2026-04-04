@@ -1,3 +1,12 @@
+/**
+ * @file handlers.cpp
+ * @brief Implementation of the sim provider's ADPP request handlers.
+ *
+ * Handlers stay intentionally thin: they validate request shape, translate
+ * ADPP selectors into device-manager calls, and project startup diagnostics
+ * through the runtime snapshot.
+ */
+
 #include "core/handlers.hpp"
 
 #include <cstdint>
@@ -120,8 +129,8 @@ void handle_read_signals(const ReadSignalsRequest &req,
   for (const auto &s : req.signal_ids())
     ids.push_back(s);
 
-  // Check if device exists before attempting to read signals
-  // Special-case chaos_control (has no signals but is always available)
+  // `chaos_control` is always addressable even though it intentionally exposes
+  // no readable signals through the normal device registry path.
   if (req.device_id() != "chaos_control" &&
       (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
        !anolis_provider_sim::DeviceFactory::is_device_registered(
@@ -164,6 +173,8 @@ void handle_call(const CallRequest &req,
 
   uint32_t resolved_function_id = req.function_id();
 
+  // Name-based selectors are resolved against the active device capability
+  // surface so handlers and external callers share one canonical ID mapping.
   if (req.function_id() == 0) {
     const auto function_id =
         sim_devices::resolve_function_id(req.device_id(), req.function_name());
@@ -219,18 +230,13 @@ void handle_get_health(const GetHealthRequest & /*req*/,
 
 void handle_wait_ready(const WaitReadyRequest & /*req*/,
                        anolis::deviceprovider::v1::Response &resp) {
-  // Simulated hardware initialization - in real providers this would:
-  // - Initialize communication buses (I2C, SPI, USB, etc.)
-  // - Perform device discovery and enumeration
-  // - Run self-tests and calibration
-  // - Wait for hardware warm-up periods
-  // For sim, we just report immediate readiness
-
   PSIM_LOG_INFO("Handlers", "Processing wait_ready() request");
 
   const auto runtime_state = sim_runtime::snapshot();
   const auto init_report = runtime_state.startup_report;
   auto *out = resp.mutable_wait_ready();
+  // Sim mode has no asynchronous hardware warm-up, so readiness is projected
+  // directly from the startup report captured during process initialization.
   (*out->mutable_diagnostics())["init_time_ms"] = "0";
   (*out->mutable_diagnostics())["device_count"] =
       std::to_string(sim_devices::list_devices(false).size());

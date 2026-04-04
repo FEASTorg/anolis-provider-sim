@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file signal_registry.hpp
+ * @brief Thread-safe registry that mediates between device state and simulation outputs.
+ */
+
 #include "signal_source.hpp"
 #include <functional>
 #include <map>
@@ -18,14 +23,9 @@ namespace sim_coordination {
  * maintains a cache of physics-driven signal values and delegates reads to
  * actual devices for non-physics signals.
  *
- * Architecture:
- *   Physics Engine -> write_signal() -> Registry Cache
- *   Device State -> device_reader_() -> Registry -> read_signal() -> Physics
- * Engine
- *
- * Thread Safety:
- *   All operations are protected by internal mutex. Safe for concurrent access
- *   from physics ticker thread and ADPP request handler threads.
+ * Threading:
+ * All operations are protected by an internal mutex. The registry is safe for
+ * concurrent access from the physics ticker thread and ADPP request handlers.
  */
 class SignalRegistry : public ISignalSource {
 public:
@@ -60,8 +60,6 @@ public:
    * @param value Computed value from physics engine
    */
   void write_signal(const std::string &path, double value) override;
-
-  // ---- Registry Management ----
 
   /**
    * @brief Check if a signal is being driven by physics.
@@ -107,8 +105,6 @@ public:
   void set_device_reader(
       std::function<std::optional<double>(const std::string &)> reader);
 
-  // ---- Debugging / Introspection ----
-
   /**
    * @brief Get all physics-driven signal paths.
    * @return Set of paths that physics has written to
@@ -123,16 +119,9 @@ public:
   std::optional<double> get_cached_value(const std::string &path) const;
 
 private:
-  // Cache of physics-computed signal values
   std::map<std::string, double> signal_cache_;
-
-  // Set of signals being driven by physics (vs. device internal state)
   std::set<std::string> physics_driven_signals_;
-
-  // Callback for reading actual device state (for non-physics signals)
   std::function<std::optional<double>(const std::string &)> device_reader_;
-
-  // Mutex protecting all internal state
   mutable std::mutex registry_mutex_;
 };
 
