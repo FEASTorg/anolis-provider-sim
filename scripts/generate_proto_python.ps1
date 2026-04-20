@@ -8,7 +8,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$protoRoot = Join-Path $repoRoot "external\anolis-protocol\proto"
+if (-not $env:ANOLIS_PROTOCOL_PROTO_DIR) {
+    Write-Host "ERROR: ANOLIS_PROTOCOL_PROTO_DIR is not set" -ForegroundColor Red
+    exit 1
+}
+$protoRoot = $env:ANOLIS_PROTOCOL_PROTO_DIR
 $protoV1Dir = Join-Path $protoRoot "anolis\deviceprovider\v1"
 $outputDir = if ($OutputDir) {
     if ([System.IO.Path]::IsPathRooted($OutputDir)) {

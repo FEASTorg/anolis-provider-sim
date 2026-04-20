@@ -15,8 +15,7 @@
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "ENABLE_FLUXGRAPH": "OFF",
         "ENABLE_TSAN": "OFF",
-        "ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS": "OFF",
-        "ANOLIS_PROTOCOL_DIR": "${sourceDir}/external/anolis-protocol"
+        "ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS": "OFF"
       }
     },
     {

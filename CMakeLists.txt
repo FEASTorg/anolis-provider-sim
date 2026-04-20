@@ -279,6 +279,7 @@ if(BUILD_TESTING)
         LABELS "provider;integration"
         FIXTURES_SETUP proto_python
         TIMEOUT 120
+        ENVIRONMENT "ANOLIS_PROTOCOL_PROTO_DIR=${anolis_protocol_SOURCE_DIR}/proto"
     )
 
     set(_provider_test_env

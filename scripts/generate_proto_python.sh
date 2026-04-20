@@ -4,7 +4,11 @@
 set -e
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-proto_root="$repo_root/external/anolis-protocol/proto"
+if [[ -z "${ANOLIS_PROTOCOL_PROTO_DIR:-}" ]]; then
+    echo "ERROR: ANOLIS_PROTOCOL_PROTO_DIR is not set"
+    exit 1
+fi
+proto_root="$ANOLIS_PROTOCOL_PROTO_DIR"
 proto_v1_dir="$proto_root/anolis/deviceprovider/v1"
 output_dir="${1:-${ANOLIS_PROVIDER_SIM_BUILD_DIR:-$repo_root/build}}"
 if [[ "$output_dir" != /* ]]; then
