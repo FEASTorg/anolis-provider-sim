@@ -39,8 +39,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Validate requirements lockfile
         shell: bash
@@ -80,8 +78,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Validate requirements lockfile
         shell: bash
@@ -124,8 +120,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install system dependencies
         run: |
@@ -184,8 +178,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Validate requirements lockfile
         shell: bash
@@ -235,8 +227,6 @@ jobs:
     steps:
       - name: Checkout provider-sim
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Resolve FluxGraph pin
         id: pins
@@ -307,8 +297,6 @@ jobs:
     steps:
       - name: Checkout provider-sim
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Resolve FluxGraph pin
         id: pins
