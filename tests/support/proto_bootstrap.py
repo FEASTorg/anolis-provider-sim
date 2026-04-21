@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import importlib
 from types import ModuleType
 
 
 def load_protocol_module() -> ModuleType:
     """Load protocol_pb2 module from the installed anolis-protocol package."""
-    import protocol_pb2 as protocol
-    return protocol
+    return importlib.import_module("protocol_pb2")
