@@ -161,7 +161,7 @@ if(ENABLE_FLUXGRAPH)
         FetchContent_Declare(
             fluxgraph_proto
             URL https://github.com/anolishq/fluxgraph/releases/download/v1.0.2/fluxgraph-1.0.2-source.tar.gz
-            URL_HASH SHA256=152e91eb396cd0889ee9df1f96b91b378b7481e5eb70c6b6025dad6c21a872fb
+            URL_HASH SHA256=89935cf1d4099944a0934cb17927f3b5e49e8307c5a83aae7403482c23be456c
         )
         FetchContent_MakeAvailable(fluxgraph_proto)
         set(FLUXGRAPH_PROTO_DIR "${fluxgraph_proto_SOURCE_DIR}/proto")
