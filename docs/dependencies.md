@@ -64,7 +64,8 @@ On Windows local development, use `dev-windows-*` presets.
 
 ## Cross-Repo Coupling Policy
 
-- `anolis-protocol` is consumed as pinned submodule.
+- `anolis-protocol` is consumed via CMake FetchContent, pinned to the release tag declared in
+  `CMakeLists.txt`. No submodule or sibling checkout is required.
 - FluxGraph integration remains explicit opt-in (`ENABLE_FLUXGRAPH`, `FLUXGRAPH_DIR`).
 - No hidden network dependency resolution in normal configure paths.
 - FluxGraph CI lanes currently consume floating `main` from `.ci/dependency-pins.yml` by explicit development policy.
