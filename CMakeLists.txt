@@ -10,7 +10,7 @@ if(ENABLE_FLUXGRAPH)
     list(APPEND VCPKG_MANIFEST_FEATURES "fluxgraph")
 endif()
 
-project(anolis_provider_sim VERSION 0.2.0 LANGUAGES CXX)
+project(anolis_provider_sim VERSION 0.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

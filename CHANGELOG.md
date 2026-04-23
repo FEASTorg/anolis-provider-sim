@@ -13,6 +13,26 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-23
+
+### Fixed
+
+- FluxGraph `v1.0.2` source tarball SHA256 corrected in FetchContent pin.
+
+### Changed
+
+- Bump `anolis-protocol` FetchContent pin from `v1.1.3` to `v1.1.4`.
+
+### CI
+
+- Version-sync check wired: `version-locations.txt` now tracks `CMakeLists.txt`
+  and `vcpkg.json`; CI calls reusable `version-sync` workflow from `anolishq/.github`.
+- `.anpkg` added to `.gitignore`.
+
+### Docs
+
+- Corrected description of `anolis-protocol` coupling.
+
 ## [0.2.0] - 2026-04-21
 
 ### Fixed
