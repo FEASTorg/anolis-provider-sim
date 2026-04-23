@@ -353,3 +353,9 @@ jobs:
             exit 1
           fi
           FLUXGRAPH_SERVER_EXE="$SERVER_BIN" ctest --preset "${{ matrix.test_preset }}" -L fluxgraph
+
+  version-sync:
+    uses: anolishq/.github-anolishq/.github/workflows/version-sync.yml@main
+    with:
+      python-version: '3.12'
+      working-directory: '.'
