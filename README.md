@@ -26,6 +26,72 @@ Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
 Local API docs: run `doxygen docs/Doxyfile` from the repo root.
 Generated output goes to `build/docs/doxygen/html/` and remains untracked.
 
+## Quick Start
+
+### Download and run (recommended)
+
+Download the latest release binary (Linux x86_64):
+
+```bash
+VERSION=$(curl -fsSL https://api.github.com/repos/anolishq/anolis-provider-sim/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+curl -fsSL "https://github.com/anolishq/anolis-provider-sim/releases/download/v${VERSION}/anolis-provider-sim-${VERSION}-linux-x86_64.tar.gz" \
+  | tar -xz
+# binary is at ./bin/anolis-provider-sim
+```
+
+Write a minimal config (or use the checked-in `config/provider-sim.yaml` from the source):
+
+```yaml
+# provider-sim.yaml
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 25.0
+  - id: motorctl0
+    type: motorctl
+    max_speed: 3000.0
+simulation:
+  mode: non_interacting
+  tick_rate_hz: 10.0
+```
+
+Provider-sim is started by the Anolis runtime as a subprocess — it is not run directly.
+Pair it with [`anolis`](https://github.com/anolishq/anolis/releases/latest):
+
+```yaml
+# in your anolis-runtime.yaml providers section:
+providers:
+  - id: sim0
+    command: ./bin/anolis-provider-sim
+    args: ["--config", "./provider-sim.yaml"]
+    timeout_ms: 5000
+```
+
+### Build from source (contributors)
+
+Install host prerequisites: CMake ≥ 3.20, Ninja, vcpkg, a C++17 compiler, Python 3.12.
+
+```bash
+git clone https://github.com/anolishq/anolis-provider-sim.git
+cd anolis-provider-sim
+cmake --preset dev-release
+cmake --build --preset dev-release --parallel
+ctest --preset dev-release -L provider
+./build/dev-release/anolis-provider-sim --help
+```
+
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/anolishq/anolis-provider-sim.git
+Set-Location anolis-provider-sim
+cmake --preset dev-windows-release
+cmake --build --preset dev-windows-release --parallel
+ctest --preset dev-windows-release
+```
+
+Build/dependency/CI governance: [docs/dependencies.md](docs/dependencies.md).
+
 ## Physics Simulation
 
 Provider-sim includes a configurable physics engine for realistic multi-device scenarios using the
