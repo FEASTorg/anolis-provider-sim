@@ -1,6 +1,6 @@
 {
   "name": "anolis-provider-sim",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Simulated device provider for Anolis runtime testing",
   "dependencies": [
     "gtest",
