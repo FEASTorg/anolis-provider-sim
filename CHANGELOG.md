@@ -13,6 +13,14 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-04-24
+
+### Changed
+
+- Updated `anolis-protocol` dependency from v1.1.4 to v1.2.0. The new release
+  adds `optional` presence to `ArgSpec` bounds fields. No source changes
+  required in this provider.
+
 ## [0.2.2] - 2026-04-23
 
 ### CI
