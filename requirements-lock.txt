@@ -4,7 +4,7 @@ iniconfig==2.3.0
 librt==0.8.1
 mypy==1.19.1
 mypy_extensions==1.1.0
-packaging==26.0
+packaging==26.2
 pathspec==1.0.4
 pluggy==1.6.0
 protobuf==7.34.1
