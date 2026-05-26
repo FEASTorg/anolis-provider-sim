@@ -152,7 +152,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@afc2d268fb34aae478284589c29e3043c136a897 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@01b61259e549666b145d941a5aa8a851b98ec399 # main
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
           triplet: x64-linux-static
@@ -206,7 +206,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@afc2d268fb34aae478284589c29e3043c136a897 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@01b61259e549666b145d941a5aa8a851b98ec399 # main
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
           triplet: x64-windows-v143
@@ -234,7 +234,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@afc2d268fb34aae478284589c29e3043c136a897 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@01b61259e549666b145d941a5aa8a851b98ec399 # main
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
           triplet: x64-windows-v143
@@ -329,7 +329,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@afc2d268fb34aae478284589c29e3043c136a897 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@01b61259e549666b145d941a5aa8a851b98ec399 # main
         with:
           vcpkg-commit: ${{ env.VCPKG_COMMIT }}
           triplet: x64-linux-static
@@ -355,7 +355,7 @@ jobs:
           FLUXGRAPH_SERVER_EXE="$SERVER_BIN" ctest --preset "${{ matrix.test_preset }}" -L fluxgraph
 
   version-sync:
-    uses: anolishq/.github/.github/workflows/version-sync.yml@afc2d268fb34aae478284589c29e3043c136a897 # main
+    uses: anolishq/.github/.github/workflows/version-sync.yml@01b61259e549666b145d941a5aa8a851b98ec399 # main
     with:
       python-version: '3.12'
       working-directory: '.'
