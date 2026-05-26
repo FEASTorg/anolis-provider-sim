@@ -7,7 +7,7 @@ mypy_extensions==1.1.0
 packaging==26.2
 pathspec==1.1.1
 pluggy==1.6.0
-protobuf==7.34.1
+protobuf==7.35.0
 Pygments==2.19.2
 pytest==8.4.2
 ruff==0.15.14
