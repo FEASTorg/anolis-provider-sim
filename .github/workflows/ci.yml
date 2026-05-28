@@ -3,24 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
-      - "**/*.png"
-      - "**/*.svg"
-      - "**/*.jpg"
-      - "**/*.jpeg"
-      - "**/*.gif"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
-      - "**/*.png"
-      - "**/*.svg"
-      - "**/*.jpg"
-      - "**/*.jpeg"
-      - "**/*.gif"
   workflow_dispatch:
 
 concurrency:
@@ -31,8 +15,32 @@ env:
   VCPKG_COMMIT: "66c0373dc7fca549e5803087b9487edfe3aca0a1"
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!**/*.png'
+              - '!**/*.svg'
+              - '!**/*.jpg'
+              - '!**/*.jpeg'
+              - '!**/*.gif'
+
   python-lint:
     name: Python Linting (ruff)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -72,6 +80,8 @@ jobs:
 
   python-typecheck:
     name: Python Type Checking (mypy)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
@@ -109,6 +119,8 @@ jobs:
 
   linux-release:
     name: ${{ matrix.lane }}
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -167,6 +179,8 @@ jobs:
 
   windows-release:
     name: ${{ matrix.lane }}
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-2025
     strategy:
       fail-fast: false
@@ -223,6 +237,8 @@ jobs:
 
   windows-fluxgraph-build:
     name: Windows Release (FluxGraph ON, strict build)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-2025
     steps:
       - name: Checkout provider-sim
@@ -249,6 +265,8 @@ jobs:
 
   linux-fluxgraph:
     name: ${{ matrix.lane }}
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -355,7 +373,31 @@ jobs:
           FLUXGRAPH_SERVER_EXE="$SERVER_BIN" ctest --preset "${{ matrix.test_preset }}" -L fluxgraph
 
   version-sync:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     uses: anolishq/.github/.github/workflows/version-sync.yml@01b61259e549666b145d941a5aa8a851b98ec399 # main
     with:
       python-version: '3.12'
       working-directory: '.'
+
+  ok:
+    name: ok
+    if: always()
+    needs:
+      - changes
+      - python-lint
+      - python-typecheck
+      - linux-release
+      - windows-release
+      - windows-fluxgraph-build
+      - linux-fluxgraph
+      - version-sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate job results
+        run: |
+          echo "Job results: ${{ toJSON(needs.*.result) }}"
+      - name: Fail if any required job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
