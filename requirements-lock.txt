@@ -10,5 +10,5 @@ pluggy==1.6.0
 protobuf==7.35.0
 Pygments==2.20.0
 pytest==9.0.3
-ruff==0.15.15
+ruff==0.15.16
 typing_extensions==4.15.0
