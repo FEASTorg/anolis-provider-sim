@@ -162,7 +162,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@f8988f80ce48e83ae184b2060ac46f3b9773cf50 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@e1bd27e1815926f1d7f92a5448df9f5ae2f5d3c3 # main
         with:
           triplet: x64-linux-static
 
@@ -217,7 +217,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@f8988f80ce48e83ae184b2060ac46f3b9773cf50 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@e1bd27e1815926f1d7f92a5448df9f5ae2f5d3c3 # main
         with:
           triplet: x64-windows-v145
 
@@ -246,7 +246,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@f8988f80ce48e83ae184b2060ac46f3b9773cf50 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@e1bd27e1815926f1d7f92a5448df9f5ae2f5d3c3 # main
         with:
           triplet: x64-windows-v145
 
@@ -342,7 +342,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@f8988f80ce48e83ae184b2060ac46f3b9773cf50 # main
+        uses: anolishq/.github/.github/actions/setup-vcpkg@e1bd27e1815926f1d7f92a5448df9f5ae2f5d3c3 # main
         with:
           triplet: x64-linux-static
 
@@ -369,7 +369,7 @@ jobs:
   version-sync:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
-    uses: anolishq/.github/.github/workflows/version-sync.yml@f8988f80ce48e83ae184b2060ac46f3b9773cf50 # main
+    uses: anolishq/.github/.github/workflows/version-sync.yml@e1bd27e1815926f1d7f92a5448df9f5ae2f5d3c3 # main
     with:
       python-version: '3.12'
       working-directory: '.'
