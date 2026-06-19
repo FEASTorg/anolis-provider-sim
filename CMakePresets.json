@@ -83,6 +83,15 @@
       }
     },
     {
+      "name": "ci-tsan",
+      "inherits": "ci-linux-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x64-linux-tsan",
+        "ENABLE_TSAN": "ON"
+      }
+    },
+    {
       "name": "ci-windows-release",
       "inherits": "base-windows-msvc",
       "cacheVariables": {
@@ -163,6 +172,10 @@
     {
       "name": "ci-linux-release",
       "configurePreset": "ci-linux-release"
+    },
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan"
     },
     {
       "name": "ci-windows-release",
@@ -246,6 +259,13 @@
     {
       "name": "ci-linux-release",
       "configurePreset": "ci-linux-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-tsan",
+      "configurePreset": "ci-tsan",
       "output": {
         "outputOnFailure": true
       }
