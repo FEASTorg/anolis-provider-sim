@@ -174,6 +174,49 @@ jobs:
       - name: Test (CTest provider baseline)
         run: ctest --preset "${{ matrix.test_preset }}" -L provider
 
+  provider-conformance:
+    name: ADPP Conformance (Linux)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
+
+      - name: Setup vcpkg
+        uses: anolishq/.github/.github/actions/setup-vcpkg@0f4d8cd3c04dcb17fe128248a147b237c1465e0c # v2
+        with:
+          triplet: x64-linux-static
+
+      - name: Build provider (no hardware)
+        run: |
+          cmake --preset ci-linux-release-strict
+          cmake --build --preset ci-linux-release-strict --parallel
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Pull the pinned anolis-protocol[conformance] harness
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "anolis-protocol[conformance] @ https://github.com/anolishq/anolis-protocol/releases/download/v1.3.0/anolis_protocol-1.3.0-py3-none-any.whl"
+
+      - name: Run ADPP conformance against the built binary
+        run: |
+          anolis-adpp-conformance \
+            --provider-bin build/ci-linux-release-strict/anolis-provider-sim \
+            --provider-config config/conformance.yaml \
+            --provider-profile config/conformance.toml \
+            -ra
+
   windows-release:
     name: ${{ matrix.lane }}
     needs: [changes]
@@ -382,6 +425,7 @@ jobs:
       - python-lint
       - python-typecheck
       - linux-release
+      - provider-conformance
       - windows-release
       - windows-fluxgraph-build
       - linux-fluxgraph

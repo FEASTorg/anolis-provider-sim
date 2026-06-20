@@ -1,0 +1,11 @@
+# Mock-mode configuration for the ADPP conformance harness (no hardware).
+#
+# Inert simulation so the shipped binary runs deterministically in CI. The
+# conformance lane drives this through anolis-protocol's anolis-adpp-conformance.
+devices:
+  - id: tempctl0
+    type: tempctl
+    initial_temp: 20.0
+
+simulation:
+  mode: inert
