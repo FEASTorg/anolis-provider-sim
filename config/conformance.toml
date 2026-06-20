@@ -1,0 +1,12 @@
+# ADPP conformance profile for anolis-provider-sim.
+#
+# Provider-owned identity + waiver manifest, consumed by anolis-protocol's
+# anolis-adpp-conformance (--provider-profile). The protocol package ships none
+# of this; see that repo's conformance/ADPP-CONFORMANCE.md for the schema.
+provider_name = "anolis-provider-sim"
+has_mock_devices = true
+
+[waivers]
+# Executable-profile gap only (never core/transport): sim has no --version flag
+# yet. Tracked in anolis-provider-sim#51; remove this waiver when --version lands.
+test_cli_version_flag = "sim lacks --version (anolishq/anolis-provider-sim#51)"

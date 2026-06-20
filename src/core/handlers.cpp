@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "core/health.hpp"
@@ -140,15 +141,31 @@ void handle_read_signals(const ReadSignalsRequest &req,
     return;
   }
 
-  const auto values = sim_devices::read_signals(req.device_id(), ids);
-
-  if (!ids.empty() && values.empty()) {
-    // v1 policy: if explicit ids were requested and none are returned, treat as
-    // NOT_FOUND
-    set_status(resp, Status::CODE_NOT_FOUND,
-               "no requested signals found for device");
-    return;
+  // semantics.md 7.4: a provider MUST choose ONE consistent policy for unknown
+  // signal ids. We fail the whole read with CODE_NOT_FOUND if ANY requested id is
+  // unknown (the spec's recommended policy, and what the other providers do) —
+  // never partial-OK for some-unknown but NOT_FOUND for all-unknown.
+  if (!ids.empty()) {
+    std::unordered_set<std::string> known;
+    if (req.device_id() != "chaos_control") {
+      // chaos_control intentionally exposes no readable signals; describing it is
+      // not meaningful, so every explicit id is treated as unknown below.
+      const auto caps = sim_devices::describe_device(req.device_id());
+      known.reserve(static_cast<size_t>(caps.signals_size()));
+      for (const auto &sig : caps.signals())
+        known.insert(sig.signal_id());
+    }
+    for (const auto &id : ids) {
+      if (known.find(id) == known.end()) {
+        set_status(resp, Status::CODE_NOT_FOUND,
+                   "unknown signal_id '" + id + "' for device '" +
+                       req.device_id() + "'");
+        return;
+      }
+    }
   }
+
+  const auto values = sim_devices::read_signals(req.device_id(), ids);
 
   auto *out = resp.mutable_read_signals();
   out->set_device_id(req.device_id());
@@ -173,8 +190,9 @@ void handle_call(const CallRequest &req,
 
   uint32_t resolved_function_id = req.function_id();
 
-  // Name-based selectors are resolved against the active device capability
-  // surface so handlers and external callers share one canonical ID mapping.
+  // semantics.md 6.2: if both function_id and function_name are provided, the
+  // provider MUST PREFER function_id (not reject a mismatch). We only resolve the
+  // name when function_id is unset.
   if (req.function_id() == 0) {
     const auto function_id =
         sim_devices::resolve_function_id(req.device_id(), req.function_name());
@@ -185,14 +203,6 @@ void handle_call(const CallRequest &req,
       return;
     }
     resolved_function_id = *function_id;
-  } else if (!req.function_name().empty()) {
-    const auto by_name =
-        sim_devices::resolve_function_id(req.device_id(), req.function_name());
-    if (by_name.has_value() && *by_name != req.function_id()) {
-      set_status(resp, Status::CODE_INVALID_ARGUMENT,
-                 "function_id/function_name mismatch");
-      return;
-    }
   }
 
   std::map<std::string, anolis::deviceprovider::v1::Value> args;

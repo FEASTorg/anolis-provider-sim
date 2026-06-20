@@ -64,8 +64,8 @@ find_package(yaml-cpp CONFIG REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
     anolis_protocol
-    URL https://github.com/anolishq/anolis-protocol/releases/download/v1.2.0/anolis-protocol-1.2.0-source.tar.gz
-    URL_HASH SHA256=ffd2839e02c5a0f1fe512f618808de8ce138f8dcbfbfb99ea432582ce517f26c
+    URL https://github.com/anolishq/anolis-protocol/releases/download/v1.3.0/anolis-protocol-1.3.0-source.tar.gz
+    URL_HASH SHA256=9ade6c6c4784f59584069b693014ccaf60b28f9e392b79bb04123774faa2a88e
 )
 FetchContent_MakeAvailable(anolis_protocol)
 set(ADPP_PROTO_IMPORT_ROOT "${anolis_protocol_SOURCE_DIR}/proto")
