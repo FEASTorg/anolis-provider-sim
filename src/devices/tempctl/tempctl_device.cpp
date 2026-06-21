@@ -418,8 +418,11 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
     if (!get_arg_double(args, "value", sp)) {
       return bad("missing/invalid arg: value (double)");
     }
+    if (!std::isfinite(sp)) {  // §8.3 [L2]: non-finite is malformed, before bounds
+      return bad("setpoint must be finite (not NaN or +/-Inf)");
+    }
     if (sp < -50.0 || sp > 400.0) {
-      return bad("setpoint out of range");
+      return out_of_range("setpoint out of range");  // §8.3 [L2]
     }
     s.setpoint_c = sp;
     return ok();
@@ -437,7 +440,7 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
       return bad("missing/invalid arg: relay_index (int64)");
     }
     if (idx != 1 && idx != 2) {
-      return bad("relay_index must be 1 or 2");
+      return out_of_range("relay_index must be 1 or 2");  // §8.3 [L2]
     }
     if (!get_arg_bool(args, "state", st)) {
       return bad("missing/invalid arg: state (bool)");

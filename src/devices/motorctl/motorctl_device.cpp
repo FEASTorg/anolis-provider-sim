@@ -279,13 +279,16 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
       return bad("missing/invalid arg: motor_index (int64)");
     }
     if (idx != 1 && idx != 2) {
-      return bad("motor_index must be 1 or 2");
+      return out_of_range("motor_index must be 1 or 2");  // §8.3 [L2]
     }
     if (!get_arg_double(args, "duty", duty)) {
       return bad("missing/invalid arg: duty (double)");
     }
+    if (!std::isfinite(duty)) {  // §8.3 [L2]: non-finite before bounds
+      return bad("duty must be finite (not NaN or +/-Inf)");
+    }
     if (duty < 0.0 || duty > 1.0) {
-      return bad("duty out of range (0..1)");
+      return out_of_range("duty out of range (0..1)");  // §8.3 [L2]
     }
 
     if (idx == 1)
