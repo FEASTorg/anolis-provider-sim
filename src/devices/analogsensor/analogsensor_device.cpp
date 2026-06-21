@@ -301,7 +301,7 @@ CallResult call_function(const std::string &device_id, uint32_t function_id,
       return bad("missing or invalid 'channel' int64 argument");
 
     if (channel < 1 || channel > 4)
-      return bad("channel must be 1-4");
+      return out_of_range("channel must be 1-4");  // §8.3 [L2]
 
     // Calibration resets drift for all channels
     s.drift_accumulator = 0.0;

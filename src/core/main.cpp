@@ -219,6 +219,10 @@ int main(int argc, char **argv) {
 
   std::vector<uint8_t> frame;
   std::string io_err;
+  // ADPP L2 §3.2: a non-Hello request received before a successful Hello is
+  // rejected with CODE_FAILED_PRECONDITION. The session is this process's stdio
+  // stream, so a local flag suffices.
+  bool hello_completed = false;
 
   while (true) {
     frame.clear();
@@ -248,6 +252,15 @@ int main(int argc, char **argv) {
 
     if (req.has_hello()) {
       handlers::handle_hello(req.hello(), resp);
+      if (resp.status().code() == anolis::deviceprovider::v1::Status::CODE_OK) {
+        hello_completed = true;
+      }
+    } else if (!hello_completed) {
+      // ADPP L2 §3.2: reject (do not process) any non-Hello request before Hello.
+      resp.mutable_status()->set_code(
+          anolis::deviceprovider::v1::Status::CODE_FAILED_PRECONDITION);
+      resp.mutable_status()->set_message(
+          "Hello handshake required before any other request");
     } else if (req.has_wait_ready()) {
       handlers::handle_wait_ready(req.wait_ready(), resp);
       PSIM_LOG_INFO("Main", "waiting ready -> starting physics ticker");

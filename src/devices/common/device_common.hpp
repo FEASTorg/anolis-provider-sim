@@ -164,5 +164,8 @@ static inline CallResult nf(const std::string &m) {
 static inline CallResult precond(const std::string &m) {
   return {Status::CODE_FAILED_PRECONDITION, m};
 }
+static inline CallResult out_of_range(const std::string &m) {
+  return {Status::CODE_OUT_OF_RANGE, m};
+}
 
 } // namespace sim_devices
