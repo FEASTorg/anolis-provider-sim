@@ -13,6 +13,38 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-06-22
+
+### Added
+
+- **ADPP conformance level 2.** Declare `conformance_level = 2` in
+  `config/conformance.toml` (no waivers). The provider satisfies the L2 clauses
+  of the ADPP semantics: reject a non-Hello request received before a successful
+  Hello with `CODE_FAILED_PRECONDITION` (§3.2), enforce declared numeric bounds
+  as `CODE_OUT_OF_RANGE`, and reject non-finite doubles (`NaN`/`±Inf`) with
+  `CODE_INVALID_ARGUMENT` (§8.3).
+- `--version` flag: print the provider version and exit 0, per the Anolis
+  executable profile.
+
+### Fixed
+
+- Resolve the harness-surfaced ADPP divergences: emit a single consistent
+  unknown-signal policy (§7.4) and prefer `function_id` over `function_name`
+  when both are supplied in a `Call` (§6.2).
+
+### CI
+
+- Add the ADPP `provider.conformance` lane: run the pinned
+  `anolis-adpp-conformance` harness against the built binary using the
+  provider-owned `config/conformance.toml` manifest.
+- Add a ThreadSanitizer lane and the shared Valgrind leak-check hardening
+  workflow, and a keyless dependency/CVE scan (`cve-bin-tool`) lane.
+
+### Changed
+
+- Routine dependency maintenance: refresh pinned GitHub Actions and Python
+  dependencies to current revisions.
+
 ## [0.2.4] - 2026-06-16
 
 ### Changed
