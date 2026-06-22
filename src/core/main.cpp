@@ -85,7 +85,10 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
 
-    if (arg == "--config" && i + 1 < argc) {
+    if (arg == "--version") {
+      std::cout << ANOLIS_PROVIDER_SIM_VERSION << '\n';
+      return 0;
+    } else if (arg == "--config" && i + 1 < argc) {
       config_path = argv[++i];
     } else if (arg == "--check-config" && i + 1 < argc) {
       config_path = argv[++i];
