@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from typing import Any
 
 from support.assertions import (
     assert_ok,
@@ -327,7 +328,7 @@ def test_min_timestamp_staleness(client: AdppClient, protocol) -> bool:
     values QUALITY_STALE rather than reporting them fresh."""
     now = int(time.time())
 
-    def read_with_min(seconds: int) -> object:
+    def read_with_min(seconds: int) -> Any:
         request = protocol.Request(request_id=client._request_id())
         request.read_signals.device_id = "tempctl0"
         request.read_signals.min_timestamp.seconds = seconds
