@@ -7,7 +7,8 @@ provider_name = "anolis-provider-sim"
 has_mock_devices = true
 conformance_level = 2
 
-[waivers]
-# Executable-profile gap only (never core/transport): sim has no --version flag
-# yet. Tracked in anolis-provider-sim#51; remove this waiver when --version lands.
-test_cli_version_flag = "sim lacks --version (anolishq/anolis-provider-sim#51)"
+# No waivers: sim satisfies the Anolis executable profile (--version,
+# --check-config, clean stdin-EOF shutdown). Add a [waivers] entry (test
+# base-name -> "reason (owner/repo#issue)") ONLY for a tracked executable-profile
+# gap — never to mask a core or transport failure (the harness rejects
+# out-of-scope waivers at collection).
