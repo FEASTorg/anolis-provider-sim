@@ -162,7 +162,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@c76784aff711e6540d539f6a5c3ea33c63627930 # v2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@286ebeb1222e92cc3cf9d7b80bfcf1f1d7addc73 # v2.1
         with:
           triplet: x64-linux-static
 
@@ -190,7 +190,7 @@ jobs:
           sudo apt-get install -y ninja-build g++
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@c76784aff711e6540d539f6a5c3ea33c63627930 # v2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@286ebeb1222e92cc3cf9d7b80bfcf1f1d7addc73 # v2.1
         with:
           triplet: x64-linux-static
 
@@ -260,9 +260,14 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@c76784aff711e6540d539f6a5c3ea33c63627930 # v2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@286ebeb1222e92cc3cf9d7b80bfcf1f1d7addc73 # v2.1
         with:
           triplet: x64-windows-v145
+          # FluxGraph-OFF shares the Windows binary-cache key with the
+          # FluxGraph-ON job but builds a SUBSET (no grpc). Read-only here so the
+          # faster OFF job cannot clobber the shared key with a grpc-less cache;
+          # the FluxGraph-ON job is the sole writer. See anolishq/.github#64.
+          cache-write: "false"
 
       - name: Build
         shell: pwsh
@@ -289,7 +294,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@c76784aff711e6540d539f6a5c3ea33c63627930 # v2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@286ebeb1222e92cc3cf9d7b80bfcf1f1d7addc73 # v2.1
         with:
           triplet: x64-windows-v145
 
@@ -385,7 +390,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@c76784aff711e6540d539f6a5c3ea33c63627930 # v2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@286ebeb1222e92cc3cf9d7b80bfcf1f1d7addc73 # v2.1
         with:
           triplet: x64-linux-static
 
