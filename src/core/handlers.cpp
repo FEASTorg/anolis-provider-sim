@@ -118,6 +118,28 @@ void handle_describe_device(const DescribeDeviceRequest &req,
   set_status_ok(resp);
 }
 
+// [§7.3] Best-effort min_timestamp: sim reads are live (current ticker state),
+// so any past min_timestamp is already satisfied; a value older than the
+// requested min_timestamp (e.g. an unsatisfiable future timestamp) is flagged
+// QUALITY_STALE rather than reported fresh.
+void apply_min_timestamp(
+    const anolis::deviceprovider::v1::ReadSignalsRequest &req,
+    anolis::deviceprovider::v1::ReadSignalsResponse &out) {
+  if (!req.has_min_timestamp()) {
+    return;
+  }
+  const auto &min_ts = req.min_timestamp();
+  for (auto &value : *out.mutable_values()) {
+    const auto &ts = value.timestamp();
+    const bool older =
+        ts.seconds() < min_ts.seconds() ||
+        (ts.seconds() == min_ts.seconds() && ts.nanos() < min_ts.nanos());
+    if (older) {
+      value.set_quality(anolis::deviceprovider::v1::SignalValue::QUALITY_STALE);
+    }
+  }
+}
+
 void handle_read_signals(const ReadSignalsRequest &req,
                          anolis::deviceprovider::v1::Response &resp) {
   if (req.device_id().empty()) {
@@ -172,6 +194,7 @@ void handle_read_signals(const ReadSignalsRequest &req,
   for (const auto &v : values) {
     *out->add_values() = v;
   }
+  apply_min_timestamp(req, *out);
 
   set_status_ok(resp);
 }
