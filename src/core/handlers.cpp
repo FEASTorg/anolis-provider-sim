@@ -219,7 +219,11 @@ void handle_call(const CallRequest &req,
 
   auto *out = resp.mutable_call();
   out->set_device_id(req.device_id());
-  // v1 sim: no results and no operation_id
+  // ADPP §8: populate the declared `accepted` result on success.
+  anolis::deviceprovider::v1::Value accepted;
+  accepted.set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
+  accepted.set_bool_value(true);
+  (*out->mutable_results())["accepted"] = accepted;
   set_status_ok(resp);
 }
 

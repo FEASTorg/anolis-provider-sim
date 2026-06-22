@@ -452,35 +452,40 @@ std::vector<Device> list_devices(bool include_health) {
 }
 
 CapabilitySet describe_device(const std::string &device_id) {
+  CapabilitySet caps;
+
   if (fault_injection::is_device_unavailable(device_id)) {
-    return CapabilitySet();
+    return caps;
   }
 
   if (device_id == chaos_control::kDeviceId) {
-    return chaos_control::get_capabilities();
+    caps = chaos_control::get_capabilities();
+  } else if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
+             anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+    const std::string device_type =
+        anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+    if (device_type == "tempctl") {
+      caps = tempctl::get_capabilities();
+    } else if (device_type == "motorctl") {
+      caps = motorctl::get_capabilities();
+    } else if (device_type == "relayio") {
+      caps = relayio::get_capabilities();
+    } else if (device_type == "analogsensor") {
+      caps = analogsensor::get_capabilities();
+    }
   }
 
-  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    return CapabilitySet();
+  // ADPP §8: declare a uniform `accepted` result on every function so a
+  // successful call carries a verifiable payload (populated in handle_call).
+  // Centralized here pending the Wave-4 device-adapter refactor (#61).
+  for (auto &fn : *caps.mutable_functions()) {
+    auto *result = fn.add_results();
+    result->set_name("accepted");
+    result->set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
+    result->set_required(true);
+    result->set_description("Whether the call was accepted and applied.");
   }
-
-  const std::string device_type =
-      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-
-  if (device_type == "tempctl") {
-    return tempctl::get_capabilities();
-  }
-  if (device_type == "motorctl") {
-    return motorctl::get_capabilities();
-  }
-  if (device_type == "relayio") {
-    return relayio::get_capabilities();
-  }
-  if (device_type == "analogsensor") {
-    return analogsensor::get_capabilities();
-  }
-  return CapabilitySet();
+  return caps;
 }
 
 std::vector<SignalValue>
