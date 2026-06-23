@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from typing import Any
 
 from support.assertions import (
     assert_ok,
@@ -321,6 +322,38 @@ def test_get_health_startup_state(client: AdppClient, protocol) -> bool:
     return True
 
 
+def test_min_timestamp_staleness(client: AdppClient, protocol) -> bool:
+    """[§7.3] sim reads are live: a past min_timestamp is satisfied (values stay
+    QUALITY_OK); a future, unsatisfiable min_timestamp flags the best-available
+    values QUALITY_STALE rather than reporting them fresh."""
+    now = int(time.time())
+
+    def read_with_min(seconds: int) -> Any:
+        request = protocol.Request(request_id=client._request_id())
+        request.read_signals.device_id = "tempctl0"
+        request.read_signals.min_timestamp.seconds = seconds
+        return client.send_request(request)
+
+    past = read_with_min(now - 3600)
+    assert_ok(past, "read with past min_timestamp")
+    assert past.read_signals.values, "expected default signals"
+    for value in past.read_signals.values:
+        assert value.quality == protocol.SignalValue.QUALITY_OK, (
+            f"past min_timestamp should leave quality OK, got {value.quality}"
+        )
+
+    future = read_with_min(now + 3600)
+    assert_ok(future, "read with future min_timestamp")
+    assert future.read_signals.values, "expected default signals"
+    for value in future.read_signals.values:
+        assert value.quality == protocol.SignalValue.QUALITY_STALE, (
+            f"future min_timestamp should flag QUALITY_STALE, got {value.quality}"
+        )
+
+    print("OK: min_timestamp best-effort (past=OK, future=STALE)")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="ADPP integration tests for anolis-provider-sim")
     parser.add_argument(
@@ -371,6 +404,7 @@ def main() -> int:
             "call_by_function_name": lambda c: test_call_by_function_name(c, protocol),
             "wait_ready_diagnostics": lambda c: test_wait_ready_diagnostics(c),
             "get_health_startup_state": lambda c: test_get_health_startup_state(c, protocol),
+            "min_timestamp_staleness": lambda c: test_min_timestamp_staleness(c, protocol),
         }
 
         if args.test == "all":
