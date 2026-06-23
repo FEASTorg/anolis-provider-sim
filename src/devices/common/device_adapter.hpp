@@ -16,6 +16,7 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -52,6 +53,10 @@ struct DeviceAdapter {
     std::vector<SignalValue> (*read_signals)(const std::string &device_id, const std::vector<std::string> &signal_ids);
     CallResult (*call_function)(const std::string &device_id, uint32_t function_id,
                                 const std::map<std::string, Value> &args);
+    // Actuator signal-id suffixes (appended after "<device_id>/") the simulation
+    // engine collects as physics inputs; nullptr/0 for types with no actuators.
+    const char *const *actuator_signal_ids;
+    std::size_t actuator_signal_count;
 };
 
 // The single dispatch site — exhaustive over SimDeviceType.

@@ -127,17 +127,13 @@ static void maybe_collect_signal(const std::string &path, std::map<std::string, 
 static void collect_actuator_signals(std::map<std::string, double> &signals) {
     auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
     for (const auto &entry : registered) {
-        if (entry.type == "tempctl") {
-            maybe_collect_signal(entry.id + "/relay1_state", signals);
-            maybe_collect_signal(entry.id + "/relay2_state", signals);
-        } else if (entry.type == "motorctl") {
-            maybe_collect_signal(entry.id + "/motor1_duty", signals);
-            maybe_collect_signal(entry.id + "/motor2_duty", signals);
-        } else if (entry.type == "relayio") {
-            maybe_collect_signal(entry.id + "/relay_ch1_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch2_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch3_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch4_state", signals);
+        const auto type = sim_devices::sim_device_type_from_string(entry.type);
+        if (!type) {
+            continue;
+        }
+        const sim_devices::DeviceAdapter &adapter = sim_devices::adapter_for(*type);
+        for (std::size_t i = 0; i < adapter.actuator_signal_count; ++i) {
+            maybe_collect_signal(entry.id + "/" + adapter.actuator_signal_ids[i], signals);
         }
     }
 }
