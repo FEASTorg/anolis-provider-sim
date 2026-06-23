@@ -32,8 +32,7 @@
 
 namespace sim_devices {
 
-static std::unique_ptr<sim_coordination::SignalRegistry>
-    g_signal_registry_owned;
+static std::unique_ptr<sim_coordination::SignalRegistry> g_signal_registry_owned;
 sim_coordination::SignalRegistry *g_signal_registry = nullptr;
 
 static std::unique_ptr<sim_engine::SimulationEngine> g_simulation_engine;
@@ -41,314 +40,284 @@ static std::unique_ptr<sim_engine::SimulationEngine> g_simulation_engine;
 static std::unique_ptr<std::thread> g_ticker_thread;
 static std::atomic<bool> g_ticker_running{false};
 static double g_tick_rate_hz = 10.0;
-static anolis_provider_sim::SimulationMode g_sim_mode =
-    anolis_provider_sim::SimulationMode::Inert;
+static anolis_provider_sim::SimulationMode g_sim_mode = anolis_provider_sim::SimulationMode::Inert;
 
-static std::map<std::string, std::map<std::string, uint32_t>>
-    g_function_name_to_id;
+static std::map<std::string, std::map<std::string, uint32_t>> g_function_name_to_id;
 static std::vector<std::string> g_physics_output_paths;
 
 struct ConstantSignalInput {
-  std::string path;
-  double value;
+    std::string path;
+    double value;
 };
 static std::optional<ConstantSignalInput> g_ambient_input;
 
-void set_simulation_engine(
-    std::unique_ptr<sim_engine::SimulationEngine> engine) {
-  g_simulation_engine = std::move(engine);
+void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine) {
+    g_simulation_engine = std::move(engine);
 }
 
 static void cache_device_capabilities() {
-  g_function_name_to_id.clear();
+    g_function_name_to_id.clear();
 
-  for (const auto &dev : list_devices(false)) {
-    const std::string device_id = dev.device_id();
-    auto caps = describe_device(device_id);
+    for (const auto &dev : list_devices(false)) {
+        const std::string device_id = dev.device_id();
+        auto caps = describe_device(device_id);
 
-    for (const auto &func : caps.functions()) {
-      g_function_name_to_id[device_id][func.name()] = func.function_id();
+        for (const auto &func : caps.functions()) {
+            g_function_name_to_id[device_id][func.name()] = func.function_id();
+        }
     }
-  }
 }
 
-static void rebuild_physics_output_paths(
-    const anolis_provider_sim::ProviderConfig &provider_config,
-    const std::vector<std::string> &active_device_ids) {
-  g_physics_output_paths.clear();
+static void rebuild_physics_output_paths(const anolis_provider_sim::ProviderConfig &provider_config,
+                                         const std::vector<std::string> &active_device_ids) {
+    g_physics_output_paths.clear();
 
-  if (provider_config.simulation_mode !=
-      anolis_provider_sim::SimulationMode::Sim) {
-    return;
-  }
-
-  // In `sim` mode the backend owns graph parsing, so the provider asks the
-  // engine which signal paths it will drive and pre-marks them in the registry.
-  if (!g_simulation_engine) {
-    return;
-  }
-
-  std::set<std::string> known_device_ids;
-  for (const auto &device_id : active_device_ids) {
-    known_device_ids.insert(device_id);
-  }
-
-  auto signal_paths = g_simulation_engine->list_signals();
-  for (const auto &path : signal_paths) {
-    // Filter to only signals owned by successfully initialized devices.
-    const auto slash = path.find('/');
-    if (slash == std::string::npos) {
-      continue;
+    if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim) {
+        return;
     }
 
-    const std::string device_id = path.substr(0, slash);
-    if (known_device_ids.count(device_id) == 0) {
-      continue;
+    // In `sim` mode the backend owns graph parsing, so the provider asks the
+    // engine which signal paths it will drive and pre-marks them in the registry.
+    if (!g_simulation_engine) {
+        return;
     }
 
-    g_physics_output_paths.push_back(path);
-    if (g_signal_registry) {
-      g_signal_registry->mark_physics_driven(path);
+    std::set<std::string> known_device_ids;
+    for (const auto &device_id : active_device_ids) {
+        known_device_ids.insert(device_id);
     }
-  }
+
+    auto signal_paths = g_simulation_engine->list_signals();
+    for (const auto &path : signal_paths) {
+        // Filter to only signals owned by successfully initialized devices.
+        const auto slash = path.find('/');
+        if (slash == std::string::npos) {
+            continue;
+        }
+
+        const std::string device_id = path.substr(0, slash);
+        if (known_device_ids.count(device_id) == 0) {
+            continue;
+        }
+
+        g_physics_output_paths.push_back(path);
+        if (g_signal_registry) {
+            g_signal_registry->mark_physics_driven(path);
+        }
+    }
 }
 
-static void maybe_collect_signal(const std::string &path,
-                                 std::map<std::string, double> &out) {
-  if (!g_signal_registry) {
-    return;
-  }
-  if (g_signal_registry->is_physics_driven(path)) {
-    // Physics-owned outputs come from the backend's last published tick, not
-    // from live device state, so the provider must not feed them back in here.
-    return;
-  }
+static void maybe_collect_signal(const std::string &path, std::map<std::string, double> &out) {
+    if (!g_signal_registry) {
+        return;
+    }
+    if (g_signal_registry->is_physics_driven(path)) {
+        // Physics-owned outputs come from the backend's last published tick, not
+        // from live device state, so the provider must not feed them back in here.
+        return;
+    }
 
-  auto v = g_signal_registry->read_signal(path);
-  if (v) {
-    out[path] = *v;
-  }
+    auto v = g_signal_registry->read_signal(path);
+    if (v) {
+        out[path] = *v;
+    }
 }
 
 static void collect_actuator_signals(std::map<std::string, double> &signals) {
-  auto registered =
-      anolis_provider_sim::DeviceFactory::get_registered_devices();
-  for (const auto &entry : registered) {
-    if (entry.type == "tempctl") {
-      maybe_collect_signal(entry.id + "/relay1_state", signals);
-      maybe_collect_signal(entry.id + "/relay2_state", signals);
-    } else if (entry.type == "motorctl") {
-      maybe_collect_signal(entry.id + "/motor1_duty", signals);
-      maybe_collect_signal(entry.id + "/motor2_duty", signals);
-    } else if (entry.type == "relayio") {
-      maybe_collect_signal(entry.id + "/relay_ch1_state", signals);
-      maybe_collect_signal(entry.id + "/relay_ch2_state", signals);
-      maybe_collect_signal(entry.id + "/relay_ch3_state", signals);
-      maybe_collect_signal(entry.id + "/relay_ch4_state", signals);
+    auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
+    for (const auto &entry : registered) {
+        if (entry.type == "tempctl") {
+            maybe_collect_signal(entry.id + "/relay1_state", signals);
+            maybe_collect_signal(entry.id + "/relay2_state", signals);
+        } else if (entry.type == "motorctl") {
+            maybe_collect_signal(entry.id + "/motor1_duty", signals);
+            maybe_collect_signal(entry.id + "/motor2_duty", signals);
+        } else if (entry.type == "relayio") {
+            maybe_collect_signal(entry.id + "/relay_ch1_state", signals);
+            maybe_collect_signal(entry.id + "/relay_ch2_state", signals);
+            maybe_collect_signal(entry.id + "/relay_ch3_state", signals);
+            maybe_collect_signal(entry.id + "/relay_ch4_state", signals);
+        }
     }
-  }
 }
 
-static void configure_simulation_inputs(
-    const anolis_provider_sim::ProviderConfig &provider_config) {
-  g_ambient_input.reset();
+static void configure_simulation_inputs(const anolis_provider_sim::ProviderConfig &provider_config) {
+    g_ambient_input.reset();
 
-  if (provider_config.simulation_mode !=
-      anolis_provider_sim::SimulationMode::Sim) {
-    return;
-  }
+    if (provider_config.simulation_mode != anolis_provider_sim::SimulationMode::Sim) {
+        return;
+    }
 
-  if (!provider_config.ambient_temp_c) {
-    return;
-  }
-  const double ambient_temp = *provider_config.ambient_temp_c;
-  std::string ambient_path = "environment/ambient_temp";
-  if (provider_config.ambient_signal_path) {
-    ambient_path = *provider_config.ambient_signal_path;
-  }
+    if (!provider_config.ambient_temp_c) {
+        return;
+    }
+    const double ambient_temp = *provider_config.ambient_temp_c;
+    std::string ambient_path = "environment/ambient_temp";
+    if (provider_config.ambient_signal_path) {
+        ambient_path = *provider_config.ambient_signal_path;
+    }
 
-  if (ambient_path.empty()) {
-    throw std::runtime_error(
-        "[CONFIG] simulation.ambient_signal_path cannot be empty");
-  }
+    if (ambient_path.empty()) {
+        throw std::runtime_error("[CONFIG] simulation.ambient_signal_path cannot be empty");
+    }
 
-  g_ambient_input = ConstantSignalInput{ambient_path, ambient_temp};
-  PSIM_LOG_INFO("DeviceManager", "Configured ambient input: "
-                                     << ambient_path << "=" << ambient_temp);
+    g_ambient_input = ConstantSignalInput{ambient_path, ambient_temp};
+    PSIM_LOG_INFO("DeviceManager", "Configured ambient input: " << ambient_path << "=" << ambient_temp);
 }
 
 static void execute_engine_command(const sim_engine::Command &cmd) {
-  const auto dev_it = g_function_name_to_id.find(cmd.device_id);
-  if (dev_it == g_function_name_to_id.end()) {
-    PSIM_LOG_WARN("DeviceManager", "Unknown command device: " << cmd.device_id);
-    return;
-  }
-
-  const auto fn_it = dev_it->second.find(cmd.function_name);
-  if (fn_it == dev_it->second.end()) {
-    PSIM_LOG_WARN("DeviceManager",
-                  "Unknown command function: " << cmd.device_id
-                                               << "::" << cmd.function_name);
-    return;
-  }
-
-  std::map<std::string, anolis::deviceprovider::v1::Value> pb_args;
-  for (const auto &[k, v] : cmd.args) {
-    anolis::deviceprovider::v1::Value pb;
-    if (std::holds_alternative<double>(v)) {
-      pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_DOUBLE);
-      pb.set_double_value(std::get<double>(v));
-    } else if (std::holds_alternative<int64_t>(v)) {
-      pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_INT64);
-      pb.set_int64_value(std::get<int64_t>(v));
-    } else if (std::holds_alternative<bool>(v)) {
-      pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_BOOL);
-      pb.set_bool_value(std::get<bool>(v));
-    } else if (std::holds_alternative<std::string>(v)) {
-      pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_STRING);
-      pb.set_string_value(std::get<std::string>(v));
+    const auto dev_it = g_function_name_to_id.find(cmd.device_id);
+    if (dev_it == g_function_name_to_id.end()) {
+        PSIM_LOG_WARN("DeviceManager", "Unknown command device: " << cmd.device_id);
+        return;
     }
-    pb_args[k] = pb;
-  }
 
-  const auto result = call_function(cmd.device_id, fn_it->second, pb_args);
-  if (result.code != anolis::deviceprovider::v1::Status::CODE_OK) {
-    PSIM_LOG_WARN("DeviceManager", "Command failed: " << result.message);
-  }
+    const auto fn_it = dev_it->second.find(cmd.function_name);
+    if (fn_it == dev_it->second.end()) {
+        PSIM_LOG_WARN("DeviceManager", "Unknown command function: " << cmd.device_id << "::" << cmd.function_name);
+        return;
+    }
+
+    std::map<std::string, anolis::deviceprovider::v1::Value> pb_args;
+    for (const auto &[k, v] : cmd.args) {
+        anolis::deviceprovider::v1::Value pb;
+        if (std::holds_alternative<double>(v)) {
+            pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_DOUBLE);
+            pb.set_double_value(std::get<double>(v));
+        } else if (std::holds_alternative<int64_t>(v)) {
+            pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_INT64);
+            pb.set_int64_value(std::get<int64_t>(v));
+        } else if (std::holds_alternative<bool>(v)) {
+            pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_BOOL);
+            pb.set_bool_value(std::get<bool>(v));
+        } else if (std::holds_alternative<std::string>(v)) {
+            pb.set_type(anolis::deviceprovider::v1::ValueType::VALUE_TYPE_STRING);
+            pb.set_string_value(std::get<std::string>(v));
+        }
+        pb_args[k] = pb;
+    }
+
+    const auto result = call_function(cmd.device_id, fn_it->second, pb_args);
+    if (result.code != anolis::deviceprovider::v1::Status::CODE_OK) {
+        PSIM_LOG_WARN("DeviceManager", "Command failed: " << result.message);
+    }
 }
 
 static void ticker_thread_func(double tick_rate_hz) {
-  const double dt = 1.0 / tick_rate_hz;
-  const auto tick_duration =
-      std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-          std::chrono::duration<double>(dt));
+    const double dt = 1.0 / tick_rate_hz;
+    const auto tick_duration =
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(dt));
 
-  const auto thread_start = std::chrono::steady_clock::now();
-  const auto thread_start_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          thread_start.time_since_epoch())
-          .count();
+    const auto thread_start = std::chrono::steady_clock::now();
+    const auto thread_start_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(thread_start.time_since_epoch()).count();
 
-  PSIM_LOG_INFO("Ticker",
-                "Thread started at steady_clock=" << thread_start_ms << "ms");
-  PSIM_LOG_INFO("Ticker", "Tick period: " << (dt * 1000.0) << "ms (@"
-                                          << tick_rate_hz << " Hz)");
+    PSIM_LOG_INFO("Ticker", "Thread started at steady_clock=" << thread_start_ms << "ms");
+    PSIM_LOG_INFO("Ticker", "Tick period: " << (dt * 1000.0) << "ms (@" << tick_rate_hz << " Hz)");
 
-  // Start ticking immediately from thread creation time
-  auto next_tick = thread_start;
+    // Start ticking immediately from thread creation time
+    auto next_tick = thread_start;
 
-  int tick_count = 0;
+    int tick_count = 0;
 
-  while (g_ticker_running.load()) {
-    const auto tick_start = std::chrono::steady_clock::now();
-    const auto tick_start_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            tick_start.time_since_epoch())
-            .count();
+    while (g_ticker_running.load()) {
+        const auto tick_start = std::chrono::steady_clock::now();
+        const auto tick_start_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(tick_start.time_since_epoch()).count();
 
-    // Device-local control loops run before actuator collection so a closed
-    // loop can react to the previous sensor sample and contribute its updated
-    // actuator state to the current simulation tick.
-    auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
-    for (const auto &dev : devices) {
-      if (dev.type == "tempctl") {
-        sim_devices::tempctl::update_control(dev.id);
-      }
-    }
-
-    std::map<std::string, double> actuators;
-    collect_actuator_signals(actuators);
-
-    if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim &&
-        g_ambient_input.has_value()) {
-      actuators[g_ambient_input->path] = g_ambient_input->value;
-    }
-
-    // Debug first 2 ticks only
-    if (tick_count < 2) {
-      PSIM_LOG_DEBUG("Ticker",
-                     "Tick #" << tick_count << " at steady_clock "
-                              << tick_start_ms << " ms"
-                              << " (delta=" << (tick_start_ms - thread_start_ms)
-                              << "ms from thread start)");
-      PSIM_LOG_DEBUG("Ticker", "Sending " << actuators.size() << " signals");
-    }
-
-    if (!g_simulation_engine) {
-      PSIM_LOG_ERROR("DeviceManager", "Missing simulation engine in ticker");
-      break;
-    }
-
-    const sim_engine::TickResult result = g_simulation_engine->tick(actuators);
-
-    if (result.success) {
-      if (tick_count < 2) {
-        const auto tick_end = std::chrono::steady_clock::now();
-        const auto tick_end_ms =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                tick_end.time_since_epoch())
-                .count();
-        const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
-        PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " SUCCESS (RPC took "
-                                          << rpc_duration_ms << "ms)");
-      }
-
-      if (g_signal_registry) {
-        for (const auto &[path, value] : result.sensors) {
-          g_signal_registry->write_signal(path, value);
+        // Device-local control loops run before actuator collection so a closed
+        // loop can react to the previous sensor sample and contribute its updated
+        // actuator state to the current simulation tick.
+        auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
+        for (const auto &dev : devices) {
+            if (dev.type == "tempctl") {
+                sim_devices::tempctl::update_control(dev.id);
+            }
         }
-      }
 
-      for (const auto &cmd : result.commands) {
-        execute_engine_command(cmd);
-      }
-    } else {
-      if (tick_count < 2) {
-        PSIM_LOG_WARN("Ticker", "Tick #" << tick_count
-                                         << " FAILED (maintaining schedule)");
-      }
-      // Keep the previous sensor state but preserve cadence so a slow or failed
-      // backend tick does not permanently drift the provider's schedule.
+        std::map<std::string, double> actuators;
+        collect_actuator_signals(actuators);
+
+        if (g_sim_mode == anolis_provider_sim::SimulationMode::Sim && g_ambient_input.has_value()) {
+            actuators[g_ambient_input->path] = g_ambient_input->value;
+        }
+
+        // Debug first 2 ticks only
+        if (tick_count < 2) {
+            PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " at steady_clock " << tick_start_ms << " ms"
+                                              << " (delta=" << (tick_start_ms - thread_start_ms)
+                                              << "ms from thread start)");
+            PSIM_LOG_DEBUG("Ticker", "Sending " << actuators.size() << " signals");
+        }
+
+        if (!g_simulation_engine) {
+            PSIM_LOG_ERROR("DeviceManager", "Missing simulation engine in ticker");
+            break;
+        }
+
+        const sim_engine::TickResult result = g_simulation_engine->tick(actuators);
+
+        if (result.success) {
+            if (tick_count < 2) {
+                const auto tick_end = std::chrono::steady_clock::now();
+                const auto tick_end_ms =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(tick_end.time_since_epoch()).count();
+                const auto rpc_duration_ms = tick_end_ms - tick_start_ms;
+                PSIM_LOG_DEBUG("Ticker", "Tick #" << tick_count << " SUCCESS (RPC took " << rpc_duration_ms << "ms)");
+            }
+
+            if (g_signal_registry) {
+                for (const auto &[path, value] : result.sensors) {
+                    g_signal_registry->write_signal(path, value);
+                }
+            }
+
+            for (const auto &cmd : result.commands) {
+                execute_engine_command(cmd);
+            }
+        } else {
+            if (tick_count < 2) {
+                PSIM_LOG_WARN("Ticker", "Tick #" << tick_count << " FAILED (maintaining schedule)");
+            }
+            // Keep the previous sensor state but preserve cadence so a slow or failed
+            // backend tick does not permanently drift the provider's schedule.
+        }
+
+        tick_count++;
+
+        // Advance by one fixed period regardless of success or failure so tick
+        // cadence stays aligned to wall-clock time rather than execution duration.
+        next_tick += tick_duration;
+
+        // If the loop falls behind badly, recover by skipping ahead only as needed
+        // rather than fully resetting phase alignment.
+        const auto now = std::chrono::steady_clock::now();
+        while (next_tick <= now && g_ticker_running.load()) {
+            next_tick += tick_duration;
+        }
+
+        std::this_thread::sleep_until(next_tick);
     }
-
-    tick_count++;
-
-    // Advance by one fixed period regardless of success or failure so tick
-    // cadence stays aligned to wall-clock time rather than execution duration.
-    next_tick += tick_duration;
-
-    // If the loop falls behind badly, recover by skipping ahead only as needed
-    // rather than fully resetting phase alignment.
-    const auto now = std::chrono::steady_clock::now();
-    while (next_tick <= now && g_ticker_running.load()) {
-      next_tick += tick_duration;
-    }
-
-    std::this_thread::sleep_until(next_tick);
-  }
 }
 
 // -----------------------------
 // Physics lifecycle
 // -----------------------------
 
-void initialize_physics(
-    const anolis_provider_sim::ProviderConfig &provider_config,
-    const std::vector<std::string> &active_device_ids) {
-  g_sim_mode = provider_config.simulation_mode;
-  g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
-  configure_simulation_inputs(provider_config);
+void initialize_physics(const anolis_provider_sim::ProviderConfig &provider_config,
+                        const std::vector<std::string> &active_device_ids) {
+    g_sim_mode = provider_config.simulation_mode;
+    g_tick_rate_hz = provider_config.tick_rate_hz.value_or(10.0);
+    configure_simulation_inputs(provider_config);
 
-  g_signal_registry_owned =
-      std::make_unique<sim_coordination::SignalRegistry>();
-  g_signal_registry = g_signal_registry_owned.get();
+    g_signal_registry_owned = std::make_unique<sim_coordination::SignalRegistry>();
+    g_signal_registry = g_signal_registry_owned.get();
 
-  // Non-physics reads delegate to current device state.
-  g_signal_registry->set_device_reader(
-      [](const std::string &path) -> std::optional<double> {
+    // Non-physics reads delegate to current device state.
+    g_signal_registry->set_device_reader([](const std::string &path) -> std::optional<double> {
         const size_t slash_pos = path.find('/');
         if (slash_pos == std::string::npos) {
-          return std::nullopt;
+            return std::nullopt;
         }
 
         const std::string device_id = path.substr(0, slash_pos);
@@ -356,63 +325,62 @@ void initialize_physics(
 
         const auto signals = read_signals(device_id, {signal_id});
         if (signals.empty()) {
-          return std::nullopt;
+            return std::nullopt;
         }
 
         const auto &val = signals[0].value();
         using anolis::deviceprovider::v1::ValueType;
         if (val.type() == ValueType::VALUE_TYPE_DOUBLE) {
-          return val.double_value();
+            return val.double_value();
         }
         if (val.type() == ValueType::VALUE_TYPE_INT64) {
-          return static_cast<double>(val.int64_value());
+            return static_cast<double>(val.int64_value());
         }
         if (val.type() == ValueType::VALUE_TYPE_BOOL) {
-          return val.bool_value() ? 1.0 : 0.0;
+            return val.bool_value() ? 1.0 : 0.0;
         }
         return std::nullopt;
-      });
+    });
 
-  cache_device_capabilities();
-  rebuild_physics_output_paths(provider_config, active_device_ids);
+    cache_device_capabilities();
+    rebuild_physics_output_paths(provider_config, active_device_ids);
 }
 
 void start_physics() {
-  if (g_sim_mode == anolis_provider_sim::SimulationMode::Inert) {
-    PSIM_LOG_INFO("DeviceManager", "start_physics: inert mode, skipping");
-    return;
-  }
-  if (!g_simulation_engine) {
-    PSIM_LOG_ERROR("DeviceManager", "Non-inert mode requires simulation "
-                                    "engine; ticker not started");
-    return;
-  }
-  if (g_ticker_running.load()) {
-    PSIM_LOG_INFO("DeviceManager", "start_physics: already running, skipping");
-    return;
-  }
+    if (g_sim_mode == anolis_provider_sim::SimulationMode::Inert) {
+        PSIM_LOG_INFO("DeviceManager", "start_physics: inert mode, skipping");
+        return;
+    }
+    if (!g_simulation_engine) {
+        PSIM_LOG_ERROR("DeviceManager",
+                       "Non-inert mode requires simulation "
+                       "engine; ticker not started");
+        return;
+    }
+    if (g_ticker_running.load()) {
+        PSIM_LOG_INFO("DeviceManager", "start_physics: already running, skipping");
+        return;
+    }
 
-  PSIM_LOG_INFO("DeviceManager", "start_physics: spawning ticker thread (@"
-                                     << g_tick_rate_hz << " Hz)");
-  g_ticker_running = true;
-  g_ticker_thread =
-      std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
-  PSIM_LOG_INFO("DeviceManager", "start_physics: ticker thread started");
+    PSIM_LOG_INFO("DeviceManager", "start_physics: spawning ticker thread (@" << g_tick_rate_hz << " Hz)");
+    g_ticker_running = true;
+    g_ticker_thread = std::make_unique<std::thread>(ticker_thread_func, g_tick_rate_hz);
+    PSIM_LOG_INFO("DeviceManager", "start_physics: ticker thread started");
 }
 
 void stop_physics() {
-  g_ticker_running = false;
-  if (g_ticker_thread && g_ticker_thread->joinable()) {
-    g_ticker_thread->join();
-  }
-  g_ticker_thread.reset();
+    g_ticker_running = false;
+    if (g_ticker_thread && g_ticker_thread->joinable()) {
+        g_ticker_thread->join();
+    }
+    g_ticker_thread.reset();
 
-  g_physics_output_paths.clear();
-  g_function_name_to_id.clear();
-  g_signal_registry = nullptr;
-  g_signal_registry_owned.reset();
-  g_simulation_engine.reset();
-  g_ambient_input.reset();
+    g_physics_output_paths.clear();
+    g_function_name_to_id.clear();
+    g_signal_registry = nullptr;
+    g_signal_registry_owned.reset();
+    g_simulation_engine.reset();
+    g_ambient_input.reset();
 }
 
 // -----------------------------
@@ -420,178 +388,170 @@ void stop_physics() {
 // -----------------------------
 
 std::vector<Device> list_devices(bool include_health) {
-  std::vector<Device> out;
+    std::vector<Device> out;
 
-  if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
-    auto registered =
-        anolis_provider_sim::DeviceFactory::get_registered_devices();
-    for (const auto &entry : registered) {
-      if (fault_injection::is_device_unavailable(entry.id)) {
-        continue;
-      }
+    if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
+        auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
+        for (const auto &entry : registered) {
+            if (fault_injection::is_device_unavailable(entry.id)) {
+                continue;
+            }
 
-      Device device_info;
-      if (entry.type == "tempctl") {
-        device_info = tempctl::get_device_info(entry.id, include_health);
-      } else if (entry.type == "motorctl") {
-        device_info = motorctl::get_device_info(entry.id, include_health);
-      } else if (entry.type == "relayio") {
-        device_info = relayio::get_device_info(entry.id, include_health);
-      } else if (entry.type == "analogsensor") {
-        device_info = analogsensor::get_device_info(entry.id, include_health);
-      } else {
-        continue;
-      }
-      out.push_back(device_info);
+            Device device_info;
+            if (entry.type == "tempctl") {
+                device_info = tempctl::get_device_info(entry.id, include_health);
+            } else if (entry.type == "motorctl") {
+                device_info = motorctl::get_device_info(entry.id, include_health);
+            } else if (entry.type == "relayio") {
+                device_info = relayio::get_device_info(entry.id, include_health);
+            } else if (entry.type == "analogsensor") {
+                device_info = analogsensor::get_device_info(entry.id, include_health);
+            } else {
+                continue;
+            }
+            out.push_back(device_info);
+        }
+
+        out.push_back(chaos_control::get_device_info(include_health));
     }
 
-    out.push_back(chaos_control::get_device_info(include_health));
-  }
-
-  return out;
+    return out;
 }
 
 CapabilitySet describe_device(const std::string &device_id) {
-  CapabilitySet caps;
+    CapabilitySet caps;
 
-  if (fault_injection::is_device_unavailable(device_id)) {
+    if (fault_injection::is_device_unavailable(device_id)) {
+        return caps;
+    }
+
+    if (device_id == chaos_control::kDeviceId) {
+        caps = chaos_control::get_capabilities();
+    } else if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
+               anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+        const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+        if (device_type == "tempctl") {
+            caps = tempctl::get_capabilities();
+        } else if (device_type == "motorctl") {
+            caps = motorctl::get_capabilities();
+        } else if (device_type == "relayio") {
+            caps = relayio::get_capabilities();
+        } else if (device_type == "analogsensor") {
+            caps = analogsensor::get_capabilities();
+        }
+    }
+
+    // ADPP §8: declare a uniform `accepted` result on every function so a
+    // successful call carries a verifiable payload (populated in handle_call).
+    // Centralized here pending the Wave-4 device-adapter refactor (#61).
+    for (auto &fn : *caps.mutable_functions()) {
+        auto *result = fn.add_results();
+        result->set_name("accepted");
+        result->set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
+        result->set_required(true);
+        result->set_description("Whether the call was accepted and applied.");
+    }
     return caps;
-  }
+}
 
-  if (device_id == chaos_control::kDeviceId) {
-    caps = chaos_control::get_capabilities();
-  } else if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
-             anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    const std::string device_type =
-        anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+    if (fault_injection::is_device_unavailable(device_id)) {
+        return {};
+    }
+
+    if (device_id == chaos_control::kDeviceId) {
+        return chaos_control::read_signals(signal_ids);
+    }
+
+    if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+        !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+        return {};
+    }
+
+    const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+
+    std::vector<SignalValue> signals;
     if (device_type == "tempctl") {
-      caps = tempctl::get_capabilities();
+        signals = tempctl::read_signals(device_id, signal_ids);
     } else if (device_type == "motorctl") {
-      caps = motorctl::get_capabilities();
+        signals = motorctl::read_signals(device_id, signal_ids);
     } else if (device_type == "relayio") {
-      caps = relayio::get_capabilities();
+        signals = relayio::read_signals(device_id, signal_ids);
     } else if (device_type == "analogsensor") {
-      caps = analogsensor::get_capabilities();
+        signals = analogsensor::read_signals(device_id, signal_ids);
+    } else {
+        return {};
     }
-  }
 
-  // ADPP §8: declare a uniform `accepted` result on every function so a
-  // successful call carries a verifiable payload (populated in handle_call).
-  // Centralized here pending the Wave-4 device-adapter refactor (#61).
-  for (auto &fn : *caps.mutable_functions()) {
-    auto *result = fn.add_results();
-    result->set_name("accepted");
-    result->set_type(anolis::deviceprovider::v1::VALUE_TYPE_BOOL);
-    result->set_required(true);
-    result->set_description("Whether the call was accepted and applied.");
-  }
-  return caps;
+    for (auto &signal : signals) {
+        if (fault_injection::is_signal_faulted(device_id, signal.signal_id())) {
+            signal.set_quality(SignalValue::QUALITY_FAULT);
+        }
+    }
+
+    return signals;
 }
 
-std::vector<SignalValue>
-read_signals(const std::string &device_id,
-             const std::vector<std::string> &signal_ids) {
-  if (fault_injection::is_device_unavailable(device_id)) {
-    return {};
-  }
-
-  if (device_id == chaos_control::kDeviceId) {
-    return chaos_control::read_signals(signal_ids);
-  }
-
-  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    return {};
-  }
-
-  const std::string device_type =
-      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-
-  std::vector<SignalValue> signals;
-  if (device_type == "tempctl") {
-    signals = tempctl::read_signals(device_id, signal_ids);
-  } else if (device_type == "motorctl") {
-    signals = motorctl::read_signals(device_id, signal_ids);
-  } else if (device_type == "relayio") {
-    signals = relayio::read_signals(device_id, signal_ids);
-  } else if (device_type == "analogsensor") {
-    signals = analogsensor::read_signals(device_id, signal_ids);
-  } else {
-    return {};
-  }
-
-  for (auto &signal : signals) {
-    if (fault_injection::is_signal_faulted(device_id, signal.signal_id())) {
-      signal.set_quality(SignalValue::QUALITY_FAULT);
+std::optional<uint32_t> resolve_function_id(const std::string &device_id, const std::string &function_name) {
+    if (device_id.empty() || function_name.empty()) {
+        return std::nullopt;
     }
-  }
 
-  return signals;
-}
+    const auto cached_device_it = g_function_name_to_id.find(device_id);
+    if (cached_device_it != g_function_name_to_id.end()) {
+        const auto cached_fn_it = cached_device_it->second.find(function_name);
+        if (cached_fn_it != cached_device_it->second.end()) {
+            return cached_fn_it->second;
+        }
+    }
 
-std::optional<uint32_t> resolve_function_id(const std::string &device_id,
-                                            const std::string &function_name) {
-  if (device_id.empty() || function_name.empty()) {
+    const auto caps = describe_device(device_id);
+    for (const auto &fn : caps.functions()) {
+        if (fn.name() == function_name) {
+            return fn.function_id();
+        }
+    }
     return std::nullopt;
-  }
-
-  const auto cached_device_it = g_function_name_to_id.find(device_id);
-  if (cached_device_it != g_function_name_to_id.end()) {
-    const auto cached_fn_it = cached_device_it->second.find(function_name);
-    if (cached_fn_it != cached_device_it->second.end()) {
-      return cached_fn_it->second;
-    }
-  }
-
-  const auto caps = describe_device(device_id);
-  for (const auto &fn : caps.functions()) {
-    if (fn.name() == function_name) {
-      return fn.function_id();
-    }
-  }
-  return std::nullopt;
 }
 
-CallResult call_function(const std::string &device_id, uint32_t function_id,
-                         const std::map<std::string, Value> &args) {
-  if (fault_injection::is_device_unavailable(device_id)) {
-    return bad("device unavailable (injected fault)");
-  }
+CallResult call_function(const std::string &device_id, uint32_t function_id, const std::map<std::string, Value> &args) {
+    if (fault_injection::is_device_unavailable(device_id)) {
+        return bad("device unavailable (injected fault)");
+    }
 
-  const int64_t latency_ms = fault_injection::get_call_latency(device_id);
-  if (latency_ms > 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(latency_ms));
-  }
+    const int64_t latency_ms = fault_injection::get_call_latency(device_id);
+    if (latency_ms > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(latency_ms));
+    }
 
-  const std::string function_id_str = std::to_string(function_id);
-  if (fault_injection::should_call_fail(device_id, function_id_str)) {
-    return bad("function call failed (injected fault)");
-  }
+    const std::string function_id_str = std::to_string(function_id);
+    if (fault_injection::should_call_fail(device_id, function_id_str)) {
+        return bad("function call failed (injected fault)");
+    }
 
-  if (device_id == chaos_control::kDeviceId) {
-    return chaos_control::call_function(function_id, args);
-  }
+    if (device_id == chaos_control::kDeviceId) {
+        return chaos_control::call_function(function_id, args);
+    }
 
-  if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-      !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-    return nf("unknown device_id: " + device_id);
-  }
+    if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
+        !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+        return nf("unknown device_id: " + device_id);
+    }
 
-  const std::string device_type =
-      anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-  if (device_type == "tempctl") {
-    return tempctl::call_function(device_id, function_id, args);
-  }
-  if (device_type == "motorctl") {
-    return motorctl::call_function(device_id, function_id, args);
-  }
-  if (device_type == "relayio") {
-    return relayio::call_function(device_id, function_id, args);
-  }
-  if (device_type == "analogsensor") {
-    return analogsensor::call_function(device_id, function_id, args);
-  }
-  return nf("unknown device type: " + device_type);
+    const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
+    if (device_type == "tempctl") {
+        return tempctl::call_function(device_id, function_id, args);
+    }
+    if (device_type == "motorctl") {
+        return motorctl::call_function(device_id, function_id, args);
+    }
+    if (device_type == "relayio") {
+        return relayio::call_function(device_id, function_id, args);
+    }
+    if (device_type == "analogsensor") {
+        return analogsensor::call_function(device_id, function_id, args);
+    }
+    return nf("unknown device type: " + device_type);
 }
 
-} // namespace sim_devices
+}  // namespace sim_devices

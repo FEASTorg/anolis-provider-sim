@@ -6,11 +6,12 @@
  * anolis-provider-sim.
  */
 
+#include <yaml-cpp/yaml.h>
+
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 namespace anolis_provider_sim {
 
@@ -18,9 +19,9 @@ namespace anolis_provider_sim {
  * @brief Runtime simulation mode for the provider process.
  */
 enum class SimulationMode {
-  NonInteracting, // Fixed-tick, device-only physics, no cross-device flow
-  Inert,          // No automatic updates, function calls only
-  Sim             // Fixed-tick, external simulation engine with signal routing
+    NonInteracting,  // Fixed-tick, device-only physics, no cross-device flow
+    Inert,           // No automatic updates, function calls only
+    Sim              // Fixed-tick, external simulation engine with signal routing
 };
 
 /**
@@ -28,8 +29,8 @@ enum class SimulationMode {
  * initialize.
  */
 enum class StartupPolicy {
-  Strict,   // Abort startup on first init failure
-  Degraded, // Continue with successfully initialized devices
+    Strict,    // Abort startup on first init failure
+    Degraded,  // Continue with successfully initialized devices
 };
 
 /**
@@ -39,9 +40,9 @@ enum class StartupPolicy {
  * corresponding device implementation can validate and consume it.
  */
 struct DeviceSpec {
-  std::string id;
-  std::string type;
-  std::map<std::string, YAML::Node> config;
+    std::string id;
+    std::string type;
+    std::map<std::string, YAML::Node> config;
 };
 
 /**
@@ -52,15 +53,15 @@ struct DeviceSpec {
  * `physics_config_path` is required in `sim` mode only.
  */
 struct ProviderConfig {
-  std::string config_file_path;
-  std::optional<std::string> provider_name;
-  StartupPolicy startup_policy = StartupPolicy::Strict;
-  std::vector<DeviceSpec> devices;
-  SimulationMode simulation_mode;
-  std::optional<double> tick_rate_hz;
-  std::optional<std::string> physics_config_path;
-  std::optional<double> ambient_temp_c;
-  std::optional<std::string> ambient_signal_path;
+    std::string config_file_path;
+    std::optional<std::string> provider_name;
+    StartupPolicy startup_policy = StartupPolicy::Strict;
+    std::vector<DeviceSpec> devices;
+    SimulationMode simulation_mode;
+    std::optional<double> tick_rate_hz;
+    std::optional<std::string> physics_config_path;
+    std::optional<double> ambient_temp_c;
+    std::optional<std::string> ambient_signal_path;
 };
 
 /**
@@ -85,4 +86,4 @@ SimulationMode parse_simulation_mode(const std::string &mode_str);
  */
 StartupPolicy parse_startup_policy(const std::string &policy_str);
 
-} // namespace anolis_provider_sim
+}  // namespace anolis_provider_sim

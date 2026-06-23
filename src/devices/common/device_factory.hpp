@@ -1,10 +1,11 @@
 #pragma once
 
+#include <yaml-cpp/yaml.h>
+
 #include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 #include "config.hpp"
 #include "core/startup_report.hpp"
@@ -13,37 +14,36 @@ namespace anolis_provider_sim {
 
 // Device registry entry
 struct DeviceRegistryEntry {
-  std::string id;   // Device identifier
-  std::string type; // Device type (tempctl, motorctl, etc.)
-  std::map<std::string, YAML::Node> config; // Device-specific config
+    std::string id;                            // Device identifier
+    std::string type;                          // Device type (tempctl, motorctl, etc.)
+    std::map<std::string, YAML::Node> config;  // Device-specific config
 };
 
 // Device Factory - manages device creation and initialization from config
 class DeviceFactory {
 public:
-  // Initialize a device from specification
-  // Returns true on success, false if device type unknown or init failed
-  static bool initialize_device(const DeviceSpec &spec);
+    // Initialize a device from specification
+    // Returns true on success, false if device type unknown or init failed
+    static bool initialize_device(const DeviceSpec &spec);
 
-  // Initialize all devices from provider config
-  // Startup policy determines strict vs degraded behavior.
-  static DeviceInitializationReport
-  initialize_from_config(const ProviderConfig &config);
+    // Initialize all devices from provider config
+    // Startup policy determines strict vs degraded behavior.
+    static DeviceInitializationReport initialize_from_config(const ProviderConfig &config);
 
-  // Get list of registered device IDs and types
-  static std::vector<DeviceRegistryEntry> get_registered_devices();
+    // Get list of registered device IDs and types
+    static std::vector<DeviceRegistryEntry> get_registered_devices();
 
-  // Check if a device ID is registered
-  static bool is_device_registered(const std::string &device_id);
+    // Check if a device ID is registered
+    static bool is_device_registered(const std::string &device_id);
 
-  // Get device type for a registered device ID
-  static std::string get_device_type(const std::string &device_id);
+    // Get device type for a registered device ID
+    static std::string get_device_type(const std::string &device_id);
 
-  // Reset registry (for testing)
-  static void reset();
+    // Reset registry (for testing)
+    static void reset();
 
-  // Check if config has been loaded
-  static bool is_config_loaded();
+    // Check if config has been loaded
+    static bool is_config_loaded();
 };
 
-} // namespace anolis_provider_sim
+}  // namespace anolis_provider_sim

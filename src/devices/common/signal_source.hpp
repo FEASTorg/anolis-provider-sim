@@ -24,35 +24,35 @@ namespace sim_coordination {
  */
 class ISignalSource {
 public:
-  virtual ~ISignalSource() = default;
+    virtual ~ISignalSource() = default;
 
-  /**
-   * @brief Read a signal value by path.
-   *
-   * @param path Full signal path in format "device_id/signal_id" or
-   * "model_id/output_id"
-   * @return Signal value if available, nullopt if signal doesn't exist or is
-   * unavailable
-   *
-   * Threading:
-   * Safe for concurrent calls from multiple threads.
-   */
-  virtual std::optional<double> read_signal(const std::string &path) = 0;
+    /**
+     * @brief Read a signal value by path.
+     *
+     * @param path Full signal path in format "device_id/signal_id" or
+     * "model_id/output_id"
+     * @return Signal value if available, nullopt if signal doesn't exist or is
+     * unavailable
+     *
+     * Threading:
+     * Safe for concurrent calls from multiple threads.
+     */
+    virtual std::optional<double> read_signal(const std::string &path) = 0;
 
-  /**
-   * @brief Write a signal value by path.
-   *
-   * This is called by the physics engine to update computed sensor values.
-   * The implementation is responsible for routing this value to the appropriate
-   * device state or cache.
-   *
-   * @param path Full signal path in format "device_id/signal_id"
-   * @param value Computed signal value from physics
-   *
-   * Threading:
-   * Safe for concurrent calls from multiple threads.
-   */
-  virtual void write_signal(const std::string &path, double value) = 0;
+    /**
+     * @brief Write a signal value by path.
+     *
+     * This is called by the physics engine to update computed sensor values.
+     * The implementation is responsible for routing this value to the appropriate
+     * device state or cache.
+     *
+     * @param path Full signal path in format "device_id/signal_id"
+     * @param value Computed signal value from physics
+     *
+     * Threading:
+     * Safe for concurrent calls from multiple threads.
+     */
+    virtual void write_signal(const std::string &path, double value) = 0;
 };
 
-} // namespace sim_coordination
+}  // namespace sim_coordination

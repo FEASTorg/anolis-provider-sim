@@ -26,11 +26,10 @@ bool read_exact(std::istream &in, uint8_t *buf, size_t n);
  * Returns `false` on clean EOF or protocol/stream failure. `err` stays empty
  * for clean EOF and contains a message for fatal frame errors.
  */
-bool read_frame(std::istream &in, std::vector<uint8_t> &out, std::string &err,
-                uint32_t max_len = kMaxFrameBytes);
+bool read_frame(std::istream &in, std::vector<uint8_t> &out, std::string &err, uint32_t max_len = kMaxFrameBytes);
 
 /** @brief Write one length-prefixed frame and flush the output stream. */
-bool write_frame(std::ostream &out, const uint8_t *data, size_t len,
-                 std::string &err, uint32_t max_len = kMaxFrameBytes);
+bool write_frame(std::ostream &out, const uint8_t *data, size_t len, std::string &err,
+                 uint32_t max_len = kMaxFrameBytes);
 
-} // namespace transport
+}  // namespace transport

@@ -16,18 +16,17 @@ namespace sim_runtime {
  * the device modules and physics coordination layer.
  */
 struct RuntimeState {
-  anolis_provider_sim::DeviceInitializationReport startup_report;
-  bool startup_report_available = false;
+    anolis_provider_sim::DeviceInitializationReport startup_report;
+    bool startup_report_available = false;
 };
 
 /** @brief Clear the process-wide runtime snapshot. */
 void reset();
 
 /** @brief Publish the latest startup report for handler-side diagnostics. */
-void set_startup_report(
-    const anolis_provider_sim::DeviceInitializationReport &report);
+void set_startup_report(const anolis_provider_sim::DeviceInitializationReport &report);
 
 /** @brief Return a copy of the current runtime snapshot. */
 RuntimeState snapshot();
 
-} // namespace sim_runtime
+}  // namespace sim_runtime
