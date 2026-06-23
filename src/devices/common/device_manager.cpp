@@ -24,10 +24,7 @@
 #include "chaos/fault_injection.hpp"
 #include "config.hpp"
 #include "device_factory.hpp"
-#include "devices/analogsensor/analogsensor_device.hpp"
-#include "devices/motorctl/motorctl_device.hpp"
-#include "devices/relayio/relayio_device.hpp"
-#include "devices/tempctl/tempctl_device.hpp"
+#include "devices/common/device_adapter.hpp"
 #include "logging/logger.hpp"
 
 namespace sim_devices {
@@ -126,17 +123,13 @@ static void maybe_collect_signal(const std::string &path, std::map<std::string, 
 static void collect_actuator_signals(std::map<std::string, double> &signals) {
     auto registered = anolis_provider_sim::DeviceFactory::get_registered_devices();
     for (const auto &entry : registered) {
-        if (entry.type == "tempctl") {
-            maybe_collect_signal(entry.id + "/relay1_state", signals);
-            maybe_collect_signal(entry.id + "/relay2_state", signals);
-        } else if (entry.type == "motorctl") {
-            maybe_collect_signal(entry.id + "/motor1_duty", signals);
-            maybe_collect_signal(entry.id + "/motor2_duty", signals);
-        } else if (entry.type == "relayio") {
-            maybe_collect_signal(entry.id + "/relay_ch1_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch2_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch3_state", signals);
-            maybe_collect_signal(entry.id + "/relay_ch4_state", signals);
+        const auto type = sim_devices::sim_device_type_from_string(entry.type);
+        if (!type) {
+            continue;
+        }
+        const sim_devices::DeviceAdapter &adapter = sim_devices::adapter_for(*type);
+        for (std::size_t i = 0; i < adapter.actuator_signal_count; ++i) {
+            maybe_collect_signal(entry.id + "/" + adapter.actuator_signal_ids[i], signals);
         }
     }
 }
@@ -230,8 +223,8 @@ static void ticker_thread_func(double tick_rate_hz) {
         // actuator state to the current simulation tick.
         auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
         for (const auto &dev : devices) {
-            if (dev.type == "tempctl") {
-                sim_devices::tempctl::update_control(dev.id);
+            if (const DeviceAdapter *adapter = adapter_by_id(dev.id)) {
+                adapter->update_control(dev.id);  // no-op for types without a closed loop
             }
         }
 
@@ -397,19 +390,11 @@ std::vector<Device> list_devices(bool include_health) {
                 continue;
             }
 
-            Device device_info;
-            if (entry.type == "tempctl") {
-                device_info = tempctl::get_device_info(entry.id, include_health);
-            } else if (entry.type == "motorctl") {
-                device_info = motorctl::get_device_info(entry.id, include_health);
-            } else if (entry.type == "relayio") {
-                device_info = relayio::get_device_info(entry.id, include_health);
-            } else if (entry.type == "analogsensor") {
-                device_info = analogsensor::get_device_info(entry.id, include_health);
-            } else {
+            const DeviceAdapter *adapter = adapter_by_id(entry.id);
+            if (adapter == nullptr) {
                 continue;
             }
-            out.push_back(device_info);
+            out.push_back(adapter->get_device_info(entry.id, include_health));
         }
 
         out.push_back(chaos_control::get_device_info(include_health));
@@ -427,18 +412,8 @@ CapabilitySet describe_device(const std::string &device_id) {
 
     if (device_id == chaos_control::kDeviceId) {
         caps = chaos_control::get_capabilities();
-    } else if (anolis_provider_sim::DeviceFactory::is_config_loaded() &&
-               anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-        const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-        if (device_type == "tempctl") {
-            caps = tempctl::get_capabilities();
-        } else if (device_type == "motorctl") {
-            caps = motorctl::get_capabilities();
-        } else if (device_type == "relayio") {
-            caps = relayio::get_capabilities();
-        } else if (device_type == "analogsensor") {
-            caps = analogsensor::get_capabilities();
-        }
+    } else if (const DeviceAdapter *adapter = adapter_by_id(device_id)) {
+        caps = adapter->get_capabilities();
     }
 
     // ADPP §8: declare a uniform `accepted` result on every function so a
@@ -463,25 +438,12 @@ std::vector<SignalValue> read_signals(const std::string &device_id, const std::v
         return chaos_control::read_signals(signal_ids);
     }
 
-    if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-        !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
+    const DeviceAdapter *adapter = adapter_by_id(device_id);
+    if (adapter == nullptr) {
         return {};
     }
 
-    const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-
-    std::vector<SignalValue> signals;
-    if (device_type == "tempctl") {
-        signals = tempctl::read_signals(device_id, signal_ids);
-    } else if (device_type == "motorctl") {
-        signals = motorctl::read_signals(device_id, signal_ids);
-    } else if (device_type == "relayio") {
-        signals = relayio::read_signals(device_id, signal_ids);
-    } else if (device_type == "analogsensor") {
-        signals = analogsensor::read_signals(device_id, signal_ids);
-    } else {
-        return {};
-    }
+    std::vector<SignalValue> signals = adapter->read_signals(device_id, signal_ids);
 
     for (auto &signal : signals) {
         if (fault_injection::is_signal_faulted(device_id, signal.signal_id())) {
@@ -538,20 +500,11 @@ CallResult call_function(const std::string &device_id, uint32_t function_id, con
         return nf("unknown device_id: " + device_id);
     }
 
-    const std::string device_type = anolis_provider_sim::DeviceFactory::get_device_type(device_id);
-    if (device_type == "tempctl") {
-        return tempctl::call_function(device_id, function_id, args);
+    const DeviceAdapter *adapter = adapter_by_id(device_id);
+    if (adapter == nullptr) {
+        return nf("unknown device type: " + anolis_provider_sim::DeviceFactory::get_device_type(device_id));
     }
-    if (device_type == "motorctl") {
-        return motorctl::call_function(device_id, function_id, args);
-    }
-    if (device_type == "relayio") {
-        return relayio::call_function(device_id, function_id, args);
-    }
-    if (device_type == "analogsensor") {
-        return analogsensor::call_function(device_id, function_id, args);
-    }
-    return nf("unknown device type: " + device_type);
+    return adapter->call_function(device_id, function_id, args);
 }
 
 }  // namespace sim_devices
