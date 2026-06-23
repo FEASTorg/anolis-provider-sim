@@ -260,7 +260,7 @@ def test_clear_faults(client: AdppClient, protocol) -> bool:
     start = time.time()
     resp = client.call_function(
         "motorctl0",
-        10,
+        1,
         {
             "motor_index": make_int64_value(protocol, 1),
             "duty": make_double_value(protocol, 0.5),
