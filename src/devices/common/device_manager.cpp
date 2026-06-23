@@ -410,9 +410,7 @@ CapabilitySet describe_device(const std::string &device_id) {
         return caps;
     }
 
-    if (device_id == chaos_control::kDeviceId) {
-        caps = chaos_control::get_capabilities();
-    } else if (const DeviceAdapter *adapter = adapter_by_id(device_id)) {
+    if (const DeviceAdapter *adapter = adapter_by_id(device_id)) {
         caps = adapter->get_capabilities();
     }
 
@@ -432,10 +430,6 @@ CapabilitySet describe_device(const std::string &device_id) {
 std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
     if (fault_injection::is_device_unavailable(device_id)) {
         return {};
-    }
-
-    if (device_id == chaos_control::kDeviceId) {
-        return chaos_control::read_signals(signal_ids);
     }
 
     const DeviceAdapter *adapter = adapter_by_id(device_id);
@@ -491,18 +485,9 @@ CallResult call_function(const std::string &device_id, uint32_t function_id, con
         return bad("function call failed (injected fault)");
     }
 
-    if (device_id == chaos_control::kDeviceId) {
-        return chaos_control::call_function(function_id, args);
-    }
-
-    if (!anolis_provider_sim::DeviceFactory::is_config_loaded() ||
-        !anolis_provider_sim::DeviceFactory::is_device_registered(device_id)) {
-        return nf("unknown device_id: " + device_id);
-    }
-
-    const DeviceAdapter *adapter = adapter_by_id(device_id);
+    const DeviceAdapter *adapter = adapter_by_id(device_id);  // chaos + registered devices
     if (adapter == nullptr) {
-        return nf("unknown device type: " + anolis_provider_sim::DeviceFactory::get_device_type(device_id));
+        return nf("unknown device_id: " + device_id);
     }
     return adapter->call_function(device_id, function_id, args);
 }

@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "chaos/chaos_control_device.hpp"
 #include "devices/analogsensor/analogsensor_device.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/motorctl/motorctl_device.hpp"
@@ -121,6 +122,31 @@ const DeviceAdapter kUnknown{&unknown_get_capabilities,
                              nullptr,
                              0};
 
+// chaos_control is a built-in pseudo-device — a control surface for fault
+// injection, not a registered device. It has no config/physics/actuator axis
+// (those slots reuse the no-ops above), and the chaos module addresses its
+// single instance directly, so these thin wrappers drop the ignored device_id.
+Device chaos_get_device_info(const std::string & /*id*/, bool include_health) {
+    return chaos_control::get_device_info(include_health);
+}
+std::vector<SignalValue> chaos_read_signals(const std::string & /*id*/, const std::vector<std::string> &signal_ids) {
+    return chaos_control::read_signals(signal_ids);
+}
+CallResult chaos_call_function(const std::string & /*id*/, uint32_t function_id,
+                               const std::map<std::string, Value> &args) {
+    return chaos_control::call_function(function_id, args);
+}
+
+const DeviceAdapter kChaos{&chaos_control::get_capabilities,
+                           &unknown_init,
+                           &unknown_update_physics,
+                           &no_update_control,
+                           &chaos_get_device_info,
+                           &chaos_read_signals,
+                           &chaos_call_function,
+                           nullptr,
+                           0};
+
 }  // namespace
 
 std::optional<SimDeviceType> sim_device_type_from_string(const std::string &type) {
@@ -154,6 +180,9 @@ const DeviceAdapter &adapter_for(SimDeviceType type) {
 }
 
 const DeviceAdapter *adapter_by_id(const std::string &device_id) {
+    if (device_id == chaos_control::kDeviceId) {
+        return &kChaos;  // built-in pseudo-device; not in the DeviceFactory registry
+    }
     using anolis_provider_sim::DeviceFactory;
     if (!DeviceFactory::is_config_loaded() || !DeviceFactory::is_device_registered(device_id)) {
         return nullptr;
