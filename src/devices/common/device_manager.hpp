@@ -32,9 +32,8 @@ using anolis::deviceprovider::v1::Value;
  * This prepares the signal registry, simulation engine, and any mode-specific
  * inputs before `start_physics()` is called.
  */
-void initialize_physics(
-    const anolis_provider_sim::ProviderConfig &provider_config,
-    const std::vector<std::string> &active_device_ids);
+void initialize_physics(const anolis_provider_sim::ProviderConfig &provider_config,
+                        const std::vector<std::string> &active_device_ids);
 
 /** @brief Start the background ticker thread when the configured mode uses one.
  */
@@ -45,8 +44,7 @@ void start_physics();
 void stop_physics();
 
 /** @brief Replace the simulation engine implementation used by the ticker. */
-void set_simulation_engine(
-    std::unique_ptr<sim_engine::SimulationEngine> engine);
+void set_simulation_engine(std::unique_ptr<sim_engine::SimulationEngine> engine);
 
 /**
  * @brief Non-owning pointer to the global signal registry, when initialized.
@@ -66,21 +64,17 @@ CapabilitySet describe_device(const std::string &device_id);
 /**
  * @brief Read one device's signals, honoring any physics-driven overrides.
  */
-std::vector<SignalValue>
-read_signals(const std::string &device_id,
-             const std::vector<std::string> &signal_ids);
+std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids);
 
 /**
  * @brief Execute one device function through the registered device
  * implementation.
  */
-CallResult call_function(const std::string &device_id, uint32_t function_id,
-                         const std::map<std::string, Value> &args);
+CallResult call_function(const std::string &device_id, uint32_t function_id, const std::map<std::string, Value> &args);
 
 /**
  * @brief Resolve a function name to its numeric ID for one device.
  */
-std::optional<uint32_t> resolve_function_id(const std::string &device_id,
-                                            const std::string &function_name);
+std::optional<uint32_t> resolve_function_id(const std::string &device_id, const std::string &function_name);
 
-} // namespace sim_devices
+}  // namespace sim_devices

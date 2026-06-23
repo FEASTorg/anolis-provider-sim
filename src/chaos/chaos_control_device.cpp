@@ -8,11 +8,12 @@
  */
 
 #include "chaos/chaos_control_device.hpp"
-#include "chaos/fault_injection.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <thread>
+
+#include "chaos/fault_injection.hpp"
 
 namespace sim_devices {
 namespace chaos_control {
@@ -33,204 +34,185 @@ static constexpr uint32_t kFnClearFaults = 5;
 void init() { fault_injection::init(); }
 
 Device get_device_info(bool /*include_health*/) {
-  Device d;
-  d.set_device_id(kDeviceId);
-  d.set_provider_name(kProviderName);
-  d.set_type_id("chaos.control");
-  d.set_type_version("1.0");
-  d.set_label("Chaos Fault Injection Control");
-  d.set_address("chaos://control");
-  (*d.mutable_tags())["family"] = "chaos";
-  (*d.mutable_tags())["kind"] = "fault_injection";
-  return d;
+    Device d;
+    d.set_device_id(kDeviceId);
+    d.set_provider_name(kProviderName);
+    d.set_type_id("chaos.control");
+    d.set_type_version("1.0");
+    d.set_label("Chaos Fault Injection Control");
+    d.set_address("chaos://control");
+    (*d.mutable_tags())["family"] = "chaos";
+    (*d.mutable_tags())["kind"] = "fault_injection";
+    return d;
 }
 
 static bool is_numeric_function_id(const std::string &function_id) {
-  return !function_id.empty() &&
-         std::all_of(function_id.begin(), function_id.end(),
-                     [](unsigned char ch) { return std::isdigit(ch) != 0; });
+    return !function_id.empty() &&
+           std::all_of(function_id.begin(), function_id.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; });
 }
 
 CapabilitySet get_capabilities() {
-  CapabilitySet caps;
+    CapabilitySet caps;
 
-  // The device is intentionally control-only, so it advertises functions but
-  // no readable signal surface.
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnInjectDeviceUnavailable);
-    f.set_name("inject_device_unavailable");
-    f.set_description(
-        "Make a device appear unavailable for specified duration");
-    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
-                                  true, "Target device ID");
-    *f.add_args() = make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64,
-                                  true, "Duration in milliseconds", "ms");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnInjectSignalFault);
-    f.set_name("inject_signal_fault");
-    f.set_description(
-        "Make a signal report FAULT quality for specified duration");
-    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
-                                  true, "Target device ID");
-    *f.add_args() = make_arg_spec("signal_id", ValueType::VALUE_TYPE_STRING,
-                                  true, "Target signal ID");
-    *f.add_args() = make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64,
-                                  true, "Duration in milliseconds", "ms");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnInjectCallLatency);
-    f.set_name("inject_call_latency");
-    f.set_description(
-        "Add artificial latency to all function calls on a device");
-    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
-                                  true, "Target device ID");
-    *f.add_args() = make_arg_spec("latency_ms", ValueType::VALUE_TYPE_INT64,
-                                  true, "Latency in milliseconds", "ms");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnInjectCallFailure);
-    f.set_name("inject_call_failure");
-    f.set_description("Make a function fail probabilistically");
-    *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING,
-                                  true, "Target device ID");
-    *f.add_args() =
-        make_arg_spec("function_id", ValueType::VALUE_TYPE_STRING, true,
-                      "Target function ID as string (e.g. '1')");
-    *f.add_args() = make_arg_spec("failure_rate", ValueType::VALUE_TYPE_DOUBLE,
-                                  true, "Failure probability (0.0-1.0)");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnClearFaults);
-    f.set_name("clear_faults");
-    f.set_description("Clear all injected faults");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *caps.add_functions() = f;
-  }
+    // The device is intentionally control-only, so it advertises functions but
+    // no readable signal surface.
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnInjectDeviceUnavailable);
+        f.set_name("inject_device_unavailable");
+        f.set_description("Make a device appear unavailable for specified duration");
+        *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING, true, "Target device ID");
+        *f.add_args() =
+            make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64, true, "Duration in milliseconds", "ms");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnInjectSignalFault);
+        f.set_name("inject_signal_fault");
+        f.set_description("Make a signal report FAULT quality for specified duration");
+        *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING, true, "Target device ID");
+        *f.add_args() = make_arg_spec("signal_id", ValueType::VALUE_TYPE_STRING, true, "Target signal ID");
+        *f.add_args() =
+            make_arg_spec("duration_ms", ValueType::VALUE_TYPE_INT64, true, "Duration in milliseconds", "ms");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnInjectCallLatency);
+        f.set_name("inject_call_latency");
+        f.set_description("Add artificial latency to all function calls on a device");
+        *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING, true, "Target device ID");
+        *f.add_args() = make_arg_spec("latency_ms", ValueType::VALUE_TYPE_INT64, true, "Latency in milliseconds", "ms");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnInjectCallFailure);
+        f.set_name("inject_call_failure");
+        f.set_description("Make a function fail probabilistically");
+        *f.add_args() = make_arg_spec("device_id", ValueType::VALUE_TYPE_STRING, true, "Target device ID");
+        *f.add_args() =
+            make_arg_spec("function_id", ValueType::VALUE_TYPE_STRING, true, "Target function ID as string (e.g. '1')");
+        *f.add_args() =
+            make_arg_spec("failure_rate", ValueType::VALUE_TYPE_DOUBLE, true, "Failure probability (0.0-1.0)");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnClearFaults);
+        f.set_name("clear_faults");
+        f.set_description("Clear all injected faults");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *caps.add_functions() = f;
+    }
 
-  return caps;
+    return caps;
 }
 
-std::vector<SignalValue>
-read_signals(const std::vector<std::string> & /*signal_ids*/) {
-  // No signals for control device
-  return {};
+std::vector<SignalValue> read_signals(const std::vector<std::string> & /*signal_ids*/) {
+    // No signals for control device
+    return {};
 }
 
-CallResult call_function(uint32_t function_id,
-                         const std::map<std::string, Value> &args) {
-  if (function_id == kFnInjectDeviceUnavailable) {
-    std::string device_id;
-    int64_t duration_ms;
+CallResult call_function(uint32_t function_id, const std::map<std::string, Value> &args) {
+    if (function_id == kFnInjectDeviceUnavailable) {
+        std::string device_id;
+        int64_t duration_ms;
 
-    if (!get_arg_string(args, "device_id", device_id)) {
-      return bad("missing or invalid device_id");
-    }
-    if (!get_arg_int64(args, "duration_ms", duration_ms)) {
-      return bad("missing or invalid duration_ms");
-    }
-    if (duration_ms <= 0) {
-      return bad("duration_ms must be > 0");
-    }
+        if (!get_arg_string(args, "device_id", device_id)) {
+            return bad("missing or invalid device_id");
+        }
+        if (!get_arg_int64(args, "duration_ms", duration_ms)) {
+            return bad("missing or invalid duration_ms");
+        }
+        if (duration_ms <= 0) {
+            return bad("duration_ms must be > 0");
+        }
 
-    fault_injection::inject_device_unavailable(device_id, duration_ms);
-    return ok();
-  }
-
-  if (function_id == kFnInjectSignalFault) {
-    std::string device_id;
-    std::string signal_id;
-    int64_t duration_ms;
-
-    if (!get_arg_string(args, "device_id", device_id)) {
-      return bad("missing or invalid device_id");
-    }
-    if (!get_arg_string(args, "signal_id", signal_id)) {
-      return bad("missing or invalid signal_id");
-    }
-    if (!get_arg_int64(args, "duration_ms", duration_ms)) {
-      return bad("missing or invalid duration_ms");
-    }
-    if (duration_ms <= 0) {
-      return bad("duration_ms must be > 0");
+        fault_injection::inject_device_unavailable(device_id, duration_ms);
+        return ok();
     }
 
-    fault_injection::inject_signal_fault(device_id, signal_id, duration_ms);
-    return ok();
-  }
+    if (function_id == kFnInjectSignalFault) {
+        std::string device_id;
+        std::string signal_id;
+        int64_t duration_ms;
 
-  if (function_id == kFnInjectCallLatency) {
-    std::string device_id;
-    int64_t latency_ms;
+        if (!get_arg_string(args, "device_id", device_id)) {
+            return bad("missing or invalid device_id");
+        }
+        if (!get_arg_string(args, "signal_id", signal_id)) {
+            return bad("missing or invalid signal_id");
+        }
+        if (!get_arg_int64(args, "duration_ms", duration_ms)) {
+            return bad("missing or invalid duration_ms");
+        }
+        if (duration_ms <= 0) {
+            return bad("duration_ms must be > 0");
+        }
 
-    if (!get_arg_string(args, "device_id", device_id)) {
-      return bad("missing or invalid device_id");
-    }
-    if (!get_arg_int64(args, "latency_ms", latency_ms)) {
-      return bad("missing or invalid latency_ms");
-    }
-    if (latency_ms < 0) {
-      return bad("latency_ms must be >= 0");
-    }
-
-    fault_injection::inject_call_latency(device_id, latency_ms);
-    return ok();
-  }
-
-  if (function_id == kFnInjectCallFailure) {
-    std::string device_id;
-    std::string function_id_str;
-    double failure_rate;
-
-    if (!get_arg_string(args, "device_id", device_id)) {
-      return bad("missing or invalid device_id");
-    }
-    if (!get_arg_string(args, "function_id", function_id_str)) {
-      return bad("missing or invalid function_id");
-    }
-    if (!is_numeric_function_id(function_id_str)) {
-      return bad("function_id must be a numeric string (e.g. '1')");
-    }
-    if (function_id_str == "0") {
-      return bad("function_id must be >= 1");
-    }
-    if (!get_arg_double(args, "failure_rate", failure_rate)) {
-      return bad("missing or invalid failure_rate");
-    }
-    if (failure_rate < 0.0 || failure_rate > 1.0) {
-      return bad("failure_rate must be in [0.0, 1.0]");
+        fault_injection::inject_signal_fault(device_id, signal_id, duration_ms);
+        return ok();
     }
 
-    fault_injection::inject_call_failure(device_id, function_id_str,
-                                         failure_rate);
-    return ok();
-  }
+    if (function_id == kFnInjectCallLatency) {
+        std::string device_id;
+        int64_t latency_ms;
 
-  if (function_id == kFnClearFaults) {
-    fault_injection::clear_all_faults();
-    return ok();
-  }
+        if (!get_arg_string(args, "device_id", device_id)) {
+            return bad("missing or invalid device_id");
+        }
+        if (!get_arg_int64(args, "latency_ms", latency_ms)) {
+            return bad("missing or invalid latency_ms");
+        }
+        if (latency_ms < 0) {
+            return bad("latency_ms must be >= 0");
+        }
 
-  return nf("unknown function_id");
+        fault_injection::inject_call_latency(device_id, latency_ms);
+        return ok();
+    }
+
+    if (function_id == kFnInjectCallFailure) {
+        std::string device_id;
+        std::string function_id_str;
+        double failure_rate;
+
+        if (!get_arg_string(args, "device_id", device_id)) {
+            return bad("missing or invalid device_id");
+        }
+        if (!get_arg_string(args, "function_id", function_id_str)) {
+            return bad("missing or invalid function_id");
+        }
+        if (!is_numeric_function_id(function_id_str)) {
+            return bad("function_id must be a numeric string (e.g. '1')");
+        }
+        if (function_id_str == "0") {
+            return bad("function_id must be >= 1");
+        }
+        if (!get_arg_double(args, "failure_rate", failure_rate)) {
+            return bad("missing or invalid failure_rate");
+        }
+        if (failure_rate < 0.0 || failure_rate > 1.0) {
+            return bad("failure_rate must be in [0.0, 1.0]");
+        }
+
+        fault_injection::inject_call_failure(device_id, function_id_str, failure_rate);
+        return ok();
+    }
+
+    if (function_id == kFnClearFaults) {
+        fault_injection::clear_all_faults();
+        return ok();
+    }
+
+    return nf("unknown function_id");
 }
 
-} // namespace chaos_control
-} // namespace sim_devices
+}  // namespace chaos_control
+}  // namespace sim_devices

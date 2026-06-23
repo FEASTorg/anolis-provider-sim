@@ -36,12 +36,10 @@ Device get_device_info(bool include_health = false);
 CapabilitySet get_capabilities();
 
 /** @brief Return no signals; this device is control-only by design. */
-std::vector<SignalValue>
-read_signals(const std::vector<std::string> &signal_ids);
+std::vector<SignalValue> read_signals(const std::vector<std::string> &signal_ids);
 
 /** @brief Execute one fault injection control function. */
-CallResult call_function(uint32_t function_id,
-                         const std::map<std::string, Value> &args);
+CallResult call_function(uint32_t function_id, const std::map<std::string, Value> &args);
 
-} // namespace chaos_control
-} // namespace sim_devices
+}  // namespace chaos_control
+}  // namespace sim_devices

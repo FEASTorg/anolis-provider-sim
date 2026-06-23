@@ -5,7 +5,7 @@
 #include <optional>
 #include <random>
 
-#include "devices/common/device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp"  // For g_signal_registry
 
 namespace sim_devices {
 namespace analogsensor {
@@ -37,41 +37,39 @@ static constexpr const char *kSigSensorQuality = "sensor_quality";
 // -----------------------------
 
 struct State {
-  // Analog channel values (volts, 0-10V range)
-  double voltage_ch1_base = 2.5;
-  double voltage_ch2_base = 5.0;
-  double voltage_ch3_base = 7.5;
-  double voltage_ch4_base = 3.3;
+    // Analog channel values (volts, 0-10V range)
+    double voltage_ch1_base = 2.5;
+    double voltage_ch2_base = 5.0;
+    double voltage_ch3_base = 7.5;
+    double voltage_ch4_base = 3.3;
 
-  // Noise and drift state
-  double drift_accumulator = 0.0;
-  double noise_level = 0.01; // std dev of noise
-  bool noise_enabled = false;
+    // Noise and drift state
+    double drift_accumulator = 0.0;
+    double noise_level = 0.01;  // std dev of noise
+    bool noise_enabled = false;
 
-  // Quality state: "GOOD", "NOISY", "FAULT"
-  std::string quality = "GOOD";
-  double quality_timer = 0.0; // for simulating quality degradation
+    // Quality state: "GOOD", "NOISY", "FAULT"
+    std::string quality = "GOOD";
+    double quality_timer = 0.0;  // for simulating quality degradation
 
-  // Random number generator
-  std::mt19937 rng{42}; // Fixed seed for reproducibility
+    // Random number generator
+    std::mt19937 rng{42};  // Fixed seed for reproducibility
 };
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
 static std::mutex g_state_mutex;
 
-static State &get_state_unlocked(const std::string &device_id) {
-  return g_device_states[device_id];
-}
+static State &get_state_unlocked(const std::string &device_id) { return g_device_states[device_id]; }
 
 // -----------------------------
 // Initialization
 // -----------------------------
 
 void init(const std::string &device_id) {
-  // Initialize state for this device instance
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  g_device_states[device_id] = State();
+    // Initialize state for this device instance
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    g_device_states[device_id] = State();
 }
 
 // -----------------------------
@@ -79,41 +77,41 @@ void init(const std::string &device_id) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  // Simulate drift over time (only when noise enabled)
-  if (s.noise_enabled) {
-    s.drift_accumulator += dt * 0.002; // 2mV per second drift
-  }
-
-  // Update quality state machine
-  s.quality_timer += dt;
-
-  // Quality degrades over time when noise is enabled
-  if (s.noise_enabled) {
-    if (s.quality == "GOOD" && s.quality_timer > 30.0) {
-      s.quality = "NOISY";
-    } else if (s.quality == "NOISY" && s.quality_timer > 60.0) {
-      s.quality = "FAULT";
+    // Simulate drift over time (only when noise enabled)
+    if (s.noise_enabled) {
+        s.drift_accumulator += dt * 0.002;  // 2mV per second drift
     }
-  }
 
-  // Update noise level based on quality
-  if (s.quality == "GOOD") {
-    s.noise_level = 0.01; // 10mV noise
-  } else if (s.quality == "NOISY") {
-    s.noise_level = 0.05; // 50mV noise
-  } else if (s.quality == "FAULT") {
-    s.noise_level = 0.2; // 200mV noise
-  }
+    // Update quality state machine
+    s.quality_timer += dt;
+
+    // Quality degrades over time when noise is enabled
+    if (s.noise_enabled) {
+        if (s.quality == "GOOD" && s.quality_timer > 30.0) {
+            s.quality = "NOISY";
+        } else if (s.quality == "NOISY" && s.quality_timer > 60.0) {
+            s.quality = "FAULT";
+        }
+    }
+
+    // Update noise level based on quality
+    if (s.quality == "GOOD") {
+        s.noise_level = 0.01;  // 10mV noise
+    } else if (s.quality == "NOISY") {
+        s.noise_level = 0.05;  // 50mV noise
+    } else if (s.quality == "FAULT") {
+        s.noise_level = 0.2;  // 200mV noise
+    }
 }
 
 // Helper: get noisy reading, clamped to 0-10V range
 static double get_noisy_reading(State &s, double base) {
-  std::normal_distribution<double> dist(0.0, s.noise_level);
-  double value = base + s.drift_accumulator + dist(s.rng);
-  return clamp(value, 0.0, 10.0); // 0-10V range
+    std::normal_distribution<double> dist(0.0, s.noise_level);
+    double value = base + s.drift_accumulator + dist(s.rng);
+    return clamp(value, 0.0, 10.0);  // 0-10V range
 }
 
 // -----------------------------
@@ -121,16 +119,16 @@ static double get_noisy_reading(State &s, double base) {
 // -----------------------------
 
 Device get_device_info(const std::string &device_id, bool /*include_health*/) {
-  Device d;
-  d.set_device_id(device_id);
-  d.set_provider_name(kProviderName);
-  d.set_type_id("sim.analog_sensor_module");
-  d.set_type_version("1.0");
-  d.set_label("Sim Analog Sensor Module (4 channels)");
-  d.set_address("sim://" + device_id);
-  (*d.mutable_tags())["family"] = "sim";
-  (*d.mutable_tags())["kind"] = "analog_input";
-  return d;
+    Device d;
+    d.set_device_id(device_id);
+    d.set_provider_name(kProviderName);
+    d.set_type_id("sim.analog_sensor_module");
+    d.set_type_version("1.0");
+    d.set_label("Sim Analog Sensor Module (4 channels)");
+    d.set_address("sim://" + device_id);
+    (*d.mutable_tags())["family"] = "sim";
+    (*d.mutable_tags())["kind"] = "analog_input";
+    return d;
 }
 
 // -----------------------------
@@ -138,197 +136,182 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 // -----------------------------
 
 CapabilitySet get_capabilities() {
-  CapabilitySet caps;
+    CapabilitySet caps;
 
-  // Signals
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigVoltageCh1);
-    s.set_name("Voltage Ch1");
-    s.set_description("Analog input channel 1 voltage (0-10V)");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("V");
-    s.set_poll_hint_hz(10.0);
-    s.set_stale_after_ms(500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigVoltageCh2);
-    s.set_name("Voltage Ch2");
-    s.set_description("Analog input channel 2 voltage (0-10V)");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("V");
-    s.set_poll_hint_hz(10.0);
-    s.set_stale_after_ms(500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigVoltageCh3);
-    s.set_name("Voltage Ch3");
-    s.set_description("Analog input channel 3 voltage (0-10V)");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("V");
-    s.set_poll_hint_hz(10.0);
-    s.set_stale_after_ms(500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigVoltageCh4);
-    s.set_name("Voltage Ch4");
-    s.set_description("Analog input channel 4 voltage (0-10V)");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("V");
-    s.set_poll_hint_hz(10.0);
-    s.set_stale_after_ms(500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigSensorQuality);
-    s.set_name("Sensor Quality");
-    s.set_description("Overall sensor quality: GOOD, NOISY, or FAULT");
-    s.set_value_type(ValueType::VALUE_TYPE_STRING);
-    s.set_unit("");
-    s.set_poll_hint_hz(0.5);
-    s.set_stale_after_ms(3000);
-    *caps.add_signals() = s;
-  }
+    // Signals
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigVoltageCh1);
+        s.set_name("Voltage Ch1");
+        s.set_description("Analog input channel 1 voltage (0-10V)");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("V");
+        s.set_poll_hint_hz(10.0);
+        s.set_stale_after_ms(500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigVoltageCh2);
+        s.set_name("Voltage Ch2");
+        s.set_description("Analog input channel 2 voltage (0-10V)");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("V");
+        s.set_poll_hint_hz(10.0);
+        s.set_stale_after_ms(500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigVoltageCh3);
+        s.set_name("Voltage Ch3");
+        s.set_description("Analog input channel 3 voltage (0-10V)");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("V");
+        s.set_poll_hint_hz(10.0);
+        s.set_stale_after_ms(500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigVoltageCh4);
+        s.set_name("Voltage Ch4");
+        s.set_description("Analog input channel 4 voltage (0-10V)");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("V");
+        s.set_poll_hint_hz(10.0);
+        s.set_stale_after_ms(500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigSensorQuality);
+        s.set_name("Sensor Quality");
+        s.set_description("Overall sensor quality: GOOD, NOISY, or FAULT");
+        s.set_value_type(ValueType::VALUE_TYPE_STRING);
+        s.set_unit("");
+        s.set_poll_hint_hz(0.5);
+        s.set_stale_after_ms(3000);
+        *caps.add_signals() = s;
+    }
 
-  // Functions
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnCalibrateChannel);
-    f.set_name("calibrate_channel");
-    f.set_description(
-        "Calibrate a specific analog input channel (requires GOOD quality)");
-    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
-    auto a = make_arg_spec("channel", ValueType::VALUE_TYPE_INT64, true,
-                           "Channel index (1-4)");
-    a.set_min_int64(1);
-    a.set_max_int64(4);
-    *f.add_args() = a;
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnInjectNoise);
-    f.set_name("inject_noise");
-    f.set_description("Enable or disable simulated noise injection");
-    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
-    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                                  "Enable/disable noise");
-    *caps.add_functions() = f;
-  }
+    // Functions
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnCalibrateChannel);
+        f.set_name("calibrate_channel");
+        f.set_description("Calibrate a specific analog input channel (requires GOOD quality)");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+        auto a = make_arg_spec("channel", ValueType::VALUE_TYPE_INT64, true, "Channel index (1-4)");
+        a.set_min_int64(1);
+        a.set_max_int64(4);
+        *f.add_args() = a;
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnInjectNoise);
+        f.set_name("inject_noise");
+        f.set_description("Enable or disable simulated noise injection");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+        *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true, "Enable/disable noise");
+        *caps.add_functions() = f;
+    }
 
-  return caps;
+    return caps;
 }
 
 // -----------------------------
 // Read signals
 // -----------------------------
 
-std::vector<SignalValue>
-read_signals(const std::string &device_id,
-             const std::vector<std::string> &signal_ids) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
-  std::vector<SignalValue> out;
+std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
+    std::vector<SignalValue> out;
 
-  // If signal_ids empty, return all signals
-  std::vector<std::string> ids = signal_ids;
-  if (ids.empty()) {
-    ids = {kSigVoltageCh1, kSigVoltageCh2, kSigVoltageCh3, kSigVoltageCh4,
-           kSigSensorQuality};
-  }
-
-  auto maybe_physics_value =
-      [&](const std::string &signal_id) -> std::optional<double> {
-    if (!g_signal_registry) {
-      return std::nullopt;
+    // If signal_ids empty, return all signals
+    std::vector<std::string> ids = signal_ids;
+    if (ids.empty()) {
+        ids = {kSigVoltageCh1, kSigVoltageCh2, kSigVoltageCh3, kSigVoltageCh4, kSigSensorQuality};
     }
-    const std::string path = device_id + "/" + signal_id;
-    if (!g_signal_registry->is_physics_driven(path)) {
-      return std::nullopt;
-    }
-    return g_signal_registry->read_signal(path);
-  };
 
-  for (const auto &id : ids) {
-    if (id == kSigVoltageCh1) {
-      const double value = maybe_physics_value(id).value_or(
-          get_noisy_reading(s, s.voltage_ch1_base));
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigVoltageCh2) {
-      const double value = maybe_physics_value(id).value_or(
-          get_noisy_reading(s, s.voltage_ch2_base));
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigVoltageCh3) {
-      const double value = maybe_physics_value(id).value_or(
-          get_noisy_reading(s, s.voltage_ch3_base));
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigVoltageCh4) {
-      const double value = maybe_physics_value(id).value_or(
-          get_noisy_reading(s, s.voltage_ch4_base));
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigSensorQuality) {
-      out.push_back(make_signal_value(id, make_string(s.quality)));
-    }
-  }
+    auto maybe_physics_value = [&](const std::string &signal_id) -> std::optional<double> {
+        if (!g_signal_registry) {
+            return std::nullopt;
+        }
+        const std::string path = device_id + "/" + signal_id;
+        if (!g_signal_registry->is_physics_driven(path)) {
+            return std::nullopt;
+        }
+        return g_signal_registry->read_signal(path);
+    };
 
-  return out;
+    for (const auto &id : ids) {
+        if (id == kSigVoltageCh1) {
+            const double value = maybe_physics_value(id).value_or(get_noisy_reading(s, s.voltage_ch1_base));
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigVoltageCh2) {
+            const double value = maybe_physics_value(id).value_or(get_noisy_reading(s, s.voltage_ch2_base));
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigVoltageCh3) {
+            const double value = maybe_physics_value(id).value_or(get_noisy_reading(s, s.voltage_ch3_base));
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigVoltageCh4) {
+            const double value = maybe_physics_value(id).value_or(get_noisy_reading(s, s.voltage_ch4_base));
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigSensorQuality) {
+            out.push_back(make_signal_value(id, make_string(s.quality)));
+        }
+    }
+
+    return out;
 }
 
 // -----------------------------
 // Call function
 // -----------------------------
 
-CallResult call_function(const std::string &device_id, uint32_t function_id,
-                         const std::map<std::string, Value> &args) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+CallResult call_function(const std::string &device_id, uint32_t function_id, const std::map<std::string, Value> &args) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  if (function_id == kFnCalibrateChannel) {
-    // Enforce precondition: quality must be GOOD
-    if (s.quality != "GOOD") {
-      return precond("calibrate_channel requires sensor_quality == GOOD");
+    if (function_id == kFnCalibrateChannel) {
+        // Enforce precondition: quality must be GOOD
+        if (s.quality != "GOOD") {
+            return precond("calibrate_channel requires sensor_quality == GOOD");
+        }
+
+        int64_t channel = 0;
+        if (!get_arg_int64(args, "channel", channel)) return bad("missing or invalid 'channel' int64 argument");
+
+        if (channel < 1 || channel > 4) return out_of_range("channel must be 1-4");  // §8.3 [L2]
+
+        // Calibration resets drift for all channels
+        s.drift_accumulator = 0.0;
+        s.quality_timer = 0.0;
+
+        return ok();
     }
 
-    int64_t channel = 0;
-    if (!get_arg_int64(args, "channel", channel))
-      return bad("missing or invalid 'channel' int64 argument");
+    if (function_id == kFnInjectNoise) {
+        bool enabled = false;
+        if (!get_arg_bool(args, "enabled", enabled)) return bad("missing or invalid 'enabled' bool argument");
 
-    if (channel < 1 || channel > 4)
-      return out_of_range("channel must be 1-4");  // §8.3 [L2]
+        s.noise_enabled = enabled;
 
-    // Calibration resets drift for all channels
-    s.drift_accumulator = 0.0;
-    s.quality_timer = 0.0;
+        // Reset quality when disabling noise
+        if (!enabled) {
+            s.quality = "GOOD";
+            s.quality_timer = 0.0;
+            s.drift_accumulator = 0.0;
+        }
 
-    return ok();
-  }
-
-  if (function_id == kFnInjectNoise) {
-    bool enabled = false;
-    if (!get_arg_bool(args, "enabled", enabled))
-      return bad("missing or invalid 'enabled' bool argument");
-
-    s.noise_enabled = enabled;
-
-    // Reset quality when disabling noise
-    if (!enabled) {
-      s.quality = "GOOD";
-      s.quality_timer = 0.0;
-      s.drift_accumulator = 0.0;
+        return ok();
     }
 
-    return ok();
-  }
-
-  return nf("unknown function_id");
+    return nf("unknown function_id");
 }
 
-} // namespace analogsensor
-} // namespace sim_devices
+}  // namespace analogsensor
+}  // namespace sim_devices

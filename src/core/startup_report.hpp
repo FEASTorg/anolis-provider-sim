@@ -18,9 +18,9 @@ namespace anolis_provider_sim {
  * @brief One configured device that failed initialization at startup.
  */
 struct DeviceInitFailure {
-  std::string device_id;
-  std::string type;
-  std::string reason;
+    std::string device_id;
+    std::string type;
+    std::string reason;
 };
 
 /**
@@ -30,11 +30,11 @@ struct DeviceInitFailure {
  * health handlers to explain strict versus degraded initialization results.
  */
 struct DeviceInitializationReport {
-  std::size_t configured_device_count = 0;
-  StartupPolicy startup_policy = StartupPolicy::Strict;
-  std::vector<std::string> configured_device_ids;
-  std::vector<std::string> successful_device_ids;
-  std::vector<DeviceInitFailure> failed_devices;
+    std::size_t configured_device_count = 0;
+    StartupPolicy startup_policy = StartupPolicy::Strict;
+    std::vector<std::string> configured_device_ids;
+    std::vector<std::string> successful_device_ids;
+    std::vector<DeviceInitFailure> failed_devices;
 };
 
-} // namespace anolis_provider_sim
+}  // namespace anolis_provider_sim

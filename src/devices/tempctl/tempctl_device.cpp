@@ -4,7 +4,7 @@
 #include <mutex>
 #include <set>
 
-#include "devices/common/device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp"  // For g_signal_registry
 
 namespace sim_devices {
 namespace tempctl {
@@ -38,59 +38,55 @@ static constexpr const char *kSigSetpoint = "setpoint";
 // -----------------------------
 
 struct State {
-  // Two thermocouples
-  double tc1_c = 25.0;
-  double tc2_c = 25.0;
+    // Two thermocouples
+    double tc1_c = 25.0;
+    double tc2_c = 25.0;
 
-  // Two relays
-  bool relay1 = false;
-  bool relay2 = false;
+    // Two relays
+    bool relay1 = false;
+    bool relay2 = false;
 
-  // Modes: "open" | "closed"
-  std::string mode = "open";
+    // Modes: "open" | "closed"
+    std::string mode = "open";
 
-  // Closed-loop setpoint
-  double setpoint_c = 60.0;
+    // Closed-loop setpoint
+    double setpoint_c = 60.0;
 };
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
 static std::mutex g_state_mutex;
 
-static State &get_state_unlocked(const std::string &device_id) {
-  return g_device_states[device_id];
-}
+static State &get_state_unlocked(const std::string &device_id) { return g_device_states[device_id]; }
 
 // -----------------------------
 // Initialization
 // -----------------------------
 
 void init(const std::string &device_id, const Config &config) {
-  // Initialize state for this device instance with defaults
-  State s;
+    // Initialize state for this device instance with defaults
+    State s;
 
-  // Apply initial_temp if provided
-  if (config.initial_temp.has_value()) {
-    double temp = config.initial_temp.value();
+    // Apply initial_temp if provided
+    if (config.initial_temp.has_value()) {
+        double temp = config.initial_temp.value();
 
-    // Validate against temp_range if provided
-    if (config.temp_range.has_value()) {
-      double min_temp = config.temp_range.value().first;
-      double max_temp = config.temp_range.value().second;
-      if (temp < min_temp || temp > max_temp) {
-        throw std::runtime_error(
-            "[TempCtl] initial_temp " + std::to_string(temp) +
-            " out of valid range [" + std::to_string(min_temp) + ", " +
-            std::to_string(max_temp) + "]");
-      }
+        // Validate against temp_range if provided
+        if (config.temp_range.has_value()) {
+            double min_temp = config.temp_range.value().first;
+            double max_temp = config.temp_range.value().second;
+            if (temp < min_temp || temp > max_temp) {
+                throw std::runtime_error("[TempCtl] initial_temp " + std::to_string(temp) + " out of valid range [" +
+                                         std::to_string(min_temp) + ", " + std::to_string(max_temp) + "]");
+            }
+        }
+
+        s.tc1_c = temp;
+        s.tc2_c = temp;
     }
 
-    s.tc1_c = temp;
-    s.tc2_c = temp;
-  }
-
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  g_device_states[device_id] = s;
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    g_device_states[device_id] = s;
 }
 
 // -----------------------------
@@ -98,84 +94,84 @@ void init(const std::string &device_id, const Config &config) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  // Ambient temperature
-  const double ambient = 23.0;
+    // Ambient temperature
+    const double ambient = 23.0;
 
-  // Heating strength: each relay adds heating power.
-  const int relays_on = (s.relay1 ? 1 : 0) + (s.relay2 ? 1 : 0);
+    // Heating strength: each relay adds heating power.
+    const int relays_on = (s.relay1 ? 1 : 0) + (s.relay2 ? 1 : 0);
 
-  // Target temperature depends on mode
-  double target = ambient;
+    // Target temperature depends on mode
+    double target = ambient;
 
-  if (s.mode == "closed") {
-    // In closed-loop, pretend relays/power are modulated to move toward
-    // setpoint. We still keep relay states meaningful by modeling a simple
-    // "effective heating".
-    target = s.setpoint_c;
-  } else {
-    // Open loop: target depends on relays being on. (crude but useful)
-    // 0 relays: ambient
-    // 1 relay: ambient + 45C
-    // 2 relays: ambient + 75C
-    target = ambient + (relays_on == 0 ? 0.0 : (relays_on == 1 ? 45.0 : 75.0));
-  }
+    if (s.mode == "closed") {
+        // In closed-loop, pretend relays/power are modulated to move toward
+        // setpoint. We still keep relay states meaningful by modeling a simple
+        // "effective heating".
+        target = s.setpoint_c;
+    } else {
+        // Open loop: target depends on relays being on. (crude but useful)
+        // 0 relays: ambient
+        // 1 relay: ambient + 45C
+        // 2 relays: ambient + 75C
+        target = ambient + (relays_on == 0 ? 0.0 : (relays_on == 1 ? 45.0 : 75.0));
+    }
 
-  // First-order response
-  const double tau = 6.0; // seconds (time constant)
-  const double alpha = 1.0 - std::exp(-dt / tau);
+    // First-order response
+    const double tau = 6.0;  // seconds (time constant)
+    const double alpha = 1.0 - std::exp(-dt / tau);
 
-  // Add slight sensor offset to make channels distinct
-  s.tc1_c += alpha * (target - s.tc1_c);
-  s.tc2_c += alpha * ((target - 1.5) - s.tc2_c);
+    // Add slight sensor offset to make channels distinct
+    s.tc1_c += alpha * (target - s.tc1_c);
+    s.tc2_c += alpha * ((target - 1.5) - s.tc2_c);
 }
 
 void update_control(const std::string &device_id) {
-  if (!g_signal_registry) {
-    return;
-  }
+    if (!g_signal_registry) {
+        return;
+    }
 
-  {
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        State &s = get_state_unlocked(device_id);
+        if (s.mode != "closed") {
+            return;
+        }
+    }
+
+    // Read current temperature from signal registry (updated by previous physics
+    // tick). Use tc1_temp as the control input.
+    const std::string temp_signal = device_id + "/tc1_temp";
+    const auto current_temp_opt = g_signal_registry->read_signal(temp_signal);
+    if (!current_temp_opt.has_value()) {
+        // No temperature reading available yet (first tick), leave relays as-is
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(g_state_mutex);
     State &s = get_state_unlocked(device_id);
     if (s.mode != "closed") {
-      return;
+        return;
     }
-  }
 
-  // Read current temperature from signal registry (updated by previous physics
-  // tick). Use tc1_temp as the control input.
-  const std::string temp_signal = device_id + "/tc1_temp";
-  const auto current_temp_opt = g_signal_registry->read_signal(temp_signal);
-  if (!current_temp_opt.has_value()) {
-    // No temperature reading available yet (first tick), leave relays as-is
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
-  if (s.mode != "closed") {
-    return;
-  }
-
-  const double current_temp = current_temp_opt.value();
-  const double error = s.setpoint_c - current_temp;
-  if (error > 10.0) {
-    // Far below setpoint: both relays on for stronger heating.
-    s.relay1 = true;
-    s.relay2 = true;
-  } else if (error > 2.0) {
-    // Near setpoint but still below: single-stage heating.
-    s.relay1 = true;
-    s.relay2 = false;
-  } else if (error < -2.0) {
-    // Above setpoint: shut both relays off.
-    s.relay1 = false;
-    s.relay2 = false;
-  }
-  // In dead-band [-2C, +2C], keep relay states unchanged.
+    const double current_temp = current_temp_opt.value();
+    const double error = s.setpoint_c - current_temp;
+    if (error > 10.0) {
+        // Far below setpoint: both relays on for stronger heating.
+        s.relay1 = true;
+        s.relay2 = true;
+    } else if (error > 2.0) {
+        // Near setpoint but still below: single-stage heating.
+        s.relay1 = true;
+        s.relay2 = false;
+    } else if (error < -2.0) {
+        // Above setpoint: shut both relays off.
+        s.relay1 = false;
+        s.relay2 = false;
+    }
+    // In dead-band [-2C, +2C], keep relay states unchanged.
 }
 
 // -----------------------------
@@ -183,16 +179,16 @@ void update_control(const std::string &device_id) {
 // -----------------------------
 
 Device get_device_info(const std::string &device_id, bool /*include_health*/) {
-  Device d;
-  d.set_device_id(device_id);
-  d.set_provider_name(kProviderName);
-  d.set_type_id("sim.temp_control_card");
-  d.set_type_version("1.0");
-  d.set_label("Sim Temp Control Card (2TC + 2Relay)");
-  d.set_address("sim://" + device_id);
-  (*d.mutable_tags())["family"] = "sim";
-  (*d.mutable_tags())["kind"] = "temp_control";
-  return d;
+    Device d;
+    d.set_device_id(device_id);
+    d.set_provider_name(kProviderName);
+    d.set_type_id("sim.temp_control_card");
+    d.set_type_version("1.0");
+    d.set_label("Sim Temp Control Card (2TC + 2Relay)");
+    d.set_address("sim://" + device_id);
+    (*d.mutable_tags())["family"] = "sim";
+    (*d.mutable_tags())["kind"] = "temp_control";
+    return d;
 }
 
 // -----------------------------
@@ -200,120 +196,115 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 // -----------------------------
 
 CapabilitySet get_capabilities() {
-  CapabilitySet caps;
+    CapabilitySet caps;
 
-  // Signals
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigTc1Temp);
-    s.set_name("TC1 Temperature");
-    s.set_description("Thermocouple channel 1");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("C");
-    s.set_poll_hint_hz(2.0);
-    s.set_stale_after_ms(1500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigTc2Temp);
-    s.set_name("TC2 Temperature");
-    s.set_description("Thermocouple channel 2");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("C");
-    s.set_poll_hint_hz(2.0);
-    s.set_stale_after_ms(1500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelay1State);
-    s.set_name("Relay 1 State");
-    s.set_description("Relay output channel 1");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(2.0);
-    s.set_stale_after_ms(1500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelay2State);
-    s.set_name("Relay 2 State");
-    s.set_description("Relay output channel 2");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(2.0);
-    s.set_stale_after_ms(1500);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigControlMode);
-    s.set_name("Control Mode");
-    s.set_description("open or closed");
-    s.set_value_type(ValueType::VALUE_TYPE_STRING);
-    s.set_unit("");
-    s.set_poll_hint_hz(0.5);
-    s.set_stale_after_ms(3000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigSetpoint);
-    s.set_name("Setpoint");
-    s.set_description("Closed-loop temperature setpoint");
-    s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
-    s.set_unit("C");
-    s.set_poll_hint_hz(0.5);
-    s.set_stale_after_ms(3000);
-    *caps.add_signals() = s;
-  }
+    // Signals
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigTc1Temp);
+        s.set_name("TC1 Temperature");
+        s.set_description("Thermocouple channel 1");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("C");
+        s.set_poll_hint_hz(2.0);
+        s.set_stale_after_ms(1500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigTc2Temp);
+        s.set_name("TC2 Temperature");
+        s.set_description("Thermocouple channel 2");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("C");
+        s.set_poll_hint_hz(2.0);
+        s.set_stale_after_ms(1500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelay1State);
+        s.set_name("Relay 1 State");
+        s.set_description("Relay output channel 1");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(2.0);
+        s.set_stale_after_ms(1500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelay2State);
+        s.set_name("Relay 2 State");
+        s.set_description("Relay output channel 2");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(2.0);
+        s.set_stale_after_ms(1500);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigControlMode);
+        s.set_name("Control Mode");
+        s.set_description("open or closed");
+        s.set_value_type(ValueType::VALUE_TYPE_STRING);
+        s.set_unit("");
+        s.set_poll_hint_hz(0.5);
+        s.set_stale_after_ms(3000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigSetpoint);
+        s.set_name("Setpoint");
+        s.set_description("Closed-loop temperature setpoint");
+        s.set_value_type(ValueType::VALUE_TYPE_DOUBLE);
+        s.set_unit("C");
+        s.set_poll_hint_hz(0.5);
+        s.set_stale_after_ms(3000);
+        *caps.add_signals() = s;
+    }
 
-  // Functions
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetMode);
-    f.set_name("set_mode");
-    f.set_description("Set control mode: open or closed");
-    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
-    *f.add_args() = make_arg_spec("mode", ValueType::VALUE_TYPE_STRING, true,
-                                  "open or closed");
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetSetpoint);
-    f.set_name("set_setpoint");
-    f.set_description("Set closed-loop setpoint (C)");
-    *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
-    auto a = make_arg_spec("value", ValueType::VALUE_TYPE_DOUBLE, true,
-                           "Temperature setpoint", "C");
-    a.set_min_double(-50.0);
-    a.set_max_double(400.0);
-    *f.add_args() = a;
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetRelay);
-    f.set_name("set_relay");
-    f.set_description("Set relay state in open-loop mode");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+    // Functions
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetMode);
+        f.set_name("set_mode");
+        f.set_description("Set control mode: open or closed");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+        *f.add_args() = make_arg_spec("mode", ValueType::VALUE_TYPE_STRING, true, "open or closed");
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetSetpoint);
+        f.set_name("set_setpoint");
+        f.set_description("Set closed-loop setpoint (C)");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_CONFIG);
+        auto a = make_arg_spec("value", ValueType::VALUE_TYPE_DOUBLE, true, "Temperature setpoint", "C");
+        a.set_min_double(-50.0);
+        a.set_max_double(400.0);
+        *f.add_args() = a;
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetRelay);
+        f.set_name("set_relay");
+        f.set_description("Set relay state in open-loop mode");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
 
-    auto idx = make_arg_spec("relay_index", ValueType::VALUE_TYPE_INT64, true,
-                             "1 or 2");
-    idx.set_min_int64(1);
-    idx.set_max_int64(2);
-    *f.add_args() = idx;
+        auto idx = make_arg_spec("relay_index", ValueType::VALUE_TYPE_INT64, true, "1 or 2");
+        idx.set_min_int64(1);
+        idx.set_max_int64(2);
+        *f.add_args() = idx;
 
-    *f.add_args() = make_arg_spec("state", ValueType::VALUE_TYPE_BOOL, true,
-                                  "true=on false=off");
-    *caps.add_functions() = f;
-  }
+        *f.add_args() = make_arg_spec("state", ValueType::VALUE_TYPE_BOOL, true, "true=on false=off");
+        *caps.add_functions() = f;
+    }
 
-  return caps;
+    return caps;
 }
 
 // -----------------------------
@@ -325,137 +316,130 @@ CapabilitySet get_capabilities() {
 // by background threads (e.g., crash timer in chaos testing mode).
 // The set is never destroyed, which is safe for process-lifetime constants.
 static const std::set<std::string> &get_known_signals() {
-  static std::set<std::string> *kKnownSignals = new std::set<std::string>{
-      kSigTc1Temp,     kSigTc2Temp,     kSigRelay1State,
-      kSigRelay2State, kSigControlMode, kSigSetpoint};
-  return *kKnownSignals;
+    static std::set<std::string> *kKnownSignals = new std::set<std::string>{
+        kSigTc1Temp, kSigTc2Temp, kSigRelay1State, kSigRelay2State, kSigControlMode, kSigSetpoint};
+    return *kKnownSignals;
 }
 
 static std::vector<std::string> default_signals() {
-  return {kSigTc1Temp, kSigTc2Temp, kSigRelay1State, kSigRelay2State};
+    return {kSigTc1Temp, kSigTc2Temp, kSigRelay1State, kSigRelay2State};
 }
 
-std::vector<SignalValue>
-read_signals(const std::string &device_id,
-             const std::vector<std::string> &signal_ids) {
-  State snapshot;
-  {
-    std::lock_guard<std::mutex> lock(g_state_mutex);
-    snapshot = get_state_unlocked(device_id);
-  }
-
-  std::vector<std::string> ids = signal_ids;
-  if (ids.empty()) {
-    ids = default_signals();
-  }
-
-  std::vector<SignalValue> out;
-
-  auto maybe_physics_value =
-      [&](const std::string &signal_id) -> std::optional<double> {
-    if (!g_signal_registry) {
-      return std::nullopt;
-    }
-    const std::string full_path = device_id + "/" + signal_id;
-    if (!g_signal_registry->is_physics_driven(full_path)) {
-      return std::nullopt;
-    }
-    return g_signal_registry->read_signal(full_path);
-  };
-
-  for (const auto &id : ids) {
-    if (get_known_signals().count(id) == 0) {
-      // Omit unknown signals
-      continue;
+std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+    State snapshot;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        snapshot = get_state_unlocked(device_id);
     }
 
-    if (id == kSigTc1Temp) {
-      const double value = maybe_physics_value(id).value_or(snapshot.tc1_c);
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigTc2Temp) {
-      const double value = maybe_physics_value(id).value_or(snapshot.tc2_c);
-      out.push_back(make_signal_value(id, make_double(value)));
-    } else if (id == kSigRelay1State) {
-      const bool value =
-          maybe_physics_value(id).value_or(snapshot.relay1 ? 1.0 : 0.0) >= 0.5;
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigRelay2State) {
-      const bool value =
-          maybe_physics_value(id).value_or(snapshot.relay2 ? 1.0 : 0.0) >= 0.5;
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigControlMode)
-      out.push_back(make_signal_value(id, make_string(snapshot.mode)));
-    else if (id == kSigSetpoint)
-      out.push_back(make_signal_value(id, make_double(snapshot.setpoint_c)));
-  }
+    std::vector<std::string> ids = signal_ids;
+    if (ids.empty()) {
+        ids = default_signals();
+    }
 
-  return out;
+    std::vector<SignalValue> out;
+
+    auto maybe_physics_value = [&](const std::string &signal_id) -> std::optional<double> {
+        if (!g_signal_registry) {
+            return std::nullopt;
+        }
+        const std::string full_path = device_id + "/" + signal_id;
+        if (!g_signal_registry->is_physics_driven(full_path)) {
+            return std::nullopt;
+        }
+        return g_signal_registry->read_signal(full_path);
+    };
+
+    for (const auto &id : ids) {
+        if (get_known_signals().count(id) == 0) {
+            // Omit unknown signals
+            continue;
+        }
+
+        if (id == kSigTc1Temp) {
+            const double value = maybe_physics_value(id).value_or(snapshot.tc1_c);
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigTc2Temp) {
+            const double value = maybe_physics_value(id).value_or(snapshot.tc2_c);
+            out.push_back(make_signal_value(id, make_double(value)));
+        } else if (id == kSigRelay1State) {
+            const bool value = maybe_physics_value(id).value_or(snapshot.relay1 ? 1.0 : 0.0) >= 0.5;
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigRelay2State) {
+            const bool value = maybe_physics_value(id).value_or(snapshot.relay2 ? 1.0 : 0.0) >= 0.5;
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigControlMode)
+            out.push_back(make_signal_value(id, make_string(snapshot.mode)));
+        else if (id == kSigSetpoint)
+            out.push_back(make_signal_value(id, make_double(snapshot.setpoint_c)));
+    }
+
+    return out;
 }
 
 // -----------------------------
 // Function Calls
 // -----------------------------
 
-CallResult call_function(const std::string &device_id, uint32_t function_id,
-                         const std::map<std::string, Value> &args) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+CallResult call_function(const std::string &device_id, uint32_t function_id, const std::map<std::string, Value> &args) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  if (function_id == kFnSetMode) {
-    std::string mode;
-    if (!get_arg_string(args, "mode", mode)) {
-      return bad("missing/invalid arg: mode (string)");
-    }
-    if (mode != "open" && mode != "closed") {
-      return bad("mode must be 'open' or 'closed'");
-    }
-    s.mode = mode;
-    return ok();
-  }
-
-  if (function_id == kFnSetSetpoint) {
-    double sp = 0.0;
-    if (!get_arg_double(args, "value", sp)) {
-      return bad("missing/invalid arg: value (double)");
-    }
-    if (!std::isfinite(sp)) {  // §8.3 [L2]: non-finite is malformed, before bounds
-      return bad("setpoint must be finite (not NaN or +/-Inf)");
-    }
-    if (sp < -50.0 || sp > 400.0) {
-      return out_of_range("setpoint out of range");  // §8.3 [L2]
-    }
-    s.setpoint_c = sp;
-    return ok();
-  }
-
-  if (function_id == kFnSetRelay) {
-    // Enforce "open loop" rule as a realistic precondition
-    if (s.mode != "open") {
-      return precond("set_relay only allowed in open mode");
+    if (function_id == kFnSetMode) {
+        std::string mode;
+        if (!get_arg_string(args, "mode", mode)) {
+            return bad("missing/invalid arg: mode (string)");
+        }
+        if (mode != "open" && mode != "closed") {
+            return bad("mode must be 'open' or 'closed'");
+        }
+        s.mode = mode;
+        return ok();
     }
 
-    int64_t idx = 0;
-    bool st = false;
-    if (!get_arg_int64(args, "relay_index", idx)) {
-      return bad("missing/invalid arg: relay_index (int64)");
-    }
-    if (idx != 1 && idx != 2) {
-      return out_of_range("relay_index must be 1 or 2");  // §8.3 [L2]
-    }
-    if (!get_arg_bool(args, "state", st)) {
-      return bad("missing/invalid arg: state (bool)");
+    if (function_id == kFnSetSetpoint) {
+        double sp = 0.0;
+        if (!get_arg_double(args, "value", sp)) {
+            return bad("missing/invalid arg: value (double)");
+        }
+        if (!std::isfinite(sp)) {  // §8.3 [L2]: non-finite is malformed, before bounds
+            return bad("setpoint must be finite (not NaN or +/-Inf)");
+        }
+        if (sp < -50.0 || sp > 400.0) {
+            return out_of_range("setpoint out of range");  // §8.3 [L2]
+        }
+        s.setpoint_c = sp;
+        return ok();
     }
 
-    if (idx == 1)
-      s.relay1 = st;
-    else
-      s.relay2 = st;
+    if (function_id == kFnSetRelay) {
+        // Enforce "open loop" rule as a realistic precondition
+        if (s.mode != "open") {
+            return precond("set_relay only allowed in open mode");
+        }
 
-    return ok();
-  }
+        int64_t idx = 0;
+        bool st = false;
+        if (!get_arg_int64(args, "relay_index", idx)) {
+            return bad("missing/invalid arg: relay_index (int64)");
+        }
+        if (idx != 1 && idx != 2) {
+            return out_of_range("relay_index must be 1 or 2");  // §8.3 [L2]
+        }
+        if (!get_arg_bool(args, "state", st)) {
+            return bad("missing/invalid arg: state (bool)");
+        }
 
-  return nf("unknown function_id for " + device_id);
+        if (idx == 1)
+            s.relay1 = st;
+        else
+            s.relay2 = st;
+
+        return ok();
+    }
+
+    return nf("unknown function_id for " + device_id);
 }
 
-} // namespace tempctl
-} // namespace sim_devices
+}  // namespace tempctl
+}  // namespace sim_devices

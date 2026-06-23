@@ -3,7 +3,7 @@
 #include <mutex>
 #include <optional>
 
-#include "devices/common/device_manager.hpp" // For g_signal_registry
+#include "devices/common/device_manager.hpp"  // For g_signal_registry
 
 namespace sim_devices {
 namespace relayio {
@@ -40,35 +40,33 @@ static constexpr const char *kSigGpioInput4 = "gpio_input_4";
 // -----------------------------
 
 struct State {
-  // Relay channel states
-  bool relay_ch1 = false;
-  bool relay_ch2 = false;
-  bool relay_ch3 = false;
-  bool relay_ch4 = false;
+    // Relay channel states
+    bool relay_ch1 = false;
+    bool relay_ch2 = false;
+    bool relay_ch3 = false;
+    bool relay_ch4 = false;
 
-  // GPIO input states (simulated as toggle on relay state for demo purposes)
-  bool gpio_input_1 = false;
-  bool gpio_input_2 = false;
-  bool gpio_input_3 = false;
-  bool gpio_input_4 = false;
+    // GPIO input states (simulated as toggle on relay state for demo purposes)
+    bool gpio_input_1 = false;
+    bool gpio_input_2 = false;
+    bool gpio_input_3 = false;
+    bool gpio_input_4 = false;
 };
 
 // Per-device instance state storage
 static std::map<std::string, State> g_device_states;
 static std::mutex g_state_mutex;
 
-static State &get_state_unlocked(const std::string &device_id) {
-  return g_device_states[device_id];
-}
+static State &get_state_unlocked(const std::string &device_id) { return g_device_states[device_id]; }
 
 // -----------------------------
 // Initialization
 // -----------------------------
 
 void init(const std::string &device_id) {
-  // Initialize state for this device instance
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  g_device_states[device_id] = State();
+    // Initialize state for this device instance
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    g_device_states[device_id] = State();
 }
 
 // -----------------------------
@@ -76,16 +74,16 @@ void init(const std::string &device_id) {
 // -----------------------------
 
 void update_physics(const std::string &device_id, double dt) {
-  (void)dt;
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+    (void)dt;
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  // Simulate GPIO inputs mirroring relay states (simple demo behavior)
-  // In a real system, these would be independent
-  s.gpio_input_1 = s.relay_ch1;
-  s.gpio_input_2 = !s.relay_ch2; // Inverted for variety
-  s.gpio_input_3 = s.relay_ch3;
-  s.gpio_input_4 = !s.relay_ch4; // Inverted for variety
+    // Simulate GPIO inputs mirroring relay states (simple demo behavior)
+    // In a real system, these would be independent
+    s.gpio_input_1 = s.relay_ch1;
+    s.gpio_input_2 = !s.relay_ch2;  // Inverted for variety
+    s.gpio_input_3 = s.relay_ch3;
+    s.gpio_input_4 = !s.relay_ch4;  // Inverted for variety
 }
 
 // -----------------------------
@@ -93,16 +91,16 @@ void update_physics(const std::string &device_id, double dt) {
 // -----------------------------
 
 Device get_device_info(const std::string &device_id, bool /*include_health*/) {
-  Device d;
-  d.set_device_id(device_id);
-  d.set_provider_name(kProviderName);
-  d.set_type_id("sim.relay_io_module");
-  d.set_type_version("1.0");
-  d.set_label("Sim Relay/IO Module (4 Relay + 4 GPIO)");
-  d.set_address("sim://" + device_id);
-  (*d.mutable_tags())["family"] = "sim";
-  (*d.mutable_tags())["kind"] = "relay_io";
-  return d;
+    Device d;
+    d.set_device_id(device_id);
+    d.set_provider_name(kProviderName);
+    d.set_type_id("sim.relay_io_module");
+    d.set_type_version("1.0");
+    d.set_label("Sim Relay/IO Module (4 Relay + 4 GPIO)");
+    d.set_address("sim://" + device_id);
+    (*d.mutable_tags())["family"] = "sim";
+    (*d.mutable_tags())["kind"] = "relay_io";
+    return d;
 }
 
 // -----------------------------
@@ -110,262 +108,245 @@ Device get_device_info(const std::string &device_id, bool /*include_health*/) {
 // -----------------------------
 
 CapabilitySet get_capabilities() {
-  CapabilitySet caps;
+    CapabilitySet caps;
 
-  // Signals
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelayCh1State);
-    s.set_name("Relay Ch1 State");
-    s.set_description("Relay channel 1 state");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelayCh2State);
-    s.set_name("Relay Ch2 State");
-    s.set_description("Relay channel 2 state");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelayCh3State);
-    s.set_name("Relay Ch3 State");
-    s.set_description("Relay channel 3 state");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigRelayCh4State);
-    s.set_name("Relay Ch4 State");
-    s.set_description("Relay channel 4 state");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigGpioInput1);
-    s.set_name("GPIO Input 1");
-    s.set_description("GPIO input channel 1");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigGpioInput2);
-    s.set_name("GPIO Input 2");
-    s.set_description("GPIO input channel 2");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigGpioInput3);
-    s.set_name("GPIO Input 3");
-    s.set_description("GPIO input channel 3");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
-  {
-    SignalSpec s;
-    s.set_signal_id(kSigGpioInput4);
-    s.set_name("GPIO Input 4");
-    s.set_description("GPIO input channel 4");
-    s.set_value_type(ValueType::VALUE_TYPE_BOOL);
-    s.set_unit("");
-    s.set_poll_hint_hz(1.0);
-    s.set_stale_after_ms(2000);
-    *caps.add_signals() = s;
-  }
+    // Signals
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelayCh1State);
+        s.set_name("Relay Ch1 State");
+        s.set_description("Relay channel 1 state");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelayCh2State);
+        s.set_name("Relay Ch2 State");
+        s.set_description("Relay channel 2 state");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelayCh3State);
+        s.set_name("Relay Ch3 State");
+        s.set_description("Relay channel 3 state");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigRelayCh4State);
+        s.set_name("Relay Ch4 State");
+        s.set_description("Relay channel 4 state");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigGpioInput1);
+        s.set_name("GPIO Input 1");
+        s.set_description("GPIO input channel 1");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigGpioInput2);
+        s.set_name("GPIO Input 2");
+        s.set_description("GPIO input channel 2");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigGpioInput3);
+        s.set_name("GPIO Input 3");
+        s.set_description("GPIO input channel 3");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
+    {
+        SignalSpec s;
+        s.set_signal_id(kSigGpioInput4);
+        s.set_name("GPIO Input 4");
+        s.set_description("GPIO input channel 4");
+        s.set_value_type(ValueType::VALUE_TYPE_BOOL);
+        s.set_unit("");
+        s.set_poll_hint_hz(1.0);
+        s.set_stale_after_ms(2000);
+        *caps.add_signals() = s;
+    }
 
-  // Functions
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetRelayCh1);
-    f.set_name("set_relay_ch1");
-    f.set_description("Set relay channel 1 state");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                                  "Enable/disable relay channel 1");
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetRelayCh2);
-    f.set_name("set_relay_ch2");
-    f.set_description("Set relay channel 2 state");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                                  "Enable/disable relay channel 2");
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetRelayCh3);
-    f.set_name("set_relay_ch3");
-    f.set_description("Set relay channel 3 state");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                                  "Enable/disable relay channel 3");
-    *caps.add_functions() = f;
-  }
-  {
-    FunctionSpec f;
-    f.set_function_id(kFnSetRelayCh4);
-    f.set_name("set_relay_ch4");
-    f.set_description("Set relay channel 4 state");
-    *f.mutable_policy() =
-        make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
-    *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true,
-                                  "Enable/disable relay channel 4");
-    *caps.add_functions() = f;
-  }
+    // Functions
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetRelayCh1);
+        f.set_name("set_relay_ch1");
+        f.set_description("Set relay channel 1 state");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true, "Enable/disable relay channel 1");
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetRelayCh2);
+        f.set_name("set_relay_ch2");
+        f.set_description("Set relay channel 2 state");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true, "Enable/disable relay channel 2");
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetRelayCh3);
+        f.set_name("set_relay_ch3");
+        f.set_description("Set relay channel 3 state");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true, "Enable/disable relay channel 3");
+        *caps.add_functions() = f;
+    }
+    {
+        FunctionSpec f;
+        f.set_function_id(kFnSetRelayCh4);
+        f.set_name("set_relay_ch4");
+        f.set_description("Set relay channel 4 state");
+        *f.mutable_policy() = make_function_policy(FunctionPolicy::CATEGORY_ACTUATE);
+        *f.add_args() = make_arg_spec("enabled", ValueType::VALUE_TYPE_BOOL, true, "Enable/disable relay channel 4");
+        *caps.add_functions() = f;
+    }
 
-  return caps;
+    return caps;
 }
 
 // -----------------------------
 // Read signals
 // -----------------------------
 
-std::vector<SignalValue>
-read_signals(const std::string &device_id,
-             const std::vector<std::string> &signal_ids) {
-  State snapshot;
-  {
-    std::lock_guard<std::mutex> lock(g_state_mutex);
-    snapshot = get_state_unlocked(device_id);
-  }
-  std::vector<SignalValue> out;
-
-  // If signal_ids empty, return all signals
-  std::vector<std::string> ids = signal_ids;
-  if (ids.empty()) {
-    ids = {kSigRelayCh1State, kSigRelayCh2State, kSigRelayCh3State,
-           kSigRelayCh4State, kSigGpioInput1,    kSigGpioInput2,
-           kSigGpioInput3,    kSigGpioInput4};
-  }
-
-  auto maybe_physics_bool =
-      [&](const std::string &signal_id) -> std::optional<bool> {
-    if (!g_signal_registry) {
-      return std::nullopt;
+std::vector<SignalValue> read_signals(const std::string &device_id, const std::vector<std::string> &signal_ids) {
+    State snapshot;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        snapshot = get_state_unlocked(device_id);
     }
-    const std::string path = device_id + "/" + signal_id;
-    if (!g_signal_registry->is_physics_driven(path)) {
-      return std::nullopt;
-    }
-    auto value = g_signal_registry->read_signal(path);
-    if (!value) {
-      return std::nullopt;
-    }
-    return *value >= 0.5;
-  };
+    std::vector<SignalValue> out;
 
-  for (const auto &id : ids) {
-    if (id == kSigRelayCh1State) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch1);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigRelayCh2State) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch2);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigRelayCh3State) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch3);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigRelayCh4State) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch4);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigGpioInput1) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_1);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigGpioInput2) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_2);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigGpioInput3) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_3);
-      out.push_back(make_signal_value(id, make_bool(value)));
-    } else if (id == kSigGpioInput4) {
-      const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_4);
-      out.push_back(make_signal_value(id, make_bool(value)));
+    // If signal_ids empty, return all signals
+    std::vector<std::string> ids = signal_ids;
+    if (ids.empty()) {
+        ids = {kSigRelayCh1State, kSigRelayCh2State, kSigRelayCh3State, kSigRelayCh4State,
+               kSigGpioInput1,    kSigGpioInput2,    kSigGpioInput3,    kSigGpioInput4};
     }
-  }
 
-  return out;
+    auto maybe_physics_bool = [&](const std::string &signal_id) -> std::optional<bool> {
+        if (!g_signal_registry) {
+            return std::nullopt;
+        }
+        const std::string path = device_id + "/" + signal_id;
+        if (!g_signal_registry->is_physics_driven(path)) {
+            return std::nullopt;
+        }
+        auto value = g_signal_registry->read_signal(path);
+        if (!value) {
+            return std::nullopt;
+        }
+        return *value >= 0.5;
+    };
+
+    for (const auto &id : ids) {
+        if (id == kSigRelayCh1State) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch1);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigRelayCh2State) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch2);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigRelayCh3State) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch3);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigRelayCh4State) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.relay_ch4);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigGpioInput1) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_1);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigGpioInput2) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_2);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigGpioInput3) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_3);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        } else if (id == kSigGpioInput4) {
+            const bool value = maybe_physics_bool(id).value_or(snapshot.gpio_input_4);
+            out.push_back(make_signal_value(id, make_bool(value)));
+        }
+    }
+
+    return out;
 }
 
 // -----------------------------
 // Call function
 // -----------------------------
 
-CallResult call_function(const std::string &device_id, uint32_t function_id,
-                         const std::map<std::string, Value> &args) {
-  std::lock_guard<std::mutex> lock(g_state_mutex);
-  State &s = get_state_unlocked(device_id);
+CallResult call_function(const std::string &device_id, uint32_t function_id, const std::map<std::string, Value> &args) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    State &s = get_state_unlocked(device_id);
 
-  switch (function_id) {
-  case kFnSetRelayCh1: {
-    bool enabled;
-    if (!get_arg_bool(args, "enabled", enabled))
-      return bad("missing or invalid 'enabled' bool argument");
-    s.relay_ch1 = enabled;
-    return ok();
-  }
+    switch (function_id) {
+        case kFnSetRelayCh1: {
+            bool enabled;
+            if (!get_arg_bool(args, "enabled", enabled)) return bad("missing or invalid 'enabled' bool argument");
+            s.relay_ch1 = enabled;
+            return ok();
+        }
 
-  case kFnSetRelayCh2: {
-    bool enabled;
-    if (!get_arg_bool(args, "enabled", enabled))
-      return bad("missing or invalid 'enabled' bool argument");
-    s.relay_ch2 = enabled;
-    return ok();
-  }
+        case kFnSetRelayCh2: {
+            bool enabled;
+            if (!get_arg_bool(args, "enabled", enabled)) return bad("missing or invalid 'enabled' bool argument");
+            s.relay_ch2 = enabled;
+            return ok();
+        }
 
-  case kFnSetRelayCh3: {
-    bool enabled;
-    if (!get_arg_bool(args, "enabled", enabled))
-      return bad("missing or invalid 'enabled' bool argument");
-    s.relay_ch3 = enabled;
-    return ok();
-  }
+        case kFnSetRelayCh3: {
+            bool enabled;
+            if (!get_arg_bool(args, "enabled", enabled)) return bad("missing or invalid 'enabled' bool argument");
+            s.relay_ch3 = enabled;
+            return ok();
+        }
 
-  case kFnSetRelayCh4: {
-    bool enabled;
-    if (!get_arg_bool(args, "enabled", enabled))
-      return bad("missing or invalid 'enabled' bool argument");
-    s.relay_ch4 = enabled;
-    return ok();
-  }
+        case kFnSetRelayCh4: {
+            bool enabled;
+            if (!get_arg_bool(args, "enabled", enabled)) return bad("missing or invalid 'enabled' bool argument");
+            s.relay_ch4 = enabled;
+            return ok();
+        }
 
-  default:
-    return nf("unknown function_id");
-  }
+        default:
+            return nf("unknown function_id");
+    }
 }
 
-} // namespace relayio
-} // namespace sim_devices
+}  // namespace relayio
+}  // namespace sim_devices
