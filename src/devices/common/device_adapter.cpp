@@ -22,7 +22,7 @@ std::optional<double> cfg_double(const DeviceConfigMap &config, const std::strin
     try {
         return it->second.as<double>();
     } catch (...) {
-        throw std::runtime_error("[DeviceAdapter] Failed to parse '" + key + "' as double");
+        throw std::runtime_error("[DeviceFactory] Failed to parse '" + key + "' as double");
     }
 }
 
@@ -32,13 +32,13 @@ std::optional<std::pair<double, double>> cfg_range(const DeviceConfigMap &config
         return std::nullopt;
     }
     if (!it->second.IsSequence() || it->second.size() != 2) {
-        throw std::runtime_error("[DeviceAdapter] Invalid range format for '" + key +
+        throw std::runtime_error("[DeviceFactory] Invalid range format for '" + key +
                                  "' (expected 2-element sequence)");
     }
     const double min_val = it->second[0].as<double>();
     const double max_val = it->second[1].as<double>();
     if (min_val >= max_val) {
-        throw std::runtime_error("[DeviceAdapter] Invalid range (min >= max) for '" + key + "'");
+        throw std::runtime_error("[DeviceFactory] Invalid range (min >= max) for '" + key + "'");
     }
     return std::make_pair(min_val, max_val);
 }
@@ -63,6 +63,22 @@ void analogsensor_init(const std::string &id, const DeviceConfigMap & /*config*/
 // Types without closed-loop control share this no-op so the descriptor slot is
 // always callable.
 void no_update_control(const std::string & /*id*/) {}
+
+// Unknown-type sentinel: safe no-ops / empty results. adapter_for's switch is
+// exhaustive over the closed enum so this is never reached today, but it keeps an
+// unknown type degrading to a no-op rather than silently running another type's
+// logic — matching the ezo template's kUnknownAdapter.
+CapabilitySet unknown_get_capabilities() { return {}; }
+void unknown_init(const std::string & /*id*/, const DeviceConfigMap & /*config*/) {}
+void unknown_update_physics(const std::string & /*id*/, double /*dt*/) {}
+Device unknown_get_device_info(const std::string & /*id*/, bool /*include_health*/) { return {}; }
+std::vector<SignalValue> unknown_read_signals(const std::string & /*id*/, const std::vector<std::string> & /*ids*/) {
+    return {};
+}
+CallResult unknown_call_function(const std::string & /*id*/, uint32_t /*function_id*/,
+                                 const std::map<std::string, Value> & /*args*/) {
+    return nf("unknown device type");
+}
 
 // Per-type actuator signal-id suffixes the engine feeds back as physics inputs
 // (must match the signals each module publishes).
@@ -95,6 +111,16 @@ const DeviceAdapter kAnalogsensor{&analogsensor::get_capabilities,
                                   nullptr,
                                   0};
 
+const DeviceAdapter kUnknown{&unknown_get_capabilities,
+                             &unknown_init,
+                             &unknown_update_physics,
+                             &no_update_control,
+                             &unknown_get_device_info,
+                             &unknown_read_signals,
+                             &unknown_call_function,
+                             nullptr,
+                             0};
+
 }  // namespace
 
 std::optional<SimDeviceType> sim_device_type_from_string(const std::string &type) {
@@ -124,7 +150,7 @@ const DeviceAdapter &adapter_for(SimDeviceType type) {
         case SimDeviceType::Analogsensor:
             return kAnalogsensor;
     }
-    return kTempctl;  // unreachable: exhaustive switch over a closed enum
+    return kUnknown;  // unreachable: exhaustive switch over a closed enum
 }
 
 const DeviceAdapter *adapter_by_id(const std::string &device_id) {
