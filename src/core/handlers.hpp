@@ -43,7 +43,9 @@ void handle_get_health(const anolis::deviceprovider::v1::GetHealthRequest &req,
 
 /** @brief Return the standard unimplemented status for unsupported operations.
  */
-void handle_unimplemented(anolis::deviceprovider::v1::Response &resp);
+void handle_unimplemented(
+    anolis::deviceprovider::v1::Response &resp,
+    const std::string &message = "operation not implemented");
 
 /** @brief [§7.3] Flag values older than ReadSignalsRequest.min_timestamp as
  * QUALITY_STALE (best-effort freshness; live reads satisfy any past

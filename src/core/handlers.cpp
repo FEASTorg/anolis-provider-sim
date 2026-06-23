@@ -294,8 +294,9 @@ void handle_wait_ready(const WaitReadyRequest & /*req*/,
   set_status_ok(resp);
 }
 
-void handle_unimplemented(anolis::deviceprovider::v1::Response &resp) {
-  set_status(resp, Status::CODE_UNIMPLEMENTED, "operation not implemented");
+void handle_unimplemented(anolis::deviceprovider::v1::Response &resp,
+                          const std::string &message) {
+  set_status(resp, Status::CODE_UNIMPLEMENTED, message);
 }
 
 } // namespace handlers
