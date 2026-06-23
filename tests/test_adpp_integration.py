@@ -151,7 +151,7 @@ def test_motor_control(client: AdppClient, protocol) -> bool:
 
     resp = client.call_function(
         "motorctl0",
-        10,
+        1,
         {
             "motor_index": make_int64_value(protocol, 1),
             "duty": make_double_value(protocol, 0.5),

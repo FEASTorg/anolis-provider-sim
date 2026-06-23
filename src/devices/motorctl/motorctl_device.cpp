@@ -20,8 +20,8 @@ using anolis::deviceprovider::v1::ValueType;
 
 static constexpr const char *kProviderName = "anolis-provider-sim";
 
-// Function IDs
-static constexpr uint32_t kFnSetDuty = 10;
+// Function IDs (per-type, numbered from 1 — ADPP executable-profile convention)
+static constexpr uint32_t kFnSetDuty = 1;
 
 // Signal IDs
 static constexpr const char *kSigMotor1Speed = "motor1_speed";
