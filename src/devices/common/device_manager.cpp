@@ -231,8 +231,8 @@ static void ticker_thread_func(double tick_rate_hz) {
         // actuator state to the current simulation tick.
         auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
         for (const auto &dev : devices) {
-            if (dev.type == "tempctl") {
-                sim_devices::tempctl::update_control(dev.id);
+            if (const DeviceAdapter *adapter = adapter_by_id(dev.id)) {
+                adapter->update_control(dev.id);  // no-op for types without a closed loop
             }
         }
 
