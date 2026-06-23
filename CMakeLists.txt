@@ -128,6 +128,7 @@ set(SOURCES
     # Layer 2: Devices
     src/devices/common/device_manager.cpp
     src/devices/common/device_factory.cpp
+    src/devices/common/device_adapter.cpp
     src/devices/common/signal_registry.cpp
     src/devices/tempctl/tempctl_device.cpp
     src/devices/motorctl/motorctl_device.cpp
