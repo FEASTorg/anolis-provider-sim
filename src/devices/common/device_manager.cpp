@@ -24,11 +24,7 @@
 #include "chaos/fault_injection.hpp"
 #include "config.hpp"
 #include "device_factory.hpp"
-#include "devices/analogsensor/analogsensor_device.hpp"
 #include "devices/common/device_adapter.hpp"
-#include "devices/motorctl/motorctl_device.hpp"
-#include "devices/relayio/relayio_device.hpp"
-#include "devices/tempctl/tempctl_device.hpp"
 #include "logging/logger.hpp"
 
 namespace sim_devices {

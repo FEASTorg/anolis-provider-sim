@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "devices/analogsensor/analogsensor_device.hpp"
+#include "devices/common/device_adapter.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/motorctl/motorctl_device.hpp"
 #include "devices/relayio/relayio_device.hpp"
@@ -30,14 +31,8 @@ TickResult LocalEngine::tick(const std::map<std::string, double> &) {
     if (anolis_provider_sim::DeviceFactory::is_config_loaded()) {
         auto devices = anolis_provider_sim::DeviceFactory::get_registered_devices();
         for (const auto &dev : devices) {
-            if (dev.type == "tempctl") {
-                sim_devices::tempctl::update_physics(dev.id, dt);
-            } else if (dev.type == "motorctl") {
-                sim_devices::motorctl::update_physics(dev.id, dt);
-            } else if (dev.type == "relayio") {
-                sim_devices::relayio::update_physics(dev.id, dt);
-            } else if (dev.type == "analogsensor") {
-                sim_devices::analogsensor::update_physics(dev.id, dt);
+            if (const auto type = sim_devices::sim_device_type_from_string(dev.type)) {
+                sim_devices::adapter_for(*type).update_physics(dev.id, dt);
             }
         }
         return TickResult{true, {}, {}};
