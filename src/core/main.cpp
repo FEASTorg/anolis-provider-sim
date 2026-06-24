@@ -71,8 +71,17 @@ static std::unique_ptr<sim_engine::SimulationEngine> create_engine(const anolis_
     throw std::runtime_error("Unknown simulation mode");
 }
 
+// Stops the physics ticker on every scope exit. Declared once the request loop
+// is reachable so the parse/serialize/write-failure returns (exit 3/4/5) tear
+// the ticker down too, not just the clean-EOF path. stop_physics() is a no-op
+// when the ticker was never started.
+class PhysicsShutdownGuard {
+public:
+    ~PhysicsShutdownGuard() { sim_devices::stop_physics(); }
+};
+
 int main(int argc, char **argv) {
-    sim_runtime::reset();
+    anolis_provider_sim::runtime::reset();
     anolis_provider_sim::logging::Logger::init_from_env();
 
     std::optional<std::string> config_path;
@@ -100,6 +109,12 @@ int main(int argc, char **argv) {
             }
         } else if (arg == "--sim-server" && i + 1 < argc) {
             sim_server_address = argv[++i];
+        } else {
+            PSIM_LOG_ERROR("Main", "unknown or malformed argument: " + arg);
+            PSIM_LOG_ERROR("Main",
+                           "Usage: anolis-provider-sim --config <path/to/config.yaml> "
+                           "[--sim-server <host:port>] [--crash-after <seconds>]");
+            return 1;
         }
     }
 
@@ -117,7 +132,7 @@ int main(int argc, char **argv) {
         config = anolis_provider_sim::load_config(*config_path);
 
         const auto init_report = anolis_provider_sim::DeviceFactory::initialize_from_config(config);
-        sim_runtime::set_startup_report(init_report);
+        anolis_provider_sim::runtime::set_startup_report(init_report);
         PSIM_LOG_INFO(
             "Main", "startup_policy=" + std::string(config.startup_policy == anolis_provider_sim::StartupPolicy::Strict
                                                         ? "strict"
@@ -185,6 +200,10 @@ int main(int argc, char **argv) {
     set_binary_mode_stdio();
     PSIM_LOG_INFO("Main", "starting (transport=stdio+uint32_le)");
 
+    // Tear down the physics ticker on any exit from the serving loop below
+    // (clean EOF, read error, and the parse/serialize/write-failure returns).
+    PhysicsShutdownGuard physics_shutdown_guard;
+
     if (crash_after_sec > 0.0) {
         PSIM_LOG_WARN("Main", "CHAOS MODE: will crash after " + std::to_string(crash_after_sec) + " seconds");
         std::thread([crash_after_sec]() {
@@ -203,15 +222,13 @@ int main(int argc, char **argv) {
 
     while (true) {
         frame.clear();
-        const bool ok = transport::read_frame(std::cin, frame, io_err);
+        const bool ok = anolis_provider_sim::transport::read_frame(std::cin, frame, io_err);
         if (!ok) {
             if (io_err.empty()) {
                 PSIM_LOG_INFO("Main", "EOF on stdin; exiting cleanly");
-                sim_devices::stop_physics();
                 return 0;
             }
             PSIM_LOG_ERROR("Main", std::string("read_frame error: ") + io_err);
-            sim_devices::stop_physics();
             return 2;
         }
 
@@ -227,7 +244,7 @@ int main(int argc, char **argv) {
         resp.mutable_status()->set_message("uninitialized");
 
         if (req.has_hello()) {
-            handlers::handle_hello(req.hello(), resp);
+            anolis_provider_sim::handlers::handle_hello(req.hello(), resp);
             if (resp.status().code() == anolis::deviceprovider::v1::Status::CODE_OK) {
                 hello_completed = true;
             }
@@ -236,22 +253,22 @@ int main(int argc, char **argv) {
             resp.mutable_status()->set_code(anolis::deviceprovider::v1::Status::CODE_FAILED_PRECONDITION);
             resp.mutable_status()->set_message("Hello handshake required before any other request");
         } else if (req.has_wait_ready()) {
-            handlers::handle_wait_ready(req.wait_ready(), resp);
+            anolis_provider_sim::handlers::handle_wait_ready(req.wait_ready(), resp);
             PSIM_LOG_INFO("Main", "waiting ready -> starting physics ticker");
             sim_devices::start_physics();
             PSIM_LOG_INFO("Main", "physics ticker started");
         } else if (req.has_list_devices()) {
-            handlers::handle_list_devices(req.list_devices(), resp);
+            anolis_provider_sim::handlers::handle_list_devices(req.list_devices(), resp);
         } else if (req.has_describe_device()) {
-            handlers::handle_describe_device(req.describe_device(), resp);
+            anolis_provider_sim::handlers::handle_describe_device(req.describe_device(), resp);
         } else if (req.has_read_signals()) {
-            handlers::handle_read_signals(req.read_signals(), resp);
+            anolis_provider_sim::handlers::handle_read_signals(req.read_signals(), resp);
         } else if (req.has_call()) {
-            handlers::handle_call(req.call(), resp);
+            anolis_provider_sim::handlers::handle_call(req.call(), resp);
         } else if (req.has_get_health()) {
-            handlers::handle_get_health(req.get_health(), resp);
+            anolis_provider_sim::handlers::handle_get_health(req.get_health(), resp);
         } else {
-            handlers::handle_unimplemented(resp);
+            anolis_provider_sim::handlers::handle_unimplemented(resp);
         }
 
         std::string resp_bytes;
@@ -260,8 +277,8 @@ int main(int argc, char **argv) {
             return 4;
         }
 
-        if (!transport::write_frame(std::cout, reinterpret_cast<const uint8_t *>(resp_bytes.data()), resp_bytes.size(),
-                                    io_err)) {
+        if (!anolis_provider_sim::transport::write_frame(
+                std::cout, reinterpret_cast<const uint8_t *>(resp_bytes.data()), resp_bytes.size(), io_err)) {
             PSIM_LOG_ERROR("Main", std::string("write_frame error: ") + io_err);
             return 5;
         }

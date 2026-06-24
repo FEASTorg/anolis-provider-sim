@@ -15,7 +15,7 @@
 
 #include "devices/common/device_manager.hpp"
 
-namespace sim_health {
+namespace anolis_provider_sim::health {
 
 std::string startup_policy_name(StartupPolicy policy) {
     switch (policy) {
@@ -127,4 +127,4 @@ std::vector<DeviceHealth> make_get_health_devices(const DeviceInitializationRepo
     return out;
 }
 
-}  // namespace sim_health
+}  // namespace anolis_provider_sim::health
