@@ -22,7 +22,7 @@
 #include "devices/common/device_manager.hpp"
 #include "logging/logger.hpp"
 
-namespace handlers {
+namespace anolis_provider_sim::handlers {
 
 using anolis::deviceprovider::v1::CallRequest;
 using anolis::deviceprovider::v1::DescribeDeviceRequest;
@@ -59,7 +59,7 @@ void handle_hello(const HelloRequest &req, anolis::deviceprovider::v1::Response 
     hello->set_provider_version(ANOLIS_PROVIDER_SIM_VERSION);
 
     (*hello->mutable_metadata())["transport"] = "stdio+uint32_le";
-    (*hello->mutable_metadata())["max_frame_bytes"] = std::to_string(transport::kMaxFrameBytes);
+    (*hello->mutable_metadata())["max_frame_bytes"] = std::to_string(anolis_provider_sim::transport::kMaxFrameBytes);
     (*hello->mutable_metadata())["supports_wait_ready"] = "true";
 
     set_status_ok(resp);
@@ -74,7 +74,7 @@ void handle_list_devices(const ListDevicesRequest &req, anolis::deviceprovider::
     }
 
     if (req.include_health()) {
-        const auto device_health = sim_health::make_list_devices_health(devices);
+        const auto device_health = anolis_provider_sim::health::make_list_devices_health(devices);
         for (const auto &health : device_health) {
             *out->add_device_health() = health;
         }
@@ -232,12 +232,12 @@ void handle_call(const CallRequest &req, anolis::deviceprovider::v1::Response &r
 }
 
 void handle_get_health(const GetHealthRequest & /*req*/, anolis::deviceprovider::v1::Response &resp) {
-    const auto runtime_state = sim_runtime::snapshot();
+    const auto runtime_state = anolis_provider_sim::runtime::snapshot();
     const auto init_report = runtime_state.startup_report;
     auto *out = resp.mutable_get_health();
-    *out->mutable_provider() = sim_health::make_provider_health(init_report);
+    *out->mutable_provider() = anolis_provider_sim::health::make_provider_health(init_report);
 
-    const auto device_health = sim_health::make_get_health_devices(init_report);
+    const auto device_health = anolis_provider_sim::health::make_get_health_devices(init_report);
     for (const auto &health : device_health) {
         *out->add_devices() = health;
     }
@@ -248,14 +248,15 @@ void handle_get_health(const GetHealthRequest & /*req*/, anolis::deviceprovider:
 void handle_wait_ready(const WaitReadyRequest & /*req*/, anolis::deviceprovider::v1::Response &resp) {
     PSIM_LOG_INFO("Handlers", "Processing wait_ready() request");
 
-    const auto runtime_state = sim_runtime::snapshot();
+    const auto runtime_state = anolis_provider_sim::runtime::snapshot();
     const auto init_report = runtime_state.startup_report;
     auto *out = resp.mutable_wait_ready();
     // Sim mode has no asynchronous hardware warm-up, so readiness is projected
     // directly from the startup report captured during process initialization.
     (*out->mutable_diagnostics())["init_time_ms"] = "0";
     (*out->mutable_diagnostics())["device_count"] = std::to_string(sim_devices::list_devices(false).size());
-    (*out->mutable_diagnostics())["startup_policy"] = sim_health::startup_policy_name(init_report.startup_policy);
+    (*out->mutable_diagnostics())["startup_policy"] =
+        anolis_provider_sim::health::startup_policy_name(init_report.startup_policy);
     (*out->mutable_diagnostics())["startup_configured_devices"] = std::to_string(init_report.configured_device_count);
     (*out->mutable_diagnostics())["startup_initialized_devices"] =
         std::to_string(init_report.successful_device_ids.size());
@@ -271,4 +272,4 @@ void handle_unimplemented(anolis::deviceprovider::v1::Response &resp, const std:
     set_status(resp, Status::CODE_UNIMPLEMENTED, message);
 }
 
-}  // namespace handlers
+}  // namespace anolis_provider_sim::handlers

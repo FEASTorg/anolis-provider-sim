@@ -12,7 +12,7 @@
 #include "core/startup_report.hpp"
 #include "protocol.pb.h"
 
-namespace sim_health {
+namespace anolis_provider_sim::health {
 
 using Device = anolis::deviceprovider::v1::Device;
 using DeviceHealth = anolis::deviceprovider::v1::DeviceHealth;
@@ -36,4 +36,4 @@ std::vector<DeviceHealth> make_list_devices_health(const std::vector<Device> &de
  */
 std::vector<DeviceHealth> make_get_health_devices(const DeviceInitializationReport &report);
 
-}  // namespace sim_health
+}  // namespace anolis_provider_sim::health

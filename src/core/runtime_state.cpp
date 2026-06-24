@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-namespace sim_runtime {
+namespace anolis_provider_sim::runtime {
 
 namespace {
 
@@ -27,4 +27,4 @@ RuntimeState snapshot() {
     return g_runtime_state;
 }
 
-}  // namespace sim_runtime
+}  // namespace anolis_provider_sim::runtime

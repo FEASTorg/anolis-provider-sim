@@ -7,7 +7,7 @@
 
 #include "core/startup_report.hpp"
 
-namespace sim_runtime {
+namespace anolis_provider_sim::runtime {
 
 /**
  * @brief Lightweight runtime snapshot used for readiness and health reporting.
@@ -29,4 +29,4 @@ void set_startup_report(const anolis_provider_sim::DeviceInitializationReport &r
 /** @brief Return a copy of the current runtime snapshot. */
 RuntimeState snapshot();
 
-}  // namespace sim_runtime
+}  // namespace anolis_provider_sim::runtime

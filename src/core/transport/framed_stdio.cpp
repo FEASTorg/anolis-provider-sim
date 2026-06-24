@@ -3,12 +3,12 @@
  * @brief Length-prefixed stdio framing helpers for provider-sim ADPP traffic.
  */
 
-#include "framed_stdio.hpp"
+#include "core/transport/framed_stdio.hpp"
 
 #include <array>
 #include <cstring>
 
-namespace transport {
+namespace anolis_provider_sim::transport {
 
 static inline uint32_t decode_u32_le(const uint8_t b[4]) {
     return (static_cast<uint32_t>(b[0])) | (static_cast<uint32_t>(b[1]) << 8) | (static_cast<uint32_t>(b[2]) << 16) |
@@ -116,4 +116,4 @@ bool write_frame(std::ostream &out, const uint8_t *data, size_t len, std::string
     return true;
 }
 
-}  // namespace transport
+}  // namespace anolis_provider_sim::transport

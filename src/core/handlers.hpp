@@ -7,7 +7,7 @@
 
 #include "protocol.pb.h"
 
-namespace handlers {
+namespace anolis_provider_sim::handlers {
 
 /** @brief Handle the ADPP `Hello` handshake and advertise provider metadata. */
 void handle_hello(const anolis::deviceprovider::v1::HelloRequest &req, anolis::deviceprovider::v1::Response &resp);
@@ -47,4 +47,4 @@ void handle_unimplemented(anolis::deviceprovider::v1::Response &resp,
 void apply_min_timestamp(const anolis::deviceprovider::v1::ReadSignalsRequest &req,
                          anolis::deviceprovider::v1::ReadSignalsResponse &out);
 
-}  // namespace handlers
+}  // namespace anolis_provider_sim::handlers

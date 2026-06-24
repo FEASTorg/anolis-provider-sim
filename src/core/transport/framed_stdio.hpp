@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace transport {
+namespace anolis_provider_sim::transport {
 
 /** @brief ADPP stdio frame size guardrail: 1 MiB maximum payload. */
 constexpr uint32_t kMaxFrameBytes = 1024u * 1024u;
@@ -32,4 +32,4 @@ bool read_frame(std::istream &in, std::vector<uint8_t> &out, std::string &err, u
 bool write_frame(std::ostream &out, const uint8_t *data, size_t len, std::string &err,
                  uint32_t max_len = kMaxFrameBytes);
 
-}  // namespace transport
+}  // namespace anolis_provider_sim::transport
