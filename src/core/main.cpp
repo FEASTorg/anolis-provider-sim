@@ -71,6 +71,15 @@ static std::unique_ptr<sim_engine::SimulationEngine> create_engine(const anolis_
     throw std::runtime_error("Unknown simulation mode");
 }
 
+// Stops the physics ticker on every scope exit. Declared once the request loop
+// is reachable so the parse/serialize/write-failure returns (exit 3/4/5) tear
+// the ticker down too, not just the clean-EOF path. stop_physics() is a no-op
+// when the ticker was never started.
+class PhysicsShutdownGuard {
+public:
+    ~PhysicsShutdownGuard() { sim_devices::stop_physics(); }
+};
+
 int main(int argc, char **argv) {
     sim_runtime::reset();
     anolis_provider_sim::logging::Logger::init_from_env();
@@ -100,6 +109,12 @@ int main(int argc, char **argv) {
             }
         } else if (arg == "--sim-server" && i + 1 < argc) {
             sim_server_address = argv[++i];
+        } else {
+            PSIM_LOG_ERROR("Main", "unknown or malformed argument: " + arg);
+            PSIM_LOG_ERROR("Main",
+                           "Usage: anolis-provider-sim --config <path/to/config.yaml> "
+                           "[--sim-server <host:port>] [--crash-after <seconds>]");
+            return 1;
         }
     }
 
@@ -185,6 +200,10 @@ int main(int argc, char **argv) {
     set_binary_mode_stdio();
     PSIM_LOG_INFO("Main", "starting (transport=stdio+uint32_le)");
 
+    // Tear down the physics ticker on any exit from the serving loop below
+    // (clean EOF, read error, and the parse/serialize/write-failure returns).
+    PhysicsShutdownGuard physics_shutdown_guard;
+
     if (crash_after_sec > 0.0) {
         PSIM_LOG_WARN("Main", "CHAOS MODE: will crash after " + std::to_string(crash_after_sec) + " seconds");
         std::thread([crash_after_sec]() {
@@ -207,11 +226,9 @@ int main(int argc, char **argv) {
         if (!ok) {
             if (io_err.empty()) {
                 PSIM_LOG_INFO("Main", "EOF on stdin; exiting cleanly");
-                sim_devices::stop_physics();
                 return 0;
             }
             PSIM_LOG_ERROR("Main", std::string("read_frame error: ") + io_err);
-            sim_devices::stop_physics();
             return 2;
         }
 
