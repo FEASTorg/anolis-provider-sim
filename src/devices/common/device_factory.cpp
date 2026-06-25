@@ -85,6 +85,7 @@ DeviceInitializationReport DeviceFactory::initialize_from_config(const ProviderC
 
 std::vector<DeviceRegistryEntry> DeviceFactory::get_registered_devices() {
     std::vector<DeviceRegistryEntry> result;
+    result.reserve(g_device_registry.size());
     for (const auto &kv : g_device_registry) {
         result.push_back(kv.second);
     }

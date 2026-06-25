@@ -10,6 +10,7 @@
 #include "config.hpp"
 
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <regex>
 #include <set>
@@ -51,7 +52,7 @@ ProviderConfig load_config(const std::string &path) {
     try {
         yaml = YAML::LoadFile(path);
     } catch (const YAML::Exception &e) {
-        throw std::runtime_error("Failed to load config file '" + path + "': " + e.what());
+        throw std::runtime_error(std::format("Failed to load config file '{}': {}", path, e.what()));
     }
 
     ProviderConfig config;
@@ -107,34 +108,31 @@ ProviderConfig load_config(const std::string &path) {
         for (std::size_t i = 0; i < yaml["devices"].size(); ++i) {
             const auto &device_node = yaml["devices"][i];
             if (!device_node.IsMap()) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) + "]: entry must be a map");
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: entry must be a map", i));
             }
 
             DeviceSpec spec;
 
             // Extract required fields: id and type
             if (!device_node["id"]) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) +
-                                         "]: missing required field 'id'");
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: missing required field 'id'", i));
             }
             if (!device_node["type"]) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) +
-                                         "]: missing required field 'type'");
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: missing required field 'type'", i));
             }
 
             try {
                 spec.id = device_node["id"].as<std::string>();
                 spec.type = device_node["type"].as<std::string>();
             } catch (const YAML::Exception &e) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) + "]: " + e.what());
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: {}", i, e.what()));
             }
 
             if (spec.id.empty()) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) + "]: 'id' must not be empty");
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: 'id' must not be empty", i));
             }
             if (spec.type.empty()) {
-                throw std::runtime_error("[CONFIG] Invalid devices[" + std::to_string(i) +
-                                         "]: 'type' must not be empty");
+                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: 'type' must not be empty", i));
             }
             if (spec.id == kReservedChaosControlId) {
                 throw std::runtime_error(
@@ -143,7 +141,7 @@ ProviderConfig load_config(const std::string &path) {
             }
 
             if (!seen_device_ids.insert(spec.id).second) {
-                throw std::runtime_error("[CONFIG] Duplicate device id: '" + spec.id + "'");
+                throw std::runtime_error(std::format("[CONFIG] Duplicate device id: '{}'", spec.id));
             }
 
             // Store all other fields as configuration parameters
@@ -187,11 +185,11 @@ ProviderConfig load_config(const std::string &path) {
         provided_simulation_keys.insert(key);
 
         if (key == "noise_enabled" || key == "update_rate_hz") {
-            throw std::runtime_error("[CONFIG] simulation." + key + " is no longer supported");
+            throw std::runtime_error(std::format("[CONFIG] simulation.{} is no longer supported", key));
         }
 
         if (known_simulation_keys.find(key) == known_simulation_keys.end()) {
-            throw std::runtime_error("[CONFIG] Unknown simulation key: '" + key + "'");
+            throw std::runtime_error(std::format("[CONFIG] Unknown simulation key: '{}'", key));
         }
     }
 
@@ -257,7 +255,8 @@ ProviderConfig load_config(const std::string &path) {
     const auto ensure_mode_allowed_keys = [&](const std::set<std::string> &keys, const std::string &mode_name) {
         for (const auto &provided_key : provided_simulation_keys) {
             if (keys.find(provided_key) == keys.end()) {
-                throw std::runtime_error("[CONFIG] simulation." + provided_key + " is not valid for mode=" + mode_name);
+                throw std::runtime_error(
+                    std::format("[CONFIG] simulation.{} is not valid for mode={}", provided_key, mode_name));
             }
         }
     };
@@ -292,9 +291,9 @@ ProviderConfig load_config(const std::string &path) {
     if (config.simulation_mode != SimulationMode::Sim) {
         for (const auto &device : config.devices) {
             if (device.config.find("physics_bindings") != device.config.end()) {
-                throw std::runtime_error("[CONFIG] Device '" + device.id +
-                                         "' has physics_bindings but mode!= sim "
-                                         "(prevents silent ignored config)");
+                throw std::runtime_error(std::format(
+                    "[CONFIG] Device '{}' has physics_bindings but mode!= sim (prevents silent ignored config)",
+                    device.id));
             }
         }
     }
