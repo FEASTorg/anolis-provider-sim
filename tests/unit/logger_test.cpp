@@ -141,6 +141,8 @@ std::string capture_stderr(const std::function<void()> &fn) {
     }
     close_fd(saved_stderr_fd);
 
+    // Rewind the just-written tmpfile to read back the captured stderr output.
+    // NOLINTNEXTLINE(bugprone-unsafe-functions)
     std::rewind(tmp);
     std::string output;
     char buffer[512];
