@@ -46,6 +46,24 @@ sdk::ReadinessReport SimProviderRuntime::readiness() const {
     return r;
 }
 
+sdk::DeviceHealthExtra SimProviderRuntime::device_health(const std::string& device_id) const {
+    // Restore sim's pre-migration per-device metrics (SDK#9): impl on every device,
+    // plus startup_failure + device_type for an explicitly-failed device. Covers the
+    // ids the SDK enumerates (live inventory + report_.failed_devices). sim retains no
+    // per-device last-communication timestamp, so last_seen stays unset (must NOT
+    // fabricate now() — consumers would read it as real hardware freshness).
+    sdk::DeviceHealthExtra extra;
+    extra.metrics["impl"] = "sim";
+    for (const auto& failure : report_.failed_devices) {
+        if (failure.device_id == device_id) {
+            extra.metrics["startup_failure"] = "true";
+            extra.metrics["device_type"] = failure.type;
+            break;
+        }
+    }
+    return extra;
+}
+
 std::vector<std::string> SimProviderRuntime::list_device_ids() const {
     std::vector<std::string> ids;
     for (const auto& device : sim_devices::list_devices(false)) {
