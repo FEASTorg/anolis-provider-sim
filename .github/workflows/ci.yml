@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Nightly: runs the build-only Windows-FluxGraph-ON strict lane off the
+    # per-PR path (see windows-fluxgraph-build / anolis-provider-sim#83).
+    - cron: "0 7 * * *"
 
 concurrency:
   group: provider-sim-ci-${{ github.ref }}
@@ -284,8 +288,16 @@ jobs:
 
   windows-fluxgraph-build:
     name: Windows Release (FluxGraph ON, strict build)
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    # Build-only strict validation, moved off the per-PR path to nightly +
+    # on-demand. Its Windows-grpc binary cache is the structural LRU eviction
+    # victim under the repo's 10 GB Actions-cache limit (it is the least-accessed
+    # cache), so per-PR runs intermittently cold-rebuilt grpc (~2 h) and gated
+    # auto-merge. Windows compile stays covered per-PR by the FluxGraph-OFF lane,
+    # and Linux+FluxGraph by linux-fluxgraph; the Windows+FluxGraph intersection
+    # is validated here nightly. See anolishq/anolis-provider-sim#83.
+    # On pull_request/push this job is skipped → the `ok` gate sees 'skipped'
+    # (not failure) and stays green.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: windows-2025
     steps:
       - name: Checkout provider-sim
