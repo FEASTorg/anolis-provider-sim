@@ -62,68 +62,26 @@ find_package(Protobuf REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 include(FetchContent)
+# The shared SDK owns the anolis-protocol pin + the `adpp_proto` re-export (and the
+# `protocol.pb.h` shim), so sim no longer declares them — a second `adpp_proto`
+# target / divergent pin would be a hard error. Consumed as source: CI pins the
+# release tarball (URL_HASH below, filled when the SDK cuts the version); local dev
+# overrides with -DFETCHCONTENT_SOURCE_DIR_ANOLIS_PROVIDER_SDK=<path-to-sdk-clone>.
 FetchContent_Declare(
-    anolis_protocol
-    URL https://github.com/anolishq/anolis-protocol/releases/download/v1.6.0/anolis-protocol-1.6.0-source.tar.gz
-    URL_HASH SHA256=80b3db19d5249ae5f921a28873055c9a73e5579a3cab7eaa59bc75d39fedcec4
+    anolis_provider_sdk
+    URL https://github.com/anolishq/anolis-provider-sdk/releases/download/v0.1.0/anolis-provider-sdk-0.1.0-source.tar.gz
+    URL_HASH SHA256=f9ced03a9ebc94998b9212298eff7b254ee9e2e33cc9ad6d8585eec83e11fd4e
 )
-FetchContent_MakeAvailable(anolis_protocol)
-set(ADPP_PROTO_IMPORT_ROOT "${anolis_protocol_SOURCE_DIR}/proto")
-set(ADPP_PROTO_V1_DIR "${ADPP_PROTO_IMPORT_ROOT}/anolis/deviceprovider/v1")
-set(ADPP_PROTO_ENVELOPE "${ADPP_PROTO_V1_DIR}/envelope.proto")
-
-if(NOT EXISTS "${ADPP_PROTO_ENVELOPE}")
-    message(FATAL_ERROR
-        "ADPP proto not found at: ${ADPP_PROTO_ENVELOPE}\n"
-        "FetchContent source dir: ${anolis_protocol_SOURCE_DIR}\n"
-        "Set FETCHCONTENT_SOURCE_DIR_ANOLIS_PROTOCOL to use a local clone."
-    )
-endif()
-
-file(GLOB ADPP_PROTOS "${ADPP_PROTO_V1_DIR}/*.proto")
-if(NOT ADPP_PROTOS)
-    message(FATAL_ERROR
-        "No ADPP v1 proto files found under: ${ADPP_PROTO_V1_DIR}\n"
-        "Expected split protocol layout from anolis-protocol PR #1."
-    )
-endif()
-
-add_library(adpp_proto OBJECT ${ADPP_PROTOS})
-target_link_libraries(adpp_proto PUBLIC protobuf::libprotobuf)
-target_include_directories(adpp_proto SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
-protobuf_generate(
-    TARGET adpp_proto
-    LANGUAGE cpp
-    IMPORT_DIRS ${ADPP_PROTO_IMPORT_ROOT}
-    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-# Compatibility shim: keep existing includes of "protocol.pb.h" working after proto split.
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/protocol.pb.h"
-"#pragma once\n"
-"#include \"anolis/deviceprovider/v1/call.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/envelope.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/handshake.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/health.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/inventory.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/readiness.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/status.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/telemetry.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/types.pb.h\"\n"
-"#include \"anolis/deviceprovider/v1/value.pb.h\"\n")
+FetchContent_MakeAvailable(anolis_provider_sdk)
 
 set(SOURCES
     # Configuration
     src/config.cpp
 
-    # Layer 1: Protocol core
+    # Layer 1: Protocol core (transport/handlers/runtime/health now in the SDK)
     src/core/main.cpp
-    src/core/handlers.cpp
-    src/core/health.cpp
+    src/core/sim_provider_runtime.cpp
     src/logging/logger.cpp
-    src/core/runtime_state.cpp
-    src/core/transport/framed_stdio.cpp
 
     # Layer 2: Devices
     src/devices/common/device_manager.cpp
@@ -237,7 +195,7 @@ if(ENABLE_FLUXGRAPH)
 endif()
 
 target_link_libraries(anolis-provider-sim PRIVATE
-    adpp_proto
+    anolis::provider_sdk
     protobuf::libprotobuf
     yaml-cpp::yaml-cpp
 )

@@ -14,14 +14,12 @@
 #include <io.h>
 #endif
 
+#include "anolis/provider_sdk/runtime.hpp"
 #include "config.hpp"
-#include "core/handlers.hpp"
-#include "core/runtime_state.hpp"
-#include "core/transport/framed_stdio.hpp"
+#include "core/sim_provider_runtime.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
 #include "logging/logger.hpp"
-#include "protocol.pb.h"
 #include "simulation/engines/local_engine.hpp"
 #include "simulation/engines/null_engine.hpp"
 #include "simulation/engines/remote_engine.hpp"
@@ -71,17 +69,7 @@ static std::unique_ptr<sim_engine::SimulationEngine> create_engine(const anolis_
     throw std::runtime_error("Unknown simulation mode");
 }
 
-// Stops the physics ticker on every scope exit. Declared once the request loop
-// is reachable so the parse/serialize/write-failure returns (exit 3/4/5) tear
-// the ticker down too, not just the clean-EOF path. stop_physics() is a no-op
-// when the ticker was never started.
-class PhysicsShutdownGuard {
-public:
-    ~PhysicsShutdownGuard() { sim_devices::stop_physics(); }
-};
-
 int main(int argc, char **argv) {
-    anolis_provider_sim::runtime::reset();
     anolis_provider_sim::logging::Logger::init_from_env();
 
     std::optional<std::string> config_path;
@@ -127,12 +115,12 @@ int main(int argc, char **argv) {
     }
 
     anolis_provider_sim::ProviderConfig config;
+    anolis_provider_sim::DeviceInitializationReport init_report;
     try {
         PSIM_LOG_INFO("Main", "loading configuration from: " + *config_path);
         config = anolis_provider_sim::load_config(*config_path);
 
-        const auto init_report = anolis_provider_sim::DeviceFactory::initialize_from_config(config);
-        anolis_provider_sim::runtime::set_startup_report(init_report);
+        init_report = anolis_provider_sim::DeviceFactory::initialize_from_config(config);
         PSIM_LOG_INFO(
             "Main", "startup_policy=" + std::string(config.startup_policy == anolis_provider_sim::StartupPolicy::Strict
                                                         ? "strict"
@@ -200,10 +188,6 @@ int main(int argc, char **argv) {
     set_binary_mode_stdio();
     PSIM_LOG_INFO("Main", "starting (transport=stdio+uint32_le)");
 
-    // Tear down the physics ticker on any exit from the serving loop below
-    // (clean EOF, read error, and the parse/serialize/write-failure returns).
-    PhysicsShutdownGuard physics_shutdown_guard;
-
     if (crash_after_sec > 0.0) {
         PSIM_LOG_WARN("Main", "CHAOS MODE: will crash after " + std::to_string(crash_after_sec) + " seconds");
         std::thread([crash_after_sec]() {
@@ -213,74 +197,17 @@ int main(int argc, char **argv) {
         }).detach();
     }
 
-    std::vector<uint8_t> frame;
-    std::string io_err;
-    // ADPP L2 §3.2: a non-Hello request received before a successful Hello is
-    // rejected with CODE_FAILED_PRECONDITION. The session is this process's stdio
-    // stream, so a local flag suffices.
-    bool hello_completed = false;
+    // The SDK run-loop owns the transport, the §3.2 Hello-gate, dispatch, and exit
+    // codes; sim supplies the device/inventory/readiness seam + the physics
+    // lifecycle hooks. on_wait_ready starts the ticker (same ordering as before);
+    // on_shutdown tears it down on every loop exit (was PhysicsShutdownGuard).
+    anolis_provider_sim::SimProviderRuntime sim_runtime(init_report);
+    anolis::provider_sdk::LifecycleHooks hooks;
+    hooks.on_wait_ready = [] {
+        PSIM_LOG_INFO("Main", "waiting ready -> starting physics ticker");
+        sim_devices::start_physics();
+    };
+    hooks.on_shutdown = [] { sim_devices::stop_physics(); };
 
-    while (true) {
-        frame.clear();
-        const bool ok = anolis_provider_sim::transport::read_frame(std::cin, frame, io_err);
-        if (!ok) {
-            if (io_err.empty()) {
-                PSIM_LOG_INFO("Main", "EOF on stdin; exiting cleanly");
-                return 0;
-            }
-            PSIM_LOG_ERROR("Main", std::string("read_frame error: ") + io_err);
-            return 2;
-        }
-
-        anolis::deviceprovider::v1::Request req;
-        if (!req.ParseFromArray(frame.data(), static_cast<int>(frame.size()))) {
-            PSIM_LOG_ERROR("Main", "failed to parse Request protobuf");
-            return 3;
-        }
-
-        anolis::deviceprovider::v1::Response resp;
-        resp.set_request_id(req.request_id());
-        resp.mutable_status()->set_code(anolis::deviceprovider::v1::Status::CODE_INTERNAL);
-        resp.mutable_status()->set_message("uninitialized");
-
-        if (req.has_hello()) {
-            anolis_provider_sim::handlers::handle_hello(req.hello(), resp);
-            if (resp.status().code() == anolis::deviceprovider::v1::Status::CODE_OK) {
-                hello_completed = true;
-            }
-        } else if (!hello_completed) {
-            // ADPP L2 §3.2: reject (do not process) any non-Hello request before Hello.
-            resp.mutable_status()->set_code(anolis::deviceprovider::v1::Status::CODE_FAILED_PRECONDITION);
-            resp.mutable_status()->set_message("Hello handshake required before any other request");
-        } else if (req.has_wait_ready()) {
-            anolis_provider_sim::handlers::handle_wait_ready(req.wait_ready(), resp);
-            PSIM_LOG_INFO("Main", "waiting ready -> starting physics ticker");
-            sim_devices::start_physics();
-            PSIM_LOG_INFO("Main", "physics ticker started");
-        } else if (req.has_list_devices()) {
-            anolis_provider_sim::handlers::handle_list_devices(req.list_devices(), resp);
-        } else if (req.has_describe_device()) {
-            anolis_provider_sim::handlers::handle_describe_device(req.describe_device(), resp);
-        } else if (req.has_read_signals()) {
-            anolis_provider_sim::handlers::handle_read_signals(req.read_signals(), resp);
-        } else if (req.has_call()) {
-            anolis_provider_sim::handlers::handle_call(req.call(), resp);
-        } else if (req.has_get_health()) {
-            anolis_provider_sim::handlers::handle_get_health(req.get_health(), resp);
-        } else {
-            anolis_provider_sim::handlers::handle_unimplemented(resp);
-        }
-
-        std::string resp_bytes;
-        if (!resp.SerializeToString(&resp_bytes)) {
-            PSIM_LOG_ERROR("Main", "failed to serialize Response protobuf");
-            return 4;
-        }
-
-        if (!anolis_provider_sim::transport::write_frame(
-                std::cout, reinterpret_cast<const uint8_t *>(resp_bytes.data()), resp_bytes.size(), io_err)) {
-            PSIM_LOG_ERROR("Main", std::string("write_frame error: ") + io_err);
-            return 5;
-        }
-    }
+    return anolis::provider_sdk::run_loop(std::cin, std::cout, sim_runtime, hooks);
 }
