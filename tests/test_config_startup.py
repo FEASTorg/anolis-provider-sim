@@ -235,6 +235,16 @@ def test_degraded_startup_continue(provider_exe: Path) -> None:
             bad_state_name = protocol.DeviceHealth.State.Name(health_map["bad0"].state)
             assert bad_state_name == "STATE_UNREACHABLE", f"Expected bad0 STATE_UNREACHABLE, got {bad_state_name}"
             assert "startup initialization failed" in health_map["bad0"].message
+            # SDK#9: the explicitly-failed device carries the restored per-device metrics
+            # (and proves the SDK enumerates the explicit failure — coverage guard-rail).
+            bad_metrics = health_map["bad0"].metrics
+            assert bad_metrics.get("impl") == "sim", f"Expected bad0 metrics[impl]=sim, got {bad_metrics.get('impl')!r}"
+            assert bad_metrics.get("startup_failure") == "true", (
+                f"Expected bad0 metrics[startup_failure]=true, got {bad_metrics.get('startup_failure')!r}"
+            )
+            assert bad_metrics.get("device_type") == "does_not_exist", (
+                f"Expected bad0 metrics[device_type]=does_not_exist, got {bad_metrics.get('device_type')!r}"
+            )
 
             time.sleep(0.1)
             stderr_tail = client.output_tail(120)

@@ -76,6 +76,9 @@ def test_list_devices_with_health(client: AdppClient, protocol) -> bool:
         assert device_id in health_map, f"Missing device_health for {device_id}"
         state_name = protocol.DeviceHealth.State.Name(health_map[device_id].state)
         assert state_name == "STATE_OK", f"Expected STATE_OK for {device_id}, got {state_name}"
+        # SDK#9: per-device metrics restored — every device carries impl=sim.
+        impl = health_map[device_id].metrics.get("impl")
+        assert impl == "sim", f"Expected per-device metrics[impl]=sim for {device_id}, got {impl!r}"
 
     print(f"OK: include_health returned {len(health_entries)} health entries")
     return True
@@ -317,6 +320,9 @@ def test_get_health_startup_state(client: AdppClient, protocol) -> bool:
         assert device_id in device_health, f"Missing device health entry for {device_id}"
         state_name = protocol.DeviceHealth.State.Name(device_health[device_id].state)
         assert state_name == "STATE_OK", f"Expected STATE_OK for {device_id}, got {state_name}"
+        # SDK#9: per-device metrics restored — every device carries impl=sim.
+        impl = device_health[device_id].metrics.get("impl")
+        assert impl == "sim", f"Expected per-device metrics[impl]=sim for {device_id}, got {impl!r}"
 
     print("OK: GetHealth startup state and metrics are populated")
     return True
