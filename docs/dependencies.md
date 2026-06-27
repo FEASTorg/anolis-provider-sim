@@ -5,7 +5,7 @@ This document defines provider-sim policy for dependencies, CI lane tiers, prese
 ## vcpkg Policy
 
 1. `vcpkg-configuration.json` is the baseline source of truth.
-2. Lockfile pinning is deferred for now.
+2. Lockfile pinning is deferred for now (org decision tracked in anolishq/.github#93).
 3. Determinism is enforced via baseline pinning plus reviewed `vcpkg.json` changes.
 4. Windows builds use pinned MSVC/vcpkg ABI settings via `x64-windows-v143` overlay triplet.
 
