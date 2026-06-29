@@ -189,9 +189,18 @@ target_include_directories(anolis-provider-sim PRIVATE
 )
 
 if(ENABLE_FLUXGRAPH)
-    target_include_directories(anolis-provider-sim PRIVATE
+    # Generated protobuf/gRPC headers are third-party, not first-party sources.
+    # Mark the dir SYSTEM so their warnings aren't policed by /W4 /WX or -Werror
+    # when first-party TUs include them (e.g. C4267 from protobuf inline
+    # accessors, which surfaces in fluxgraph.pb.h after a protobuf bump). The
+    # /W0 set_source_files_properties above only covers the generated .cc TUs.
+    target_include_directories(anolis-provider-sim SYSTEM PRIVATE
         ${FLUXGRAPH_PROTO_OUT}
     )
+    if(MSVC)
+        # SYSTEM emits /external:I; compile external headers at warning level 0.
+        target_compile_options(anolis-provider-sim PRIVATE /external:W0)
+    endif()
 endif()
 
 target_link_libraries(anolis-provider-sim PRIVATE
