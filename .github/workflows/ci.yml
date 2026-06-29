@@ -186,7 +186,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@b2d9b16b9accee0e58d37e7d05add68b6621961a # v2.2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
         with:
           triplet: x64-linux-static
 
@@ -214,7 +214,7 @@ jobs:
           sudo apt-get install -y ninja-build g++
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@b2d9b16b9accee0e58d37e7d05add68b6621961a # v2.2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
         with:
           triplet: x64-linux-static
 
@@ -284,7 +284,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@b2d9b16b9accee0e58d37e7d05add68b6621961a # v2.2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
         with:
           triplet: x64-windows-v145
           # FluxGraph-OFF shares the Windows binary-cache key with the
@@ -326,7 +326,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@b2d9b16b9accee0e58d37e7d05add68b6621961a # v2.2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
         with:
           triplet: x64-windows-v145
 
@@ -422,7 +422,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@b2d9b16b9accee0e58d37e7d05add68b6621961a # v2.2
+        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
         with:
           triplet: x64-linux-static
 
