@@ -305,13 +305,17 @@ jobs:
 
   windows-fluxgraph-build:
     name: Windows Release (FluxGraph ON, strict build)
-    # Build-only strict validation, moved off the per-PR path to nightly +
-    # on-demand. Its Windows-grpc binary cache is the structural LRU eviction
-    # victim under the repo's 10 GB Actions-cache limit (it is the least-accessed
-    # cache), so per-PR runs intermittently cold-rebuilt grpc (~2 h) and gated
-    # auto-merge. Windows compile stays covered per-PR by the FluxGraph-OFF lane,
-    # and Linux+FluxGraph by linux-fluxgraph; the Windows+FluxGraph intersection
-    # is validated here nightly. See anolishq/anolis-provider-sim#83.
+    # Build-only strict validation, kept off the per-PR path (nightly +
+    # on-demand) because a cold Windows+FluxGraph build compiles grpc from source
+    # (~2 h). NOTE: this lane previously rebuilt grpc every run for a different
+    # reason — the vcpkg binary-cache key carried an empty image-version segment
+    # (env.ImageVersion never resolved), so it never rotated on runner-image/ABI
+    # bumps; an ABI-stale cache hit the key exactly, restored 0 packages, and
+    # actions/cache then skipped the post-save (permanent rebuild, NOT 10 GB LRU
+    # eviction as once assumed). Fixed in setup-vcpkg v2.3 (anolishq/.github#96).
+    # Windows compile stays covered per-PR by the FluxGraph-OFF lane, and
+    # Linux+FluxGraph by linux-fluxgraph; the Windows+FluxGraph intersection is
+    # validated here nightly. See anolishq/anolis-provider-sim#83.
     # On pull_request/push this job is skipped → the `ok` gate sees 'skipped'
     # (not failure) and stays green.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
