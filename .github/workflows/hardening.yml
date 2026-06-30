@@ -58,6 +58,9 @@ jobs:
         uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
+          # Subset of the linux-fluxgraph closure (no grpc/fluxgraph); read-only
+          # so it can't clobber the shared x64-linux-static key (see ci.yml).
+          cache-write: "false"
 
       - name: Configure
         run: cmake --preset ci-tsan
