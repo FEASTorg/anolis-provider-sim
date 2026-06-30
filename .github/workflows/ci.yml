@@ -186,9 +186,15 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
+        uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
+          # Subset of the linux-fluxgraph closure (no grpc/fluxgraph). Read-only
+          # so this faster lane can't win the save race and freeze the shared key
+          # without grpc; linux-fluxgraph is the sole x64-linux-static writer.
+          # Required since v2.4 (#97) anchors the key to the consumer manifest, so
+          # these lanes — previously key-divergent — now share one key.
+          cache-write: "false"
 
       - name: Build
         run: |
@@ -214,9 +220,15 @@ jobs:
           sudo apt-get install -y ninja-build g++
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
+        uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
+          # Subset of the linux-fluxgraph closure (no grpc/fluxgraph). Read-only
+          # so this faster lane can't win the save race and freeze the shared key
+          # without grpc; linux-fluxgraph is the sole x64-linux-static writer.
+          # Required since v2.4 (#97) anchors the key to the consumer manifest, so
+          # these lanes — previously key-divergent — now share one key.
+          cache-write: "false"
 
       - name: Build provider (no hardware)
         run: |
@@ -284,7 +296,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
+        uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-windows-v145
           # FluxGraph-OFF shares the Windows binary-cache key with the
@@ -330,7 +342,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
+        uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-windows-v145
 
@@ -426,7 +438,7 @@ jobs:
           python -m pip install -r requirements-lock.txt
 
       - name: Setup vcpkg
-        uses: anolishq/.github/.github/actions/setup-vcpkg@16fe50768ba29a6a00bef572efd766c334c4eba4 # v2.3
+        uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
 
