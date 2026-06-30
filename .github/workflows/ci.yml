@@ -189,6 +189,12 @@ jobs:
         uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
+          # Subset of the linux-fluxgraph closure (no grpc/fluxgraph). Read-only
+          # so this faster lane can't win the save race and freeze the shared key
+          # without grpc; linux-fluxgraph is the sole x64-linux-static writer.
+          # Required since v2.4 (#97) anchors the key to the consumer manifest, so
+          # these lanes — previously key-divergent — now share one key.
+          cache-write: "false"
 
       - name: Build
         run: |
@@ -217,6 +223,12 @@ jobs:
         uses: anolishq/.github/.github/actions/setup-vcpkg@a9b3d134acbcc7dcd6da02c1a345a1fbdca15064 # v2.4
         with:
           triplet: x64-linux-static
+          # Subset of the linux-fluxgraph closure (no grpc/fluxgraph). Read-only
+          # so this faster lane can't win the save race and freeze the shared key
+          # without grpc; linux-fluxgraph is the sole x64-linux-static writer.
+          # Required since v2.4 (#97) anchors the key to the consumer manifest, so
+          # these lanes — previously key-divergent — now share one key.
+          cache-write: "false"
 
       - name: Build provider (no hardware)
         run: |
