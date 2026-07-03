@@ -107,6 +107,15 @@
       }
     },
     {
+      "name": "ci-linux-arm64-release-strict",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "arm64-linux",
+        "ANOLIS_PROVIDER_SIM_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
       "name": "ci-windows-release-strict",
       "inherits": "ci-windows-release",
       "cacheVariables": {
@@ -186,6 +195,10 @@
     {
       "name": "ci-linux-release-strict",
       "configurePreset": "ci-linux-release-strict"
+    },
+    {
+      "name": "ci-linux-arm64-release-strict",
+      "configurePreset": "ci-linux-arm64-release-strict"
     },
     {
       "name": "ci-windows-release-strict",
@@ -282,6 +295,13 @@
     {
       "name": "ci-linux-release-strict",
       "configurePreset": "ci-linux-release-strict",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-arm64-release-strict",
+      "configurePreset": "ci-linux-arm64-release-strict",
       "output": {
         "outputOnFailure": true
       }
