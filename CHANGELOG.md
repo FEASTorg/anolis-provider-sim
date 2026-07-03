@@ -13,6 +13,15 @@ commit messages only.
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-07-03
+
+### Added
+
+- linux-arm64 release assets (native arm64 build + tests) — sim was the only
+  provider not installable on Raspberry Pi from releases; found by the
+  workbench deploy-parity gate's arm64 lane. (#108)
+
+
 ## [0.2.5] - 2026-06-22
 
 ### Added
