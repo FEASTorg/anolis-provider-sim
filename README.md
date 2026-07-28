@@ -298,21 +298,16 @@ import requests
 BASE_URL = "http://localhost:8080"
 
 # Inject device unavailable for 5 seconds
-requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/inject_device_unavailable", json={
-    "args": {
-        "device_id": "tempctl0",
-        "duration_ms": 5000
-    }
-})
+requests.post(
+    f"{BASE_URL}/v0/call/sim0/chaos_control/inject_device_unavailable",
+    json={"args": {"device_id": "tempctl0", "duration_ms": 5000}},
+)
 
 # Inject 50% failure rate on set_setpoint (function_id=2)
-requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/inject_call_failure", json={
-    "args": {
-        "device_id": "tempctl0",
-        "function_id": "2",
-        "failure_rate": 0.5
-    }
-})
+requests.post(
+    f"{BASE_URL}/v0/call/sim0/chaos_control/inject_call_failure",
+    json={"args": {"device_id": "tempctl0", "function_id": "2", "failure_rate": 0.5}},
+)
 
 # Clear all faults
 requests.post(f"{BASE_URL}/v0/call/sim0/chaos_control/clear_faults", json={"args": {}})
