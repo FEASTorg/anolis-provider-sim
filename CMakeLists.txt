@@ -69,14 +69,15 @@ include(FetchContent)
 # overrides with -DFETCHCONTENT_SOURCE_DIR_ANOLIS_PROVIDER_SDK=<path-to-sdk-clone>.
 FetchContent_Declare(
     anolis_provider_sdk
-    URL https://github.com/anolishq/anolis-provider-sdk/releases/download/v0.1.2/anolis-provider-sdk-0.1.2-source.tar.gz
-    URL_HASH SHA256=06c2620e3d62a250a72dcf44955cd65e6f13b8ce13b752bbd5bf4cda07ed2d85
+    URL https://github.com/anolishq/anolis-provider-sdk/releases/download/v0.2.0/anolis-provider-sdk-0.2.0-source.tar.gz
+    URL_HASH SHA256=9e4a57f2e95aa142b22a2a3eabd6912210bb94b914591aeb4bf54923d5c1d93b
 )
 FetchContent_MakeAvailable(anolis_provider_sdk)
 
 set(SOURCES
     # Configuration
     src/config.cpp
+    src/config_schema.cpp
 
     # Layer 1: Protocol core (transport/handlers/runtime/health now in the SDK)
     src/core/main.cpp
@@ -205,6 +206,7 @@ endif()
 
 target_link_libraries(anolis-provider-sim PRIVATE
     anolis::provider_sdk
+    anolis::provider_sdk_config
     protobuf::libprotobuf
     yaml-cpp::yaml-cpp
 )

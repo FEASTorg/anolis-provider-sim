@@ -13,6 +13,34 @@ commit messages only.
 
 ## [Unreleased]
 
+### Added
+
+- `--config-schema` (#115, executable profile v1 §2): prints the provider's
+  config JSON Schema in the versioned envelope, emitted from the SDK v0.2.0
+  declare-once toolkit. The SAME declaration now drives `--check-config`
+  validation (all errors reported at once, with dotted paths) and typed value
+  extraction — the advertised schema and the enforced validation cannot drift.
+  The simulation-mode key matrix (inert / non_interacting / sim) is declared
+  as schema conditionals; per-device-type config subtrees remain open and are
+  passed through to the device implementations unchanged. The one
+  non-declarable rule (devices[].physics_bindings only under mode=sim) stays
+  in load_config, documented in the schema header.
+
+### Changed
+
+- Config validation is schema-honest and STRICTER in corners the old
+  hand-written parser let through (all shipped configs unaffected): quoted
+  numerics (`tick_rate_hz: "10"`) and stoi-style trailing junk are type
+  errors; plain non-string scalars against string fields are type errors
+  (notably numeric-looking `devices[].id: 123` must now be quoted); duplicated
+  map keys are rejected outright; complex (non-scalar) YAML map keys are
+  rejected. The historically-open surfaces
+  stay open: unknown ROOT keys and unknown per-device keys are still
+  accepted (multi-provider files and free-form device subtrees rely on it).
+- SDK pin v0.1.2 → v0.2.0 (picks up the config toolkit; the 0.1.4/0.1.5
+  health/i2c additions are defaulted hooks sim does not use).
+
+
 ## [0.2.6] - 2026-07-03
 
 ### Added

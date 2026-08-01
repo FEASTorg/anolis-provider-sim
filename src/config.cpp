@@ -1,27 +1,29 @@
 /**
  * @file config.cpp
- * @brief YAML loading and validation for provider-sim configuration.
+ * @brief Config loading for anolis-provider-sim, driven by the declare-once
+ * schema (config_schema.cpp).
  *
- * The loader validates mode-specific simulation keys, rejects deprecated or
- * unknown simulation settings, and preserves device-type-specific config
- * subtrees for later device construction.
+ * Validation runs the SDK validator against the SAME schema `--config-schema`
+ * advertises, and value extraction uses the SDK's typed helpers (the same
+ * scalar resolver as the validator) — so the advertised contract, the enforced
+ * validation, and the parsed values cannot drift apart. The one rule the
+ * schema cannot express (conditionals see sibling keys only) stays here:
+ * `devices[].physics_bindings` is only valid when `simulation.mode` is `sim`.
  */
 
 #include "config.hpp"
 
 #include <filesystem>
 #include <format>
-#include <iostream>
-#include <regex>
-#include <set>
 #include <stdexcept>
+
+#include "anolis/provider_sdk/config_validate.hpp"
+#include "config_schema.hpp"
 
 namespace anolis_provider_sim {
 
 namespace fs = std::filesystem;
-namespace {
-constexpr const char *kReservedChaosControlId = "chaos_control";
-}
+namespace sdkcfg = anolis::provider_sdk::config;
 
 SimulationMode parse_simulation_mode(const std::string &mode_str) {
     if (mode_str == "non_interacting") {
@@ -55,239 +57,64 @@ ProviderConfig load_config(const std::string &path) {
         throw std::runtime_error(std::format("Failed to load config file '{}': {}", path, e.what()));
     }
 
+    // Declare-once validation: every structural/semantic error, collected at
+    // once, against the schema `--config-schema` advertises.
+    const auto errors = sdkcfg::validate(provider_schema(), yaml);
+    if (!errors.empty()) {
+        throw std::runtime_error(std::format("[CONFIG] Invalid config '{}':\n{}", path, sdkcfg::format_errors(errors)));
+    }
+
     ProviderConfig config;
     config.config_file_path = fs::absolute(path).string();
 
-    // The provider section is optional, but when present its name must be a
-    // stable identifier because it may appear in multi-provider simulation
-    // setups.
-    if (yaml["provider"]) {
-        if (!yaml["provider"].IsMap()) {
-            throw std::runtime_error("[CONFIG] 'provider' section must be a map");
-        }
-        if (!yaml["provider"]["name"]) {
-            throw std::runtime_error(
-                "[CONFIG] 'provider.name' is required when "
-                "'provider' section is present");
-        }
-        std::string provider_name;
-        try {
-            provider_name = yaml["provider"]["name"].as<std::string>();
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error("[CONFIG] Invalid provider.name: must be a string");
-        }
-        const std::regex valid_pattern("^[A-Za-z0-9_.-]{1,64}$");
-        if (!std::regex_match(provider_name, valid_pattern)) {
-            throw std::runtime_error(
-                "[CONFIG] Invalid provider.name: must match "
-                "^[A-Za-z0-9_.-]{1,64}$");
-        }
-        config.provider_name = provider_name;
+    // Post-validation extraction with the SDK's typed helpers — validation
+    // guarantees presence/type for required fields, so absent optionals are
+    // the only nullopt cases here.
+    if (const auto name = sdkcfg::as_string(yaml["provider"]["name"])) {
+        config.provider_name = *name;
+    }
+    if (const auto policy = sdkcfg::as_string(yaml["startup_policy"])) {
+        config.startup_policy = parse_startup_policy(*policy);
     }
 
-    // Parse optional startup policy (default: strict)
-    if (yaml["startup_policy"]) {
-        try {
-            const std::string startup_policy_str = yaml["startup_policy"].as<std::string>();
-            config.startup_policy = parse_startup_policy(startup_policy_str);
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error("[CONFIG] Invalid startup_policy: must be a string");
-        } catch (const std::runtime_error &e) {
-            throw std::runtime_error("[CONFIG] " + std::string(e.what()));
-        }
-    }
-
-    // Device entries preserve all type-specific keys so the loader can validate
-    // the common envelope here without needing to understand every device schema.
-    if (yaml["devices"]) {
-        if (!yaml["devices"].IsSequence()) {
-            throw std::runtime_error("'devices' must be a sequence");
-        }
-
-        std::set<std::string> seen_device_ids;
-        for (std::size_t i = 0; i < yaml["devices"].size(); ++i) {
-            const auto &device_node = yaml["devices"][i];
-            if (!device_node.IsMap()) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: entry must be a map", i));
-            }
-
+    // Device entries preserve all type-specific keys so the corresponding
+    // device implementation can validate and consume its own subtree.
+    const YAML::Node devices = yaml["devices"];
+    if (devices.IsDefined() && devices.IsSequence()) {
+        for (const auto &device_node : devices) {
             DeviceSpec spec;
-
-            // Extract required fields: id and type
-            if (!device_node["id"]) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: missing required field 'id'", i));
+            if (const auto id = sdkcfg::as_string(device_node["id"])) {
+                spec.id = *id;
             }
-            if (!device_node["type"]) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: missing required field 'type'", i));
+            if (const auto type = sdkcfg::as_string(device_node["type"])) {
+                spec.type = *type;
             }
-
-            try {
-                spec.id = device_node["id"].as<std::string>();
-                spec.type = device_node["type"].as<std::string>();
-            } catch (const YAML::Exception &e) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: {}", i, e.what()));
-            }
-
-            if (spec.id.empty()) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: 'id' must not be empty", i));
-            }
-            if (spec.type.empty()) {
-                throw std::runtime_error(std::format("[CONFIG] Invalid devices[{}]: 'type' must not be empty", i));
-            }
-            if (spec.id == kReservedChaosControlId) {
-                throw std::runtime_error(
-                    "[CONFIG] devices[].id 'chaos_control' is reserved and cannot be "
-                    "configured explicitly");
-            }
-
-            if (!seen_device_ids.insert(spec.id).second) {
-                throw std::runtime_error(std::format("[CONFIG] Duplicate device id: '{}'", spec.id));
-            }
-
-            // Store all other fields as configuration parameters
             for (const auto &kv : device_node) {
-                std::string key = kv.first.as<std::string>();
+                const std::string key = kv.first.Scalar();
                 if (key != "id" && key != "type") {
                     spec.config[key] = kv.second;
                 }
             }
-
             config.devices.push_back(spec);
         }
     }
 
-    // Parse simulation section - REQUIRED
-    if (!yaml["simulation"]) {
-        throw std::runtime_error("[CONFIG] Missing required 'simulation' section");
+    const YAML::Node simulation = yaml["simulation"];
+    if (const auto mode = sdkcfg::as_string(simulation["mode"])) {
+        config.simulation_mode = parse_simulation_mode(*mode);
+    }
+    config.tick_rate_hz = sdkcfg::as_double(simulation["tick_rate_hz"]);
+    if (const auto physics_config = sdkcfg::as_string(simulation["physics_config"])) {
+        config.physics_config_path = *physics_config;
+    }
+    config.ambient_temp_c = sdkcfg::as_double(simulation["ambient_temp_c"]);
+    if (const auto ambient_signal = sdkcfg::as_string(simulation["ambient_signal_path"])) {
+        config.ambient_signal_path = *ambient_signal;
     }
 
-    if (!yaml["simulation"].IsMap()) {
-        throw std::runtime_error("[CONFIG] 'simulation' section must be a map");
-    }
-
-    // Parse simulation.mode - REQUIRED
-    if (!yaml["simulation"]["mode"]) {
-        throw std::runtime_error("[CONFIG] Missing required 'simulation.mode'");
-    }
-
-    try {
-        std::string mode_str = yaml["simulation"]["mode"].as<std::string>();
-        config.simulation_mode = parse_simulation_mode(mode_str);
-    } catch (const std::exception &e) {
-        throw std::runtime_error("[CONFIG] Invalid simulation.mode: " + std::string(e.what()));
-    }
-
-    std::set<std::string> provided_simulation_keys;
-    const std::set<std::string> known_simulation_keys = {"mode", "tick_rate_hz", "physics_config", "ambient_temp_c",
-                                                         "ambient_signal_path"};
-    for (const auto &kv : yaml["simulation"]) {
-        const std::string key = kv.first.as<std::string>();
-        provided_simulation_keys.insert(key);
-
-        if (key == "noise_enabled" || key == "update_rate_hz") {
-            throw std::runtime_error(std::format("[CONFIG] simulation.{} is no longer supported", key));
-        }
-
-        if (known_simulation_keys.find(key) == known_simulation_keys.end()) {
-            throw std::runtime_error(std::format("[CONFIG] Unknown simulation key: '{}'", key));
-        }
-    }
-
-    // Tick rate is mode-dependent: ignored in inert mode and required in the two
-    // modes that actually run a ticking simulation loop.
-    if (yaml["simulation"]["tick_rate_hz"]) {
-        double tick_rate = 0.0;
-        try {
-            tick_rate = yaml["simulation"]["tick_rate_hz"].as<double>();
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error(
-                "[CONFIG] simulation.tick_rate_hz must be "
-                "numeric in range [0.1, 1000.0]");
-        }
-
-        // Validate bounds
-        if (tick_rate < 0.1 || tick_rate > 1000.0) {
-            throw std::runtime_error("[CONFIG] simulation.tick_rate_hz must be in range [0.1, 1000.0]");
-        }
-
-        config.tick_rate_hz = tick_rate;
-    }
-
-    // Parse simulation.physics_config (required for sim mode)
-    if (yaml["simulation"]["physics_config"]) {
-        try {
-            config.physics_config_path = yaml["simulation"]["physics_config"].as<std::string>();
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error("[CONFIG] simulation.physics_config must be a string");
-        }
-
-        if (config.physics_config_path->empty()) {
-            throw std::runtime_error("[CONFIG] simulation.physics_config cannot be empty");
-        }
-    }
-
-    if (yaml["simulation"]["ambient_temp_c"]) {
-        try {
-            config.ambient_temp_c = yaml["simulation"]["ambient_temp_c"].as<double>();
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error("[CONFIG] simulation.ambient_temp_c must be numeric");
-        }
-    }
-
-    if (yaml["simulation"]["ambient_signal_path"]) {
-        try {
-            config.ambient_signal_path = yaml["simulation"]["ambient_signal_path"].as<std::string>();
-        } catch (const YAML::Exception &) {
-            throw std::runtime_error("[CONFIG] simulation.ambient_signal_path must be a string");
-        }
-
-        if (config.ambient_signal_path->empty()) {
-            throw std::runtime_error("[CONFIG] simulation.ambient_signal_path cannot be empty");
-        }
-    }
-
-    if (config.ambient_signal_path && !config.ambient_temp_c) {
-        throw std::runtime_error(
-            "[CONFIG] simulation.ambient_signal_path requires "
-            "simulation.ambient_temp_c");
-    }
-
-    const auto ensure_mode_allowed_keys = [&](const std::set<std::string> &keys, const std::string &mode_name) {
-        for (const auto &provided_key : provided_simulation_keys) {
-            if (keys.find(provided_key) == keys.end()) {
-                throw std::runtime_error(
-                    std::format("[CONFIG] simulation.{} is not valid for mode={}", provided_key, mode_name));
-            }
-        }
-    };
-
-    // Mode validation is explicit so unsupported combinations fail fast with a
-    // config error instead of silently degrading into another simulation mode.
-    switch (config.simulation_mode) {
-        case SimulationMode::NonInteracting:
-            ensure_mode_allowed_keys({"mode", "tick_rate_hz"}, "non_interacting");
-            if (!config.tick_rate_hz) {
-                throw std::runtime_error("[CONFIG] mode=non_interacting requires simulation.tick_rate_hz");
-            }
-            break;
-
-        case SimulationMode::Inert:
-            ensure_mode_allowed_keys({"mode"}, "inert");
-            break;
-
-        case SimulationMode::Sim:
-            ensure_mode_allowed_keys(
-                {"mode", "tick_rate_hz", "physics_config", "ambient_temp_c", "ambient_signal_path"}, "sim");
-            if (!config.tick_rate_hz) {
-                throw std::runtime_error("[CONFIG] mode=sim requires simulation.tick_rate_hz");
-            }
-            if (!config.physics_config_path) {
-                throw std::runtime_error("[CONFIG] mode=sim requires simulation.physics_config");
-            }
-            break;
-    }
-
-    // Validate physics_bindings are only used in sim mode
+    // Cross-scope rule the schema cannot express (conditionals see sibling
+    // keys only): physics_bindings is only meaningful under mode=sim, and a
+    // silently-ignored binding would mask config drift.
     if (config.simulation_mode != SimulationMode::Sim) {
         for (const auto &device : config.devices) {
             if (device.config.find("physics_bindings") != device.config.end()) {

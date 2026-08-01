@@ -14,8 +14,10 @@
 #include <io.h>
 #endif
 
+#include "anolis/provider_sdk/config.hpp"
 #include "anolis/provider_sdk/runtime.hpp"
 #include "config.hpp"
+#include "config_schema.hpp"
 #include "core/sim_provider_runtime.hpp"
 #include "devices/common/device_factory.hpp"
 #include "devices/common/device_manager.hpp"
@@ -82,6 +84,16 @@ int main(int argc, char **argv) {
 
         if (arg == "--version") {
             std::cout << ANOLIS_PROVIDER_SIM_VERSION << '\n';
+            return 0;
+        } else if (arg == "--config-schema") {
+            // Configless (executable profile v1 §2): the envelope is the only
+            // stdout output; diagnostics go to stderr. Handled before any
+            // other work can touch stdout.
+            anolis::provider_sdk::config::EnvelopeOptions options;
+            options.provider_name = "anolis-provider-sim";
+            options.extra_string_entries.emplace_back("provider_version", ANOLIS_PROVIDER_SIM_VERSION);
+            anolis::provider_sdk::config::write_config_schema_envelope(std::cout,
+                                                                       anolis_provider_sim::provider_schema(), options);
             return 0;
         } else if (arg == "--config" && i + 1 < argc) {
             config_path = argv[++i];

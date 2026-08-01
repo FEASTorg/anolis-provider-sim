@@ -8,6 +8,7 @@
 #include <string>
 
 #include "config.hpp"
+#include "config_schema.hpp"
 
 namespace anolis_provider_sim {
 namespace {
@@ -98,7 +99,7 @@ simulation:
   mode: non_interacting
   tick_rate_hz: 10.0
 )",
-                        "Duplicate device id: 'tempctl0'");
+                        "duplicate id");
 }
 
 TEST(ConfigParserTest, RejectsDeprecatedSimulationKey) {
@@ -124,7 +125,7 @@ simulation:
   tick_rate_hz: 10.0
   unknown_key: 123
 )",
-                        "Unknown simulation key: 'unknown_key'");
+                        "unknown key");
 }
 
 TEST(ConfigParserTest, RejectsAmbientSignalPathWithoutAmbientTemperature) {
@@ -139,7 +140,7 @@ simulation:
   physics_config: physics.yaml
   ambient_signal_path: environment/ambient_temp
 )",
-        "simulation.ambient_signal_path requires simulation.ambient_temp_c");
+        "ambient_temp_c: is required when ambient_signal_path is present");
 }
 
 TEST(ConfigParserTest, RejectsInvalidStartupPolicyValue) {
@@ -152,7 +153,28 @@ simulation:
   mode: non_interacting
   tick_rate_hz: 10.0
 )",
-                        "Invalid startup_policy");
+                        "invalid value");
+}
+
+TEST(ConfigParserTest, SchemaDefaultsAgreeWithBinaryDefaults) {
+    // The schema's advertised startup_policy default must be what the binary
+    // does when the key is absent (a workbench form renders from the schema).
+    const TempConfigFile config(R"(
+simulation:
+  mode: inert
+)");
+    const ProviderConfig parsed = load_config(config.path().string());
+    EXPECT_EQ(parsed.startup_policy, StartupPolicy::Strict);
+
+    bool checked_policy = false;
+    for (const auto &member : provider_schema().root().spec().members) {
+        if (member.key == "startup_policy" && member.field.has_value()) {
+            ASSERT_TRUE(member.field->spec().default_string.has_value());
+            EXPECT_EQ(parse_startup_policy(*member.field->spec().default_string), parsed.startup_policy);
+            checked_policy = true;
+        }
+    }
+    EXPECT_TRUE(checked_policy);
 }
 
 }  // namespace anolis_provider_sim

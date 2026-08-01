@@ -2,6 +2,7 @@ add_executable(provider_unit_tests
     config_parser_test.cpp
     logger_test.cpp
     ${CMAKE_SOURCE_DIR}/src/config.cpp
+    ${CMAKE_SOURCE_DIR}/src/config_schema.cpp
     ${CMAKE_SOURCE_DIR}/src/logging/logger.cpp
 )
 
@@ -11,6 +12,7 @@ target_include_directories(provider_unit_tests PRIVATE
 
 target_link_libraries(provider_unit_tests PRIVATE
     GTest::gtest_main
+    anolis::provider_sdk_config
     yaml-cpp::yaml-cpp
 )
 
