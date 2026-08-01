@@ -67,7 +67,7 @@ def test_duplicate_device_id(provider_exe: Path) -> None:
         expect_startup_failure(
             provider_exe,
             cfg,
-            ["Duplicate device id: 'tempctl0'"],
+            ["duplicate id 'tempctl0'"],
         )
 
 
@@ -89,7 +89,7 @@ def test_unknown_simulation_key(provider_exe: Path) -> None:
         expect_startup_failure(
             provider_exe,
             cfg,
-            ["Unknown simulation key: 'bogus_key'"],
+            ["simulation.bogus_key: unknown key"],
         )
 
 
@@ -156,7 +156,7 @@ def test_ambient_path_requires_temp(provider_exe: Path) -> None:
         expect_startup_failure(
             provider_exe,
             cfg,
-            ["simulation.ambient_signal_path requires simulation.ambient_temp_c"],
+            ["simulation.ambient_temp_c: is required when ambient_signal_path is present"],
         )
 
 
