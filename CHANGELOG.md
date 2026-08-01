@@ -31,8 +31,10 @@ commit messages only.
 - Config validation is schema-honest and STRICTER in corners the old
   hand-written parser let through (all shipped configs unaffected): quoted
   numerics (`tick_rate_hz: "10"`) and stoi-style trailing junk are type
-  errors; plain non-string scalars against string fields are type errors;
-  duplicated map keys are rejected outright. The historically-open surfaces
+  errors; plain non-string scalars against string fields are type errors
+  (notably numeric-looking `devices[].id: 123` must now be quoted); duplicated
+  map keys are rejected outright; complex (non-scalar) YAML map keys are
+  rejected. The historically-open surfaces
   stay open: unknown ROOT keys and unknown per-device keys are still
   accepted (multi-provider files and free-form device subtrees rely on it).
 - SDK pin v0.1.2 → v0.2.0 (picks up the config toolkit; the 0.1.4/0.1.5

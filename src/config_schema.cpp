@@ -56,7 +56,7 @@ cfg::Schema build_schema() {
                          .description("Required for the ticking modes (non_interacting, sim).")
                          .min_number(0.1)
                          .max_number(1000.0)
-                         .default_number(10.0));
+                         .placeholder("10"));
     simulation.field(cfg::string_field("physics_config")
                          .non_empty()
                          .title("Physics config path")
